@@ -11,7 +11,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { getAllReports } from '@/lib/services/reportService';
+import { useReports } from '@/lib/hooks/useReports';
+import { Spinner } from '@/components/ui/spinner';
 
 // Tipos para los filtros y denuncias
 interface ReportFilters {
@@ -56,42 +57,19 @@ export default function ReportsPage() {
     searchTerm: searchParams.get('search') || '',
   });
   
-  // Estado para los datos
-  const [reports, setReports] = useState<Report[]>([]);
+  // Usar React Query para cargar los datos
+  const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
+  const { data, isLoading, isError, error } = useReports(companyId);
+  
+  // Estado para los reportes filtrados y seleccionados
   const [filteredReports, setFilteredReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   
-  // Cargar las denuncias
+  // Aplicar filtros cuando cambien los datos o los filtros
   useEffect(() => {
-    async function fetchReports() {
-      try {
-        setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        const result = await getAllReports(companyId);
-        
-        if (result.success) {
-          setReports(result.reports);
-        } else {
-          setError(result.error || 'Error al cargar las denuncias');
-        }
-      } catch (error) {
-        console.error('Error al cargar denuncias:', error);
-        setError('Ha ocurrido un error al cargar las denuncias');
-      } finally {
-        setLoading(false);
-      }
-    }
+    if (!data?.success || !data?.reports?.length) return;
     
-    fetchReports();
-  }, []);
-  
-  // Aplicar filtros cuando cambien
-  useEffect(() => {
-    if (!reports.length) return;
-    
-    let result = [...reports];
+    let result = [...data.reports];
     
     // Filtrar por estado
     if (filters.status) {
@@ -143,7 +121,7 @@ export default function ReportsPage() {
     }
     
     setFilteredReports(result);
-  }, [reports, filters]);
+  }, [data, filters]);
   
   // Manejar cambios en los filtros
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
@@ -182,19 +160,17 @@ export default function ReportsPage() {
     }
   };
   
-  if (loading) {
+  if (isLoading) {
+    return <Spinner text="Cargando denuncias..." />;
+  }
+  
+  if (isError) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="inline-block animate-spin text-primary mb-4">
-            <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-          <p className="text-gray-600">Cargando denuncias...</p>
-        </div>
-      </div>
+      <Alert variant="error">
+        <AlertDescription>
+          {error instanceof Error ? error.message : 'Ha ocurrido un error al cargar las denuncias'}
+        </AlertDescription>
+      </Alert>
     );
   }
   
@@ -216,12 +192,6 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
-      
-      {error && (
-        <Alert variant="error">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
       
       {/* Filtros */}
       <Card>

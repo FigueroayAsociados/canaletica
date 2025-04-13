@@ -2,8 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  getReportById, 
-  getReports, 
+  getReportById,
+  getAllReports, 
   getKarinReports, 
   updateKarinProcessStage,
   updateReportStatus,
@@ -27,7 +27,7 @@ export function useReport(companyId: string, reportId: string) {
 export function useReports(companyId: string, filters = {}) {
   return useQuery({
     queryKey: ['reports', companyId, filters],
-    queryFn: () => getReports(companyId, filters),
+    queryFn: () => getAllReports(companyId),
     enabled: !!companyId,
   });
 }
