@@ -1,7 +1,7 @@
 'use client';
 
 // src/app/(dashboard)/dashboard/reports/[id]/page.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -14,26 +14,21 @@ import { Label } from '@/components/ui/label';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import ExportReportPDF from '@/components/reports/ExportReportPDF';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { Spinner } from '@/components/ui/spinner';
 import { 
-  getReportById, 
-  updateReportStatus,
-  assignInvestigator,
-  addCommunication,
-  updateReportStats
-} from '@/lib/services/reportService';
-import { getUsersByRole } from '@/lib/services/userService';
+  useReport, 
+  useUpdateReportStatus, 
+  useUsersByRole,
+  useAssignInvestigator,
+  useAddCommunication
+} from '@/lib/hooks/useReports';
+import { updateReportStats } from '@/lib/services/reportService';
 
 export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
   const reportId = params.id as string;
   const { uid, isAdmin, isInvestigator } = useCurrentUser();
-  
-  // Estados para los datos
-  const [report, setReport] = useState<any>(null);
-  const [investigators, setInvestigators] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   // Estados para las acciones
   const [newStatus, setNewStatus] = useState<string>('');
@@ -43,162 +38,81 @@ export default function ReportDetailPage() {
   const [newMessage, setNewMessage] = useState<string>('');
   const [isInternalMessage, setIsInternalMessage] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('details');
-  const [submitting, setSubmitting] = useState<boolean>(false);
   
-  // Cargar los datos de la denuncia
-  useEffect(() => {
-    async function fetchReportAndInvestigators() {
-      try {
-        const companyId = 'default'; // En una implementación multi-tenant real, esto vendría de un contexto o URL
-        
-        // Cargar la denuncia
-        setLoading(true);
-        const reportResult = await getReportById(companyId, reportId);
-        
-        if (!reportResult.success) {
-          setError(reportResult.error || 'Error al cargar la denuncia');
-          setLoading(false);
-          return;
-        }
-        
-        setReport(reportResult.report);
-        setNewStatus(reportResult.report.status);
-        setSelectedInvestigator(reportResult.report.assignedTo || '');
-        
-        // Cargar investigadores si el usuario es admin
-        if (isAdmin) {
-          const investigatorsResult = await getUsersByRole(companyId, 'investigator');
-          
-          if (investigatorsResult.success) {
-            setInvestigators(investigatorsResult.users);
-          }
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error al cargar datos:', error);
-        setError('Error al cargar los datos de la denuncia');
-        setLoading(false);
-      }
+  // Usar React Query para cargar los datos
+  const companyId = 'default'; // En una implementación multi-tenant real, esto vendría de un contexto o URL
+  const { 
+    data: reportResult, 
+    isLoading, 
+    isError, 
+    error 
+  } = useReport(companyId, reportId);
+
+  // Cargar investigadores si el usuario es admin
+  const { 
+    data: investigatorsResult 
+  } = useUsersByRole(companyId, 'investigator');
+
+  // Preparar las mutaciones
+  const updateStatusMutation = useUpdateReportStatus();
+  const assignInvestigatorMutation = useAssignInvestigator();
+  const addCommunicationMutation = useAddCommunication();
+  
+  // Inicializar estados cuando los datos están disponibles
+  React.useEffect(() => {
+    if (reportResult?.success && reportResult.report) {
+      setNewStatus(reportResult.report.status);
+      setSelectedInvestigator(reportResult.report.assignedTo || '');
     }
-    
-    if (reportId && (isAdmin || isInvestigator)) {
-      fetchReportAndInvestigators();
-    }
-  }, [reportId, isAdmin, isInvestigator, uid]);
+  }, [reportResult]);
+
+  // Obtener el reporte de los datos cargados
+  const report = reportResult?.success ? reportResult.report : null;
+  
+  // Obtener los investigadores de los datos cargados
+  const investigators = investigatorsResult?.success ? investigatorsResult.users || [] : [];
   
   // Manejar cambio de estado
   const handleStatusChange = async () => {
     if (!report || newStatus === report.status || !uid) return;
     
     try {
-      setSubmitting(true);
-      const companyId = 'default';
+      // Ejecutar la mutación
+      await updateStatusMutation.mutateAsync({
+        companyId,
+        reportId,
+        status: newStatus,
+        additionalData: { actorId: uid, comment: statusComment }
+      });
       
-      const result = await updateReportStatus(
-        companyId, 
-        reportId, 
-        newStatus, 
-        uid, 
-        statusComment
-      );
+      // Actualizar estadísticas
+      await updateReportStats(companyId, report.status, newStatus);
       
-      if (result.success) {
-        // Actualizar estadísticas
-        await updateReportStats(companyId, report.status, newStatus);
-        
-        // Actualizar la UI
-        setReport(prev => ({
-          ...prev,
-          status: newStatus
-        }));
-        
-        // Añadir nueva actividad a la lista
-        const newActivity = {
-          id: Date.now().toString(),
-          timestamp: new Date(),
-          actorId: uid,
-          actionType: 'statusChange',
-          description: `Estado cambiado a: ${newStatus}`,
-          comment: statusComment,
-          previousStatus: report.status,
-          newStatus,
-          visibleToReporter: true,
-        };
-        
-        setReport(prev => ({
-          ...prev,
-          activities: [newActivity, ...(prev.activities || [])],
-        }));
-        
-        setStatusComment('');
-      } else {
-        setError(result.error || 'Error al cambiar el estado');
-      }
+      // Limpiar comentario
+      setStatusComment('');
     } catch (error) {
       console.error('Error al cambiar estado:', error);
-      setError('Error al cambiar el estado de la denuncia');
-    } finally {
-      setSubmitting(false);
     }
   };
   
   // Manejar asignación de investigador
   const handleAssignInvestigator = async () => {
-    if (!report || selectedInvestigator === report.assignedTo || !uid) return;
+    if (!report || selectedInvestigator === report.assignedTo || !uid || !selectedInvestigator) return;
     
     try {
-      setSubmitting(true);
-      const companyId = 'default';
+      // Ejecutar la mutación
+      await assignInvestigatorMutation.mutateAsync({
+        companyId,
+        reportId,
+        investigatorId: selectedInvestigator,
+        actorId: uid,
+        comment: assignmentComment
+      });
       
-      const result = await assignInvestigator(
-        companyId, 
-        reportId, 
-        selectedInvestigator, 
-        uid, 
-        assignmentComment
-      );
-      
-      if (result.success) {
-        // Buscar el nombre del investigador seleccionado
-        const investigator = investigators.find(inv => inv.id === selectedInvestigator);
-        const investigatorName = investigator ? investigator.displayName : 'Investigador';
-        
-        // Actualizar la UI
-        setReport(prev => ({
-          ...prev,
-          assignedTo: selectedInvestigator,
-          assignedToName: investigatorName,
-          status: prev.status === 'Nuevo' || prev.status === 'Admitida' ? 'Asignada' : prev.status
-        }));
-        
-        // Añadir nueva actividad a la lista
-        const newActivity = {
-          id: Date.now().toString(),
-          timestamp: new Date(),
-          actorId: uid,
-          actionType: 'assignmentChange',
-          description: `Denuncia asignada a: ${investigatorName}`,
-          comment: assignmentComment,
-          previousAssignee: report.assignedTo,
-          newAssignee: selectedInvestigator,
-          visibleToReporter: true,
-        };
-        
-        setReport(prev => ({
-          ...prev,
-          activities: [newActivity, ...(prev.activities || [])],
-        }));
-        
-        setAssignmentComment('');
-      } else {
-        setError(result.error || 'Error al asignar investigador');
-      }
+      // Limpiar comentario
+      setAssignmentComment('');
     } catch (error) {
       console.error('Error al asignar investigador:', error);
-      setError('Error al asignar investigador a la denuncia');
-    } finally {
-      setSubmitting(false);
     }
   };
   
@@ -207,68 +121,36 @@ export default function ReportDetailPage() {
     if (!newMessage.trim() || !uid) return;
     
     try {
-      setSubmitting(true);
-      const companyId = 'default';
-      
-      const result = await addCommunication(
+      // Ejecutar la mutación
+      await addCommunicationMutation.mutateAsync({
         companyId,
         reportId,
-        uid,
-        newMessage,
-        false, // No es del denunciante
-        isInternalMessage // Puede ser interno o visible para el denunciante
-      );
+        senderId: uid,
+        content: newMessage,
+        isFromReporter: false,
+        isInternal: isInternalMessage
+      });
       
-      if (result.success) {
-        // Añadir nuevo mensaje a la lista
-        const newMsg = {
-          id: Date.now().toString(),
-          timestamp: new Date(),
-          senderId: uid,
-          content: newMessage,
-          isFromReporter: false,
-          isInternal: isInternalMessage,
-          isRead: false,
-        };
-        
-        setReport(prev => ({
-          ...prev,
-          communications: [newMsg, ...(prev.communications || [])],
-        }));
-        
-        setNewMessage('');
-      } else {
-        setError(result.error || 'Error al enviar mensaje');
-      }
+      // Limpiar mensaje
+      setNewMessage('');
     } catch (error) {
       console.error('Error al enviar mensaje:', error);
-      setError('Error al enviar el mensaje');
-    } finally {
-      setSubmitting(false);
     }
   };
   
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="inline-block animate-spin text-primary mb-4">
-            <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-          <p className="text-gray-600">Cargando información de la denuncia...</p>
-        </div>
-      </div>
-    );
+  // Loading state
+  if (isLoading) {
+    return <Spinner text="Cargando información de la denuncia..." />;
   }
   
-  if (error) {
+  // Error state
+  if (isError) {
     return (
       <div className="space-y-6">
         <Alert variant="error">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {error instanceof Error ? error.message : 'Error al cargar la denuncia'}
+          </AlertDescription>
         </Alert>
         <div className="flex justify-center">
           <Link href="/dashboard/reports">
@@ -279,6 +161,7 @@ export default function ReportDetailPage() {
     );
   }
   
+  // No report found
   if (!report) {
     return (
       <div className="space-y-6">
@@ -309,6 +192,12 @@ export default function ReportDetailPage() {
     }).format(date);
   };
   
+  // Comprobaciones pendientes mientras se cargan las mutaciones
+  const isSubmitting = 
+    updateStatusMutation.isPending || 
+    assignInvestigatorMutation.isPending || 
+    addCommunicationMutation.isPending;
+  
   return (
     <div className="space-y-6">
       {/* Cabecera con resumen */}
@@ -337,6 +226,21 @@ export default function ReportDetailPage() {
           )}
         </div>
       </div>
+      
+      {/* Mostrar errores de mutaciones si existen */}
+      {(updateStatusMutation.isError || assignInvestigatorMutation.isError || addCommunicationMutation.isError) && (
+        <Alert variant="error">
+          <AlertDescription>
+            {updateStatusMutation.error instanceof Error 
+              ? updateStatusMutation.error.message 
+              : assignInvestigatorMutation.error instanceof Error 
+                ? assignInvestigatorMutation.error.message
+                : addCommunicationMutation.error instanceof Error
+                  ? addCommunicationMutation.error.message
+                  : 'Error al realizar la acción'}
+          </AlertDescription>
+        </Alert>
+      )}
       
       {/* Pestañas */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -578,9 +482,9 @@ export default function ReportDetailPage() {
                 
                 <Button 
                   onClick={handleStatusChange}
-                  disabled={newStatus === report.status || submitting}
+                  disabled={newStatus === report.status || isSubmitting}
                 >
-                  {submitting ? 'Guardando...' : 'Actualizar Estado'}
+                  {updateStatusMutation.isPending ? 'Guardando...' : 'Actualizar Estado'}
                 </Button>
               </div>
             </CardContent>
@@ -625,9 +529,9 @@ export default function ReportDetailPage() {
                   
                   <Button 
                     onClick={handleAssignInvestigator}
-                    disabled={selectedInvestigator === report.assignedTo || !selectedInvestigator || submitting}
+                    disabled={selectedInvestigator === report.assignedTo || !selectedInvestigator || isSubmitting}
                   >
-                    {submitting ? 'Asignando...' : 'Asignar Investigador'}
+                    {assignInvestigatorMutation.isPending ? 'Asignando...' : 'Asignar Investigador'}
                   </Button>
                 </div>
               </CardContent>
@@ -723,9 +627,9 @@ export default function ReportDetailPage() {
                 
                 <Button 
                   onClick={handleSendMessage}
-                  disabled={!newMessage.trim() || submitting}
+                  disabled={!newMessage.trim() || isSubmitting}
                 >
-                  {submitting ? 'Enviando...' : 'Enviar Mensaje'}
+                  {addCommunicationMutation.isPending ? 'Enviando...' : 'Enviar Mensaje'}
                 </Button>
               </div>
             </CardContent>

@@ -7,8 +7,11 @@ import {
   getKarinReports, 
   updateKarinProcessStage,
   updateReportStatus,
-  assignReport
+  assignReport,
+  assignInvestigator,
+  addCommunication
 } from '@/lib/services/reportService';
+import { getUsersByRole } from '@/lib/services/userService';
 
 /**
  * Hook para obtener un reporte por su ID
@@ -134,6 +137,82 @@ export function useAssignReport() {
       });
       queryClient.invalidateQueries({ 
         queryKey: ['reports', variables.companyId] 
+      });
+    },
+  });
+}
+
+/**
+ * Hook para obtener usuarios por rol (ej. investigadores)
+ */
+export function useUsersByRole(companyId: string, role: string) {
+  return useQuery({
+    queryKey: ['users', companyId, role],
+    queryFn: () => getUsersByRole(companyId, role),
+    enabled: !!companyId && !!role,
+  });
+}
+
+/**
+ * Hook para asignar un investigador a una denuncia
+ */
+export function useAssignInvestigator() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ 
+      companyId, 
+      reportId, 
+      investigatorId, 
+      actorId,
+      comment 
+    }: {
+      companyId: string;
+      reportId: string;
+      investigatorId: string;
+      actorId: string;
+      comment?: string;
+    }) => assignInvestigator(companyId, reportId, investigatorId, actorId, comment),
+    
+    onSuccess: (_, variables) => {
+      // Invalidar consultas relevantes para recargar los datos
+      queryClient.invalidateQueries({ 
+        queryKey: ['reports', variables.companyId, variables.reportId] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['reports', variables.companyId] 
+      });
+    },
+  });
+}
+
+/**
+ * Hook para añadir una comunicación a la denuncia
+ */
+export function useAddCommunication() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ 
+      companyId, 
+      reportId, 
+      senderId, 
+      content,
+      isFromReporter,
+      isInternal
+    }: {
+      companyId: string;
+      reportId: string;
+      senderId: string;
+      content: string;
+      isFromReporter: boolean;
+      isInternal: boolean;
+    }) => addCommunication(companyId, reportId, senderId, content, isFromReporter, isInternal),
+    
+    onSuccess: (_, variables) => {
+      // Invalidar consultas relevantes para recargar los datos
+      queryClient.invalidateQueries({ 
+        queryKey: ['reports', variables.companyId, variables.reportId] 
       });
     },
   });
