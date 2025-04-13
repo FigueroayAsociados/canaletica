@@ -1,0 +1,12 @@
+// Archivo de índice para exportar todos los hooks personalizados
+// Esto simplifica las importaciones en otros archivos
+
+// Hooks de autenticación
+export * from './useAuth';
+export * from './useCurrentUser';
+
+// Hooks de reportes
+export * from './useReports';
+
+// Hooks de configuración
+export * from './useConfig';

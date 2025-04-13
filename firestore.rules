@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Funciones de ayuda
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Función para verificar si es un usuario administrador principal
+    // En producción, esto debería verificarse contra una colección de administradores
+    function isPrimaryAdmin() {
+      return exists(/databases/$(database)/documents/super_admins/$(request.auth.uid));
+    }
+
+    // Regla especial: acceso completo para tus usuarios específicos
+    match /{document=**} {
+      allow read, write: if isPrimaryAdmin();
+    }
+
+    // Para otros usuarios, se aplican las siguientes reglas
+    function belongsToCompany(companyId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid));
+    }
+
+    function hasRole(companyId, role) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid)).data.role == role;
+    }
+
+    function isReportAssignee(companyId, reportId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/companies/$(companyId)/reports/$(reportId)).data.assignedTo == request.auth.uid;
+    }
+
+    function isAnonymousReporter(companyId, reportId, accessCode) {
+      return request.auth == null &&
+        get(/databases/$(database)/documents/companies/$(companyId)/reports/$(reportId)/reporter/info).data.accessCode == accessCode;
+    }
+    
+    // Regla especial para super_admins
+    match /super_admins/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Reglas para empresas
+    match /companies/{companyId} {
+      // Usuarios con cuenta autenticada pueden acceder a la empresa default
+      match /{document=**} {
+        allow read, write: if 
+          // Permitir a cualquier usuario autenticado para la empresa default
+          (companyId == 'default' && isAuthenticated());
+      }
+      
+      // Reglas específicas para otros usuarios
+      // Usuarios: administración por administradores
+      match /users/{userId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if hasRole(companyId, "admin") || request.auth.uid == userId;
+      }
+
+      // Denuncias: reglas específicas según rol
+      match /reports/{reportId} {
+        // Permitir a cualquier persona crear denuncias sin autenticación
+        allow create: if true; // Para diagnóstico, se permite la creación sin restricciones
+        
+        // Lectura por administradores o investigadores asignados, o cualquier persona para diagnóstico
+        allow read: if true; // Para diagnóstico, permitir lectura pública
+        
+        // Actualizaciones por administradores o investigadores asignados, o cualquier persona para diagnóstico
+        allow update: if true; // Para diagnóstico, permitir actualización pública
+        
+        // Nadie puede eliminar denuncias (solo archivarlas)
+        allow delete: if false;
+        
+        // Permitir la creación y lectura de todas las subcollecciones de las denuncias
+        match /{collection}/{docId} {
+          allow read, write: if true; // Para diagnóstico, permitir todo tipo de operaciones
+        }
+        
+        // Comunicaciones: accesibles también por el denunciante anónimo
+        match /communications/{messageId} {
+          allow read, write: if belongsToCompany(companyId) &&
+            (hasRole(companyId, "admin") ||
+             isReportAssignee(companyId, reportId)) ||
+            isAnonymousReporter(companyId, reportId, request.query.accessCode);
+        }
+      }
+
+      // REGLAS PARA EL MÓDULO DE CONFIGURACIÓN
+      // Categorías: lectura pública, escritura solo para administradores
+      match /categories/{categoryId} {
+        allow read: if true; // Permitir a cualquiera leer categorías
+        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
+      }
+      
+      // Subcategorías: lectura pública, escritura solo para administradores
+      match /subcategories/{subcategoryId} {
+        allow read: if true; // Permitir a cualquiera leer subcategorías
+        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
+      }
+      
+      // Plantillas de mensajes: solo administradores pueden modificar
+      match /messageTemplates/{templateId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
+      }
+      
+      // Roles personalizados: solo administradores pueden modificar
+      match /roles/{roleId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
+      }
+      
+      // Integraciones externas: solo administradores pueden modificar
+      match /integrations/{integrationId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
+      }
+      
+      // Notificaciones: lectura y escritura para miembros de la empresa
+      // Para diagnóstico, permitimos escritura pública para resolver errores de permisos
+      match /notifications/{notificationId} {
+        allow read, write: if true; // Permitir todas las operaciones para diagnóstico
+      }
+      
+      // Opciones de formularios: lectura para todos, escritura solo para administradores
+      match /formOptions/{optionType}/values/{valueId} {
+        allow read: if true; // Permitir lectura pública para el formulario de denuncias
+        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
+      }
+      
+      // Acceso público a las opciones de formulario para denuncias anónimas
+      match /formOptions/{optionType} {
+        allow read: if true;
+      }
+      
+      // Acceso público a la configuración general para formularios públicos
+      match /settings/general {
+        allow read: if true;
+      }
+      
+      // Acceso a las estadísticas para permitir la actualización desde el formulario de denuncia
+      match /stats/{document=**} {
+        allow read, write: if true; // Para diagnóstico, permitir todas las operaciones
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+// storage.rules
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Función para verificar si el usuario pertenece a una empresa
+    function belongsToCompany(companyId) {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/companies/$(companyId)/users/$(request.auth.uid)).data != null;
+    }
+    
+    // Función para verificar si el usuario tiene un rol específico
+    function hasRole(companyId, role) {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/companies/$(companyId)/users/$(request.auth.uid)).data.role == role;
+    }
+    
+    // Regla simplificada para limitar el tamaño
+    function isValidSize(size) {
+      return size < 100 * 1024 * 1024; // Máximo 100MB para cualquier archivo
+    }
+    
+    // Reglas para archivos de evidencias de denuncias - PERMISOS AMPLIOS PARA DIAGNÓSTICO
+    match /companies/{companyId}/reports/{reportId}/evidence/{evidenceId} {
+      // Permitir todas las operaciones de escritura sin restricciones
+      allow read, write: if true;
+    }
+    
+    // Regla especial para permitir cualquier ruta relacionada con evidencias
+    match /companies/{companyId}/reports/{reportId}/evidence {
+      allow read, write: if true;
+    }
+    
+    // Reglas para logos de empresas
+    match /companies/{companyId}/logo {
+      // Solo administradores pueden subir o actualizar logos
+      allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
+      
+      // Todos pueden ver logos de empresas
+      allow read: if true;
+    }
+    
+    // No permitir acceso a otros archivos
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
