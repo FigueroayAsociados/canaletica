@@ -16,6 +16,7 @@ import SuccessStep from '@/components/forms/report/SuccessStep';
 import { createReport, uploadEvidence } from '@/lib/services/reportService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
+import { CorporateDocuments } from '@/components/public/CorporateDocuments';
 
 // Validación para cada paso del formulario
 const validationSchemas = [
@@ -500,6 +501,36 @@ export default function ReportPage() {
           </div>
         </div>
       )}
+
+      {/* Documentos corporativos */}
+      <div className="p-6 pt-4 border-b border-gray-200">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Recursos y Documentos</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          A continuación encontrará documentos informativos sobre nuestros procedimientos, políticas y compromisos.
+        </p>
+        
+        {/* Componente para mostrar documentos corporativos */}
+        <div className="mt-2">
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Información importante</h3>
+                <div className="mt-1 text-sm text-blue-700">
+                  Le recomendamos revisar todos los documentos antes de continuar con su denuncia.
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Los documentos se cargarán de Firebase */}
+          <CorporateDocuments companyId="default" />
+        </div>
+      </div>
 
       {/* Formulario */}
       <Formik
