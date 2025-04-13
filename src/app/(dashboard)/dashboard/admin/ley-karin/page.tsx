@@ -8,7 +8,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { ensureKarinCategoryExists } from '@/lib/services/setupService';
 import { 
-  addKarinPrecautionaryMeasures
+  // Ya no necesitamos importar addKarinPrecautionaryMeasures ya que usamos el componente
+  // Pero necesitamos importar getKarinReports para que el import esté disponible (usado en useKarinReports)
+  getKarinReports
 } from '@/lib/services/reportService';
 import { KarinProcessStage, DEFAULT_PRECAUTIONARY_MEASURES, KARIN_RISK_QUESTIONS } from '@/types/report';
 import { useKarinReports, useUpdateKarinStage } from '@/lib/hooks/useReports';
@@ -126,6 +128,9 @@ export default function AdminLeyKarinPage() {
   };
   
   // Función para aplicar medidas precautorias
+  // Nota: Ya no necesitamos esta función porque usamos el componente PrecautionaryMeasures
+  // La mantenemos como referencia pero está comentada para evitar errores
+  /* 
   const applyPrecautionaryMeasures = async () => {
     if (!selectedReport || selectedMeasures.length === 0) {
       setError("Debe seleccionar al menos una medida precautoria");
@@ -134,29 +139,8 @@ export default function AdminLeyKarinPage() {
     
     try {
       setLoading(true);
-      const companyId = 'default'; // Usar ID predeterminado
-      
-      // Llamar al servicio para aplicar las medidas
-      const result = await addKarinPrecautionaryMeasures(
-        companyId,
-        selectedReport.id,
-        selectedMeasures,
-        measuresJustification
-      );
-      
-      if (result.success) {
-        // Recargar denuncias después de la actualización
-        const reportsResult = await getKarinReports(companyId);
-        if (reportsResult.success) {
-          setReports(reportsResult.reports);
-          setSelectedReport(reportsResult.reports.find(r => r.id === selectedReport.id));
-          setSuccess("Medidas precautorias aplicadas correctamente");
-        } else {
-          setError(reportsResult.error || 'Error al cargar denuncias actualizadas');
-        }
-      } else {
-        setError(result.error || 'Error al aplicar medidas precautorias');
-      }
+      // Usar el hook en lugar de llamar directamente a la función
+      // Este código se ha movido al componente PrecautionaryMeasures
     } catch (error) {
       console.error('Error al aplicar medidas precautorias:', error);
       setError('Error al aplicar medidas precautorias');
@@ -165,6 +149,7 @@ export default function AdminLeyKarinPage() {
       setIsMeasuresFormModalOpen(false);
     }
   };
+  */
 
   // Función para actualizar la etapa de una denuncia Ley Karin usando React Query
   const updateStageMutation = useUpdateKarinStage();
