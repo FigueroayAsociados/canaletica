@@ -5,13 +5,120 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { marked } from 'marked';
+import { CorporateDocuments } from '@/components/public/CorporateDocuments';
+import { VideoPlayer } from '@/components/public/VideoPlayer';
+import { VideoGallery } from '@/components/public/VideoGallery';
+import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
+import { getTermsDocument, getPrivacyDocument } from '@/lib/services/documentService';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function Home() {
-  const [activeVideo, setActiveVideo] = useState(false);
+  const [showVideo, setShowVideo] = useState(true);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [termsContent, setTermsContent] = useState('');
+  const [privacyContent, setPrivacyContent] = useState('');
+  const [isLoadingTerms, setIsLoadingTerms] = useState(false);
+  const [isLoadingPrivacy, setIsLoadingPrivacy] = useState(false);
   const router = useRouter();
+
+  // Función para procesar markdown a HTML
+  const processMarkdown = async (markdown) => {
+    try {
+      return marked.parse(markdown, {
+        gfm: true, // GitHub Flavored Markdown
+        breaks: true, // Convert line breaks to <br>
+        sanitize: true, // Sanitize HTML for security
+        smartLists: true, // Use smarter list behavior
+        smartypants: true // Use smart typography
+      });
+    } catch (error) {
+      console.error("Error al procesar markdown:", error);
+      return `<p class="text-red-500">Error al procesar el contenido. Por favor, contacte al administrador.</p>`;
+    }
+  };
+  
+  // Cargar documentos legales desde Firestore
+  useEffect(() => {
+    async function loadLegalDocuments() {
+      try {
+        // Cargar términos y condiciones si está visible o va a mostrarse
+        if (showTermsModal) {
+          setIsLoadingTerms(true);
+          try {
+            const termsDoc = await getTermsDocument(DEFAULT_COMPANY_ID);
+            
+            if (termsDoc && termsDoc.fileURL) {
+              // Intentar obtener el contenido del archivo
+              const response = await fetch(termsDoc.fileURL);
+              if (!response.ok) throw new Error(`Error al cargar documento: ${response.status}`);
+              
+              const content = await response.text();
+              // Convertir markdown a HTML para mejor presentación
+              const processedContent = await processMarkdown(content);
+              setTermsContent(processedContent);
+            } else {
+              // Si no hay documentos en Firestore, usar los estáticos
+              const staticTermsResponse = await fetch('/terminos-condiciones.md');
+              if (!staticTermsResponse.ok) throw new Error(`Error al cargar documento estático: ${staticTermsResponse.status}`);
+              
+              const staticContent = await staticTermsResponse.text();
+              // Convertir markdown a HTML para mejor presentación
+              const processedContent = await processMarkdown(staticContent);
+              setTermsContent(processedContent);
+            }
+          } catch (docError) {
+            console.error('Error al cargar términos y condiciones:', docError);
+            setTermsContent(`<p class="text-red-500">No se pudo cargar el documento. Por favor, inténtelo más tarde.</p>`);
+          } finally {
+            setIsLoadingTerms(false);
+          }
+        }
+        
+        // Cargar política de privacidad si está visible o va a mostrarse
+        if (showPrivacyModal) {
+          setIsLoadingPrivacy(true);
+          try {
+            const privacyDoc = await getPrivacyDocument(DEFAULT_COMPANY_ID);
+            
+            if (privacyDoc && privacyDoc.fileURL) {
+              // Intentar obtener el contenido del archivo
+              const response = await fetch(privacyDoc.fileURL);
+              if (!response.ok) throw new Error(`Error al cargar documento: ${response.status}`);
+              
+              const content = await response.text();
+              // Convertir markdown a HTML para mejor presentación
+              const processedContent = await processMarkdown(content);
+              setPrivacyContent(processedContent);
+            } else {
+              // Si no hay documentos en Firestore, usar los estáticos
+              const staticPrivacyResponse = await fetch('/politica-privacidad.md');
+              if (!staticPrivacyResponse.ok) throw new Error(`Error al cargar documento estático: ${staticPrivacyResponse.status}`);
+              
+              const staticContent = await staticPrivacyResponse.text();
+              // Convertir markdown a HTML para mejor presentación
+              const processedContent = await processMarkdown(staticContent);
+              setPrivacyContent(processedContent);
+            }
+          } catch (docError) {
+            console.error('Error al cargar política de privacidad:', docError);
+            setPrivacyContent(`<p class="text-red-500">No se pudo cargar el documento. Por favor, inténtelo más tarde.</p>`);
+          } finally {
+            setIsLoadingPrivacy(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error general al cargar documentos legales:', error);
+        setIsLoadingTerms(false);
+        setIsLoadingPrivacy(false);
+      }
+    }
+    
+    loadLegalDocuments();
+  }, [showTermsModal, showPrivacyModal]);
   
   const handleAcceptTerms = () => {
     // Guardar estado de aceptación de términos en localStorage
@@ -123,6 +230,73 @@ export default function Home() {
           </div>
         </div>
       </section>
+      
+      {/* Video Instructivo Section */}
+      {showVideo && (
+        <section className="py-12 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-extrabold text-gray-900">
+                Cómo Usar el Canal de Denuncias
+              </h2>
+              <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500">
+                Vea el siguiente video para conocer cómo utilizar el canal y proteger su identidad
+              </p>
+            </div>
+            
+            {/* Video Player Component */}
+            <div className="mx-auto max-w-4xl">
+              <VideoPlayer 
+                companyId={DEFAULT_COMPANY_ID} 
+                category="instructional"
+                showControls={true}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+      
+      {/* Ley Karin Video Gallery Section */}
+      <section className="py-12 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-extrabold text-gray-900">
+              Videos Informativos - Ley Karin
+            </h2>
+            <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500">
+              Conozca más sobre la Ley Karin, normativa que sanciona el acoso laboral y sexual
+            </p>
+          </div>
+          
+          {/* Video Gallery Component */}
+          <div className="mx-auto">
+            <VideoGallery 
+              companyId={DEFAULT_COMPANY_ID} 
+              category="ley-karin"
+              maxInitialVideos={3}
+            />
+          </div>
+        </div>
+      </section>
+      
+      {/* Documentos Corporativos */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-extrabold text-gray-900">
+              Documentos Corporativos
+            </h2>
+            <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500">
+              Acceda a nuestros documentos institucionales y políticas de prevención
+            </p>
+          </div>
+          
+          {/* Componente de documentos corporativos */}
+          <div className="mx-auto max-w-4xl">
+            <CorporateDocuments companyId={DEFAULT_COMPANY_ID} />
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="bg-gray-800 text-white py-8">
@@ -141,6 +315,8 @@ export default function Home() {
                 <li><Link href="/report" className="hover:text-white transition-colors">Realizar Denuncia</Link></li>
                 <li><Link href="/track" className="hover:text-white transition-colors">Seguimiento de Denuncia</Link></li>
                 <li><Link href="/login" className="hover:text-white transition-colors">Acceso Administración</Link></li>
+                <li><button onClick={() => setShowTermsModal(true)} className="hover:text-white transition-colors text-left w-full">Términos y Condiciones</button></li>
+                <li><button onClick={() => setShowPrivacyModal(true)} className="hover:text-white transition-colors text-left w-full">Política de Privacidad</button></li>
               </ul>
             </div>
             <div>
@@ -162,7 +338,7 @@ export default function Home() {
       {/* Modal de Términos y Condiciones */}
       {showTermsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white w-full max-w-2xl mx-4 rounded-lg shadow-xl overflow-hidden">
+          <div className="bg-white w-full max-w-4xl mx-4 rounded-lg shadow-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900">
                 Términos y Condiciones del Canal de Denuncias
@@ -176,27 +352,14 @@ export default function Home() {
                 </svg>
               </button>
             </div>
-            <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
-              <p className="text-sm text-gray-600 mb-4">
-                Al utilizar este Canal de Denuncias, usted acepta que la información proporcionada
-                es verídica y completa. Nos comprometemos a mantener la confidencialidad de su identidad
-                y de la información proporcionada, salvo que la ley nos obligue a revelarla.
-              </p>
-              
-              <h4 className="font-medium text-gray-900 mt-4 mb-2">Confidencialidad</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                En CanalEtica priorizamos la confidencialidad de todas las denuncias recibidas. 
-                La información proporcionada será tratada con la máxima reserva y solo tendrán 
-                acceso a ella las personas estrictamente necesarias para la correcta gestión e 
-                investigación de la denuncia.
-              </p>
-
-              <h4 className="font-medium text-gray-900 mt-4 mb-2">Protección contra represalias</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                Está estrictamente prohibido tomar cualquier tipo de represalia contra una persona 
-                que haya presentado una denuncia de buena fe o que haya participado en una investigación. 
-                Cualquier acto de represalia será considerado una violación grave de nuestras políticas.
-              </p>
+            <div className="px-6 py-4 max-h-[70vh] overflow-y-auto markdown-content text-sm text-gray-600">
+              {isLoadingTerms ? (
+                <div className="flex justify-center items-center h-64">
+                  <Spinner />
+                </div>
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: termsContent }} />
+              )}
             </div>
             <div className="px-6 py-4 bg-gray-50 flex flex-col sm:flex-row justify-end gap-3">
               <button 
@@ -210,6 +373,44 @@ export default function Home() {
                 onClick={handleAcceptTerms}
               >
                 Aceptar términos y continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal de Política de Privacidad */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white w-full max-w-4xl mx-4 rounded-lg shadow-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Política de Privacidad y Tratamiento de Datos Personales
+              </h3>
+              <button 
+                className="text-gray-400 hover:text-gray-500"
+                onClick={() => setShowPrivacyModal(false)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-4 max-h-[70vh] overflow-y-auto markdown-content text-sm text-gray-600">
+              {isLoadingPrivacy ? (
+                <div className="flex justify-center items-center h-64">
+                  <Spinner />
+                </div>
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: privacyContent }} />
+              )}
+            </div>
+            <div className="px-6 py-4 bg-gray-50 flex justify-end">
+              <button 
+                className="btn-primary" 
+                onClick={() => setShowPrivacyModal(false)}
+              >
+                Entendido
               </button>
             </div>
           </div>

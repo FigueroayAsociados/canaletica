@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { addTask, updateTaskStatus } from '@/lib/services/investigationService';
 import { getUsersByRole } from '@/lib/services/userService';
-import { USER_ROLES, DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
+import { UserRole, DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
 
 // Esquema de validación para tareas
 const TaskSchema = Yup.object().shape({
@@ -54,8 +54,8 @@ export const TasksList: React.FC<TasksListProps> = ({
         const companyId = DEFAULT_COMPANY_ID; // En un sistema multi-tenant, esto vendría de un contexto o URL
         
         // Cargar tanto investigadores como administradores que pueden ser asignados a tareas
-        const investigatorsResult = await getUsersByRole(companyId, USER_ROLES.INVESTIGATOR);
-        const adminsResult = await getUsersByRole(companyId, USER_ROLES.ADMIN);
+        const investigatorsResult = await getUsersByRole(companyId, UserRole.INVESTIGATOR);
+        const adminsResult = await getUsersByRole(companyId, UserRole.ADMIN);
         
         let availableUsers = [];
         
@@ -353,7 +353,7 @@ export const TasksList: React.FC<TasksListProps> = ({
                         <option value={uid}>Yo ({profile?.displayName})</option>
                         {investigators.map(user => (
                           <option key={user.id} value={user.id}>
-                            {user.displayName} {user.role === USER_ROLES.INVESTIGATOR ? '(Investigador)' : '(Admin)'}
+                            {user.displayName} {user.role === UserRole.INVESTIGATOR ? '(Investigador)' : '(Admin)'}
                           </option>
                         ))}
                       </Field>

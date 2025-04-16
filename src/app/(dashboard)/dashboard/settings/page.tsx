@@ -27,6 +27,8 @@ import IntegrationsManager from '@/components/settings/IntegrationsManager';
 import CompaniesManager from '@/components/settings/CompaniesManager';
 import FormOptionsManager from '@/components/settings/FormOptionsManager';
 import RiskQuestionManager from '@/components/settings/RiskQuestionManager';
+import VideosManager from '@/components/settings/VideosManager';
+import { LegalDocumentsManager } from '@/components/settings/LegalDocumentsManager';
 import { useCompany } from '@/lib/contexts/CompanyContext';
 
 export default function SettingsPage() {
@@ -301,6 +303,16 @@ export default function SettingsPage() {
           </button>
           <button
             className={`py-4 px-6 text-sm font-medium ${
+              activeTab === 'videos'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('videos')}
+          >
+            Videos
+          </button>
+          <button
+            className={`py-4 px-6 text-sm font-medium ${
               activeTab === 'notifications'
                 ? 'border-b-2 border-primary text-primary'
                 : 'text-gray-500 hover:text-gray-700'
@@ -321,6 +333,16 @@ export default function SettingsPage() {
               Empresas
             </button>
           )}
+          <button
+            className={`py-4 px-6 text-sm font-medium ${
+              activeTab === 'legal'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('legal')}
+          >
+            Documentos Legales
+          </button>
           <button
             className={`py-4 px-6 text-sm font-medium ${
               activeTab === 'advanced'
@@ -472,6 +494,10 @@ export default function SettingsPage() {
           {activeTab === 'integrations' && (
             <IntegrationsManager companyId={companyId} />
           )}
+          
+          {activeTab === 'videos' && (
+            <VideosManager />
+          )}
 
           {activeTab === 'notifications' && (
             <div className="space-y-6">
@@ -559,6 +585,10 @@ export default function SettingsPage() {
 
           {activeTab === 'companies' && isSuperAdmin && (
             <CompaniesManager />
+          )}
+          
+          {activeTab === 'legal' && (
+            <LegalDocumentsManager companyId={companyId} />
           )}
 
           {activeTab === 'advanced' && (

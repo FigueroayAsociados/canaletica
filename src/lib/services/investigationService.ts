@@ -242,6 +242,9 @@ export async function getInvestigationDetails(companyId: string, reportId: strin
     const findingActivities = activities.filter(a =>
       a.actionType === 'findingAdded'
     );
+    const preliminaryReportActivities = activities.filter(a =>
+      a.actionType === 'preliminaryReportCreated' || a.actionType === 'preliminaryReportUpdated'
+    );
     const reportActivities = activities.filter(a =>
       a.actionType === 'reportCreated' || a.actionType === 'reportUpdated'
     );
@@ -272,6 +275,19 @@ export async function getInvestigationDetails(companyId: string, reportId: strin
       createdBy: activity.actorId,
       // Otros campos que puedas tener en tus actividades
     }));
+
+    // Reconstruir informe preliminar
+    const preliminaryReport = preliminaryReportActivities.length > 0 ? {
+      id: preliminaryReportActivities[0].id,
+      summary: preliminaryReportActivities[0].reportDetails?.summary || '',
+      safetyMeasures: preliminaryReportActivities[0].reportDetails?.safetyMeasures || '',
+      initialAssessment: preliminaryReportActivities[0].reportDetails?.initialAssessment || '',
+      nextSteps: preliminaryReportActivities[0].reportDetails?.nextSteps || '',
+      timestamp: preliminaryReportActivities[0].timestamp,
+      createdBy: preliminaryReportActivities[0].actorId,
+      createdAt: preliminaryReportActivities[0].timestamp,
+      updatedAt: preliminaryReportActivities[0].timestamp,
+    } : null;
 
     // Reconstruir informe final
     const finalReport = reportActivities.length > 0 ? {
@@ -304,6 +320,7 @@ export async function getInvestigationDetails(companyId: string, reportId: strin
         plan,
         interviews,
         findings,
+        preliminaryReport,
         finalReport,
         accused,
         witnesses,
@@ -468,6 +485,94 @@ export async function addFinding(
     return {
       success: false,
       error: 'Error al registrar el hallazgo',
+    };
+  }
+}
+
+/**
+ * Crea o actualiza el informe preliminar de la investigación
+ * (Guarda como una actividad al no tener una colección específica)
+ */
+export async function savePreliminaryReport(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  reportData: {
+    summary: string;
+    safetyMeasures: string;
+    initialAssessment: string;
+    nextSteps: string;
+  }
+) {
+  try {
+    // Registrar el informe como actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+
+    // Verificar si ya existe un informe preliminar (buscar actividad)
+    const reportQuery = query(
+      activitiesRef,
+      where('actionType', 'in', ['preliminaryReportCreated', 'preliminaryReportUpdated'])
+    );
+    const reportSnapshot = await getDocs(reportQuery);
+    const isNewReport = reportSnapshot.empty;
+    const actionType = isNewReport ? 'preliminaryReportCreated' : 'preliminaryReportUpdated';
+
+    // Guardar como actividad
+    const newActivityRef = await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: actionType,
+      description: 'Informe preliminar ' + (isNewReport ? 'creado' : 'actualizado'),
+      reportDetails: reportData,
+      visibleToReporter: false,
+    });
+
+    // Si la denuncia está en estado "Asignada", actualizar a "En Investigación"
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportSnap = await getDoc(reportRef);
+    if (reportSnap.exists() && reportSnap.data().status === 'Asignada') {
+      await updateReportStatus(
+        companyId,
+        reportId,
+        'En Investigación',
+        userId,
+        'Investigación iniciada con informe preliminar'
+      );
+    }
+
+    // Si es un caso Ley Karin, actualizar el proceso Karin
+    if (reportSnap.exists() && reportSnap.data().isKarinLaw) {
+      const karinData = reportSnap.data().karinProcess || {};
+      const stageHistory = karinData.stageHistory || [];
+      
+      // Solo actualizar si no existe la etapa 'preliminaryReport'
+      const hasPreliminaryReport = stageHistory.some(h => h.stage === 'preliminaryReport');
+      
+      if (!hasPreliminaryReport) {
+        await updateDoc(reportRef, {
+          'karinProcess.stage': 'preliminaryReport',
+          'karinProcess.stageHistory': [
+            ...stageHistory,
+            {
+              stage: 'preliminaryReport',
+              date: Timestamp.now(),
+              user: userId,
+              notes: 'Informe preliminar creado para envío a la Dirección del Trabajo'
+            }
+          ]
+        });
+      }
+    }
+
+    return {
+      success: true,
+      reportId: newActivityRef.id,
+    };
+  } catch (error) {
+    console.error('Error saving preliminary report:', error);
+    return {
+      success: false,
+      error: 'Error al guardar el informe preliminar',
     };
   }
 }

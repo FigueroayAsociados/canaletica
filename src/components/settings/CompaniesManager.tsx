@@ -10,9 +10,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCompanies, createCompany, updateCompany, deleteCompany, Company } from '@/lib/services/configService';
 import { httpsCallable } from 'firebase/functions';
 import { functions, safeCallFunction } from '@/lib/firebase/functions';
+import { CompanyDocumentsManager } from '@/components/settings/CompanyDocumentsManager';
+import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
 
 interface CompanyFormData {
   name: string;
@@ -249,9 +252,9 @@ export default function CompaniesManager() {
 
   const handleEditCompany = (company: Company) => {
     setCompanyForm({
-      name: company.name,
+      name: company.name || '',
       description: company.description || '',
-      isActive: company.isActive,
+      isActive: company.isActive !== undefined ? company.isActive : true,
       contactEmail: company.contactEmail || '',
       contactPhone: company.contactPhone || '',
       address: company.address || '',
@@ -314,18 +317,56 @@ export default function CompaniesManager() {
         </Alert>
       )}
       
-      {/* Cabecera y botón de añadir */}
+      {/* Cabecera y botones */}
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Gestión de Empresas</h2>
-        <Button 
-          onClick={() => {
-            resetCompanyForm();
-            setIsAddingCompany(true);
-            setIsEditingCompany(null);
-          }}
-        >
-          Añadir Empresa
-        </Button>
+        <div className="flex space-x-2">
+          {companies.find(c => c.id === 'default') ? (
+            <Button 
+              variant="default"
+              onClick={() => {
+                const defaultCompany = companies.find(c => c.id === 'default');
+                if (defaultCompany) {
+                  handleEditCompany(defaultCompany);
+                  // Set default tab to documents
+                  setTimeout(() => {
+                    const documentsTab = document.querySelector('[value="documents"]') as HTMLButtonElement;
+                    if (documentsTab) documentsTab.click();
+                  }, 100);
+                }
+              }}
+            >
+              Documentos Página Principal
+            </Button>
+          ) : (
+            <Button
+              variant="default"
+              onClick={() => {
+                // Crear empresa default si no existe
+                resetCompanyForm();
+                setCompanyForm({
+                  ...companyForm,
+                  name: 'Empresa Principal',
+                  description: 'Esta es la empresa principal, cuyos documentos se mostrarán en la página de inicio.',
+                  isActive: true
+                });
+                setIsAddingCompany(true);
+              }}
+            >
+              Crear Empresa Principal
+            </Button>
+          )}
+          <Button 
+            variant="outline"
+            onClick={() => {
+              resetCompanyForm();
+              setIsAddingCompany(true);
+              setIsEditingCompany(null);
+            }}
+          >
+            Añadir Empresa
+          </Button>
+        </div>
       </div>
       
       {/* Formulario para añadir empresa */}
@@ -450,231 +491,270 @@ export default function CompaniesManager() {
             <CardTitle>Editar Empresa</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="editCompanyName">Nombre de la Empresa*</Label>
-                <Input
-                  id="editCompanyName"
-                  value={companyForm.name}
-                  onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
+            <Tabs defaultValue={window.location.hash === '#documents' ? 'documents' : 'general'} className="w-full" onValueChange={(value) => {
+              // Actualizar el hash en la URL para mantener la pestaña seleccionada
+              if (value === 'documents') {
+                window.location.hash = 'documents';
+              } else {
+                window.location.hash = '';
+              }
+            }}>
+              <TabsList className="mb-4">
+                <TabsTrigger value="general">Información General</TabsTrigger>
+                <TabsTrigger value="documents">Documentos Corporativos</TabsTrigger>
+              </TabsList>
               
-              <div>
-                <Label htmlFor="editCompanyIndustry">Industria</Label>
-                <Select
-                  id="editCompanyIndustry"
-                  value={companyForm.industry}
-                  onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
-                  className="mt-1"
-                >
-                  <option value="">Seleccione una industria</option>
-                  {industries.map(industry => (
-                    <option key={industry.value} value={industry.value}>
-                      {industry.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+              <TabsContent value="general">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="editCompanyName">Nombre de la Empresa*</Label>
+                    <Input
+                      id="editCompanyName"
+                      value={companyForm.name}
+                      onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="editCompanyIndustry">Industria</Label>
+                    <Select
+                      id="editCompanyIndustry"
+                      value={companyForm.industry}
+                      onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
+                      className="mt-1"
+                    >
+                      <option value="">Seleccione una industria</option>
+                      {industries.map(industry => (
+                        <option key={industry.value} value={industry.value}>
+                          {industry.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <Label htmlFor="editCompanyDescription">Descripción</Label>
+                    <Textarea
+                      id="editCompanyDescription"
+                      value={companyForm.description}
+                      onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
+                      className="mt-1"
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="editCompanyEmail">Correo Electrónico de Contacto</Label>
+                    <Input
+                      id="editCompanyEmail"
+                      type="email"
+                      value={companyForm.contactEmail}
+                      onChange={(e) => setCompanyForm({ ...companyForm, contactEmail: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="editCompanyPhone">Teléfono de Contacto</Label>
+                    <Input
+                      id="editCompanyPhone"
+                      value={companyForm.contactPhone}
+                      onChange={(e) => setCompanyForm({ ...companyForm, contactPhone: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <Label htmlFor="editCompanyAddress">Dirección</Label>
+                    <Input
+                      id="editCompanyAddress"
+                      value={companyForm.address}
+                      onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="editCompanyMaxUsers">Número Máximo de Usuarios</Label>
+                    <Input
+                      id="editCompanyMaxUsers"
+                      type="number"
+                      min="1"
+                      value={companyForm.maxUsers.toString()}
+                      onChange={(e) => setCompanyForm({ ...companyForm, maxUsers: parseInt(e.target.value) || 1 })}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="editCompanyActive"
+                      checked={companyForm.isActive}
+                      onChange={(e) => setCompanyForm({ ...companyForm, isActive: e.target.checked })}
+                      className="h-4 w-4 text-primary border-neutral-300 rounded"
+                    />
+                    <Label htmlFor="editCompanyActive" className="ml-2">
+                      Empresa Activa
+                    </Label>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-2 mt-6">
+                  <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={() => handleUpdateCompany(isEditingCompany)}>
+                    Actualizar Empresa
+                  </Button>
+                </div>
+              </TabsContent>
               
-              <div className="md:col-span-2">
-                <Label htmlFor="editCompanyDescription">Descripción</Label>
-                <Textarea
-                  id="editCompanyDescription"
-                  value={companyForm.description}
-                  onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
-                  className="mt-1"
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="editCompanyEmail">Correo Electrónico de Contacto</Label>
-                <Input
-                  id="editCompanyEmail"
-                  type="email"
-                  value={companyForm.contactEmail}
-                  onChange={(e) => setCompanyForm({ ...companyForm, contactEmail: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="editCompanyPhone">Teléfono de Contacto</Label>
-                <Input
-                  id="editCompanyPhone"
-                  value={companyForm.contactPhone}
-                  onChange={(e) => setCompanyForm({ ...companyForm, contactPhone: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <Label htmlFor="editCompanyAddress">Dirección</Label>
-                <Input
-                  id="editCompanyAddress"
-                  value={companyForm.address}
-                  onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="editCompanyMaxUsers">Número Máximo de Usuarios</Label>
-                <Input
-                  id="editCompanyMaxUsers"
-                  type="number"
-                  min="1"
-                  value={companyForm.maxUsers.toString()}
-                  onChange={(e) => setCompanyForm({ ...companyForm, maxUsers: parseInt(e.target.value) || 1 })}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="editCompanyActive"
-                  checked={companyForm.isActive}
-                  onChange={(e) => setCompanyForm({ ...companyForm, isActive: e.target.checked })}
-                  className="h-4 w-4 text-primary border-neutral-300 rounded"
-                />
-                <Label htmlFor="editCompanyActive" className="ml-2">
-                  Empresa Activa
-                </Label>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-2 mt-6">
-              <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
-                Cancelar
-              </Button>
-              <Button onClick={() => handleUpdateCompany(isEditingCompany)}>
-                Actualizar Empresa
-              </Button>
-            </div>
+              <TabsContent value="documents">
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-4">
+                    Gestiona los documentos corporativos de la empresa. Los documentos marcados como "públicos" se mostrarán en la página de inicio.
+                  </p>
+                  <CompanyDocumentsManager companyId={isEditingCompany} />
+                </div>
+                
+                <div className="flex justify-end space-x-2 mt-6">
+                  <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
+                    Cerrar
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       )}
       
-      {/* Lista de empresas */}
-      <div className="space-y-4">
-        {companies.length === 0 ? (
-          <p className="text-neutral-500 text-center py-4">No hay empresas configuradas</p>
-        ) : (
-          companies.map(company => (
-            <Card key={company.id} className={!company.isActive ? 'border-neutral-300 bg-neutral-50' : ''}>
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-lg font-medium text-neutral-900 flex items-center">
-                      {company.name}
-                      {!company.isActive && (
-                        <span className="ml-2 bg-neutral-200 text-neutral-600 text-xs px-2 py-1 rounded">Inactiva</span>
-                      )}
-                    </h3>
-                    {company.description && (
-                      <p className="text-neutral-600 mt-1">{company.description}</p>
-                    )}
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 mt-4">
-                      {company.industry && (
-                        <div>
-                          <span className="text-sm font-medium text-neutral-500">Industria:</span>
-                          <span className="text-sm text-neutral-700 ml-2">
-                            {industries.find(i => i.value === company.industry)?.label || company.industry}
+      {/* Lista de empresas en formato tabla */}
+      {companies.length > 0 && !isEditingCompany && !isAddingCompany && (
+        <div className="mt-6">
+          <h2 className="text-lg font-medium mb-4">Empresas Configuradas</h2>
+          <div className="bg-white rounded-lg border overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Empresa
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Información
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {companies.map(company => (
+                  <tr key={company.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <div className="text-sm font-medium text-gray-900">
+                          {company.name}
+                        </div>
+                        {company.description && (
+                          <div className="text-xs text-gray-500 mt-1 max-w-xs truncate">
+                            {company.description}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col space-y-1">
+                        {company.isActive ? (
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Activa
                           </span>
-                        </div>
-                      )}
-                      
-                      {company.contactEmail && (
-                        <div>
-                          <span className="text-sm font-medium text-neutral-500">Email:</span>
-                          <span className="text-sm text-neutral-700 ml-2">{company.contactEmail}</span>
-                        </div>
-                      )}
-                      
-                      {company.contactPhone && (
-                        <div>
-                          <span className="text-sm font-medium text-neutral-500">Teléfono:</span>
-                          <span className="text-sm text-neutral-700 ml-2">{company.contactPhone}</span>
-                        </div>
-                      )}
-                      
-                      {company.maxUsers && (
-                        <div>
-                          <span className="text-sm font-medium text-neutral-500">Usuarios máximos:</span>
-                          <span className="text-sm text-neutral-700 ml-2">{company.maxUsers}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditCompany(company)}
-                    >
-                      Editar
-                    </Button>
-                    {showConfirmDelete === company.id ? (
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowConfirmDelete(null)}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteCompany(company.id)}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? 'Eliminando...' : 'Confirmar'}
-                        </Button>
+                        ) : (
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            Inactiva
+                          </span>
+                        )}
+                        {company.id === DEFAULT_COMPANY_ID && (
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            Principal
+                          </span>
+                        )}
                       </div>
-                    ) : showDeepDeleteConfirm === company.id ? (
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col space-y-1 text-xs text-gray-500">
+                        {company.industry && (
+                          <div>
+                            <span className="font-medium">Industria:</span>
+                            <span className="ml-1">
+                              {industries.find(i => i.value === company.industry)?.label || company.industry}
+                            </span>
+                          </div>
+                        )}
+                        {company.contactEmail && (
+                          <div>
+                            <span className="font-medium">Email:</span>
+                            <span className="ml-1">{company.contactEmail}</span>
+                          </div>
+                        )}
+                        {company.contactPhone && (
+                          <div>
+                            <span className="font-medium">Teléfono:</span>
+                            <span className="ml-1">{company.contactPhone}</span>
+                          </div>
+                        )}
+                        {company.id === DEFAULT_COMPANY_ID && (
+                          <div className="text-blue-600 font-medium">
+                            Sus documentos públicos se muestran en la página principal
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex flex-col space-y-2 items-end">
+                        <button
+                          onClick={() => setIsEditingCompany(company.id)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Editar Empresa
+                        </button>
+                        <button
                           onClick={() => {
-                            setShowDeepDeleteConfirm(null);
-                            setError(null);
+                            // Establecer el hash primero para que se use cuando se monte el componente
+                            window.location.hash = 'documents';
+                            // Luego abrir el editor
+                            setIsEditingCompany(company.id);
                           }}
+                          className="text-green-600 hover:text-green-900"
                         >
-                          Cancelar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeepDeleteCompany(company.id)}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? 'Eliminando...' : 'Eliminar Todo'}
-                        </Button>
+                          Gestionar Documentos
+                        </button>
                       </div>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-error hover:text-error-dark"
-                        onClick={() => setShowConfirmDelete(company.id)}
-                      >
-                        Eliminar
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      
+      {/* Mensaje cuando no hay empresas */}
+      {companies.length === 0 && !isEditingCompany && !isAddingCompany && (
+        <div className="bg-gray-50 rounded-lg p-8 text-center mt-6">
+          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No hay empresas configuradas</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Crea tu primera empresa para comenzar a gestionar el canal de denuncias.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

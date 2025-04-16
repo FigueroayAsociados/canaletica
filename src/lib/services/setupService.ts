@@ -318,8 +318,36 @@ import {
  * Restaura todas las categorías para la empresa, incluyendo Ley Karin y las personalizadas
  * @param companyId ID de la empresa
  */
+// Limitador para prevenir múltiples llamadas a restoreAllCategories
+let restoreInProgress = false;
+let lastRestoreTime = 0;
+
 export async function restoreAllCategories(companyId: string) {
   try {
+    // Verificar si ya hay una restauración en progreso
+    if (restoreInProgress) {
+      console.log('[DEBUG] Restauración de categorías ya en progreso, operación omitida');
+      return {
+        success: true,
+        message: 'Restauración de categorías ya en progreso',
+        alreadyInProgress: true
+      };
+    }
+    
+    // Verificar si se ha restaurado recientemente (menos de 10 segundos)
+    const now = Date.now();
+    if (now - lastRestoreTime < 10000) { // 10 segundos
+      console.log('[DEBUG] Restauración de categorías realizada recientemente, operación omitida');
+      return {
+        success: true,
+        message: 'Categorías restauradas recientemente',
+        recentlyRestored: true
+      };
+    }
+    
+    // Marcar como en progreso
+    restoreInProgress = true;
+    
     const { collection, getDocs, addDoc, deleteDoc, doc, query, where, serverTimestamp } = await import('firebase/firestore');
     const { db } = await import('@/lib/firebase/config');
     
@@ -350,7 +378,7 @@ export async function restoreAllCategories(companyId: string) {
     }
     
     // Eliminar categorías duplicadas
-    console.log(`Eliminando ${categoriesToDelete.length} categorías duplicadas o inválidas...`);
+    // Eliminar categorías duplicadas o inválidas
     for (const docRef of categoriesToDelete) {
       await deleteDoc(docRef);
     }
@@ -392,7 +420,7 @@ export async function restoreAllCategories(companyId: string) {
       }
     }
     
-    console.log(`Eliminando ${subcatsToDelete.length} subcategorías duplicadas o huérfanas...`);
+    // Eliminar subcategorías duplicadas o huérfanas
     for (const docRef of subcatsToDelete) {
       await deleteDoc(docRef);
     }
@@ -426,8 +454,7 @@ export async function restoreAllCategories(companyId: string) {
       }
     ];
     
-    console.log('Actualizando o creando categorías...');
-    
+    // Actualizar o crear categorías necesarias
     const categoryIds = { ...existingCategoryMap }; // Copiar las existentes
     const { updateDoc } = await import('firebase/firestore');
     
@@ -440,7 +467,7 @@ export async function restoreAllCategories(companyId: string) {
         const docId = existingCategoryMap[logicalId];
         const docRef = doc(db, `companies/${companyId}/categories/${docId}`);
         
-        console.log(`Actualizando categoría existente: ${category.name} (${logicalId})`);
+        // Actualizar categoría existente
         await updateDoc(docRef, {
           ...category,
           updatedAt: serverTimestamp()
@@ -449,7 +476,6 @@ export async function restoreAllCategories(companyId: string) {
         categoryIds[logicalId] = docId;
       } else {
         // La categoría no existe, crearla
-        console.log(`Creando nueva categoría: ${category.name} (${logicalId})`);
         const newCategoryRef = await addDoc(categoriesRef, {
           ...category,
           createdAt: serverTimestamp(),
@@ -522,7 +548,7 @@ export async function restoreAllCategories(companyId: string) {
     // Crear subcategorías para cada categoría
     for (const [categoryId, subcategories] of Object.entries(subcategoriesMap)) {
       if (categoryIds[categoryId]) {
-        console.log(`Procesando ${subcategories.length} subcategorías para ${categoryId}...`);
+        // Procesando subcategorías para esta categoría
         
         // Verificar si ya existen subcategorías para esta categoría
         const firestoreCategoryId = categoryIds[categoryId];
@@ -550,7 +576,7 @@ export async function restoreAllCategories(companyId: string) {
             const docId = existingSubcatMap[subcatId].docId;
             const docRef = doc(db, `companies/${companyId}/subcategories/${docId}`);
             
-            console.log(`Actualizando subcategoría existente: ${subcat.name} (${subcatId})`);
+            // Actualizando subcategoría existente
             await updateDoc(docRef, {
               ...subcat,
               categoryId: firestoreCategoryId,
@@ -558,7 +584,7 @@ export async function restoreAllCategories(companyId: string) {
             });
           } else {
             // La subcategoría no existe, crearla
-            console.log(`Creando nueva subcategoría: ${subcat.name} (${subcatId})`);
+            // Creando nueva subcategoría
             await addDoc(subcategoriesRef, {
               ...subcat,
               categoryId: firestoreCategoryId,
@@ -570,13 +596,20 @@ export async function restoreAllCategories(companyId: string) {
       }
     }
     
+    // Actualizar timestamp y liberar el bloqueo
+    lastRestoreTime = Date.now();
+    restoreInProgress = false;
+    
     return {
       success: true,
       message: 'Todas las categorías restauradas correctamente',
-      categoryIds
+      categoryIds,
+      timestamp: new Date().toISOString()
     };
   } catch (error) {
     console.error('Error al restaurar categorías:', error);
+    // Liberar el bloqueo en caso de error
+    restoreInProgress = false;
     return {
       success: false,
       error: 'Error al restaurar categorías'
@@ -584,12 +617,89 @@ export async function restoreAllCategories(companyId: string) {
   }
 }
 
+/**
+ * Sistema de caché para evitar llamadas innecesarias a Firebase 
+ * Usa localStorage en el cliente y variables en memoria en el servidor
+ */
+
+// Variable para caché en memoria (para el servidor y como respaldo)
+let memoryCache = {
+  karinCategoryRestored: false,
+  lastRestoreTime: 0
+};
+
+// Función para obtener el valor en caché
+const getKarinCategoryCache = (): boolean => {
+  try {
+    // En el cliente, intentar usar localStorage primero
+    if (typeof window !== 'undefined') {
+      const cachedValue = localStorage.getItem('karinCategoryRestored');
+      if (cachedValue !== null) {
+        return cachedValue === 'true';
+      }
+    }
+  } catch (e) {
+    // Si hay algún error con localStorage, usar el caché en memoria
+  }
+
+  // Usar la caché en memoria como respaldo
+  return memoryCache.karinCategoryRestored;
+};
+
+// Función para guardar en caché
+const setKarinCategoryCache = (value: boolean): void => {
+  try {
+    // En el cliente, guardar en localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('karinCategoryRestored', value.toString());
+    }
+  } catch (e) {
+    // Si hay algún error con localStorage, no hacer nada
+  }
+
+  // Siempre actualizar la caché en memoria
+  memoryCache.karinCategoryRestored = value;
+  if (value) {
+    memoryCache.lastRestoreTime = Date.now();
+  }
+};
+
+// Registramos la fecha y hora de la última restauración para mejor depuración
+let lastRestoreTimestamp: string | null = null;
+
 export async function ensureKarinCategoryExists(companyId: string) {
   try {
+    const isCached = getKarinCategoryCache();
+    
+    // Si ya se restauró la categoría en esta sesión, no repetir
+    if (isCached) {
+      return {
+        success: true,
+        message: 'Categoría Ley Karin ya verificada (desde caché)',
+        timestamp: lastRestoreTimestamp
+      };
+    }
+    
+    // Marcar que ya se restauró la categoría
+    setKarinCategoryCache(true);
+    lastRestoreTimestamp = new Date().toISOString();
+    
     // Restaurar todas las categorías es más seguro que intentar arreglar solo Ley Karin
-    return await restoreAllCategories(companyId);
+    const result = await restoreAllCategories(companyId);
+    
+    // Si fue exitoso, mantener en caché
+    if (!result.success) {
+      // Si falló, limpiar la caché para que se pueda intentar de nuevo
+      setKarinCategoryCache(false);
+      lastRestoreTimestamp = null;
+    }
+    
+    return result;
   } catch (error) {
     console.error('Error al verificar categoría Ley Karin:', error);
+    // Limpiar caché en caso de error para que se pueda intentar de nuevo
+    setKarinCategoryCache(false);
+    lastRestoreTimestamp = null;
     return {
       success: false,
       error: 'Error al verificar categoría Ley Karin'

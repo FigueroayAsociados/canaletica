@@ -159,7 +159,14 @@ const StepSix: React.FC<StepSixProps> = ({ formikProps }) => {
             </label>
             <p className="text-gray-500">
               Autorizo el uso de la información proporcionada para la investigación
-              de esta denuncia y la comunicación con las partes involucradas.
+              de esta denuncia y la comunicación con las partes involucradas conforme a la <a 
+                href="/politica-privacidad.md" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                política de privacidad
+              </a>.
             </p>
           </div>
         </div>

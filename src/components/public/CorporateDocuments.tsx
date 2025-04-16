@@ -1,20 +1,125 @@
 'use client';
 
-import React from 'react';
-import { usePublicCompanyDocuments } from '@/lib/hooks/useDocuments';
+import React, { useState, useEffect } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+// Para facilitar el debug, importamos estas interfaces
+import { getFirestore, collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { app } from '@/lib/firebase/config';
+
+// Interfaz para documentos corporativos
+interface DocumentItem {
+  id: string;
+  title: string;
+  description: string;
+  fileURL: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  isPublic: boolean;
+}
 
 interface CorporateDocumentsProps {
   companyId: string;
 }
 
 export function CorporateDocuments({ companyId }: CorporateDocumentsProps) {
-  const { 
-    data: documentsResult,
-    isLoading,
-    error
-  } = usePublicCompanyDocuments(companyId);
+  // Estados para gestionar los documentos
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [visibleDocuments, setVisibleDocuments] = useState(3); // Número inicial de documentos a mostrar
+
+  // Cargar documentos al montar el componente
+  useEffect(() => {
+    const loadDocuments = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Usamos las variables importadas directamente
+        const db = getFirestore(app);
+        
+        // Intento directo y simple - debería funcionar con reglas permisivas
+        let documentsQuery = query(
+          collection(db, `companies/${companyId}/documents`)
+        );
+        
+        let querySnapshot = await getDocs(documentsQuery);
+        const allDocuments: DocumentItem[] = [];
+        
+        // Mostramos todos los documentos encontrados
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          // Solo incluimos documentos que tienen la marca isPublic
+          if (data.isPublic === true) {
+            allDocuments.push({
+              id: doc.id,
+              title: data.title || 'Sin título',
+              description: data.description || '',
+              fileURL: data.fileURL || '',
+              fileName: data.fileName || 'archivo.pdf',
+              fileType: data.fileType || 'application/pdf',
+              fileSize: data.fileSize || 0,
+              isPublic: true
+            });
+          }
+        });
+        
+        console.log(`Documentos públicos encontrados: ${allDocuments.length}`);
+        
+        // Establecer los documentos encontrados
+        setDocuments(allDocuments);
+      } catch (err) {
+        console.error("Error al cargar documentos:", err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        
+        // Intentar un enfoque alternativo si falla el primer intento
+        try {
+          console.log("Intentando método alternativo...");
+          const db = getFirestore(app);
+          
+          // Intentar con la colección publicDocuments directamente
+          const publicDocsQuery = query(
+            collection(db, `companies/${companyId}/publicDocuments`)
+          );
+          
+          const publicSnapshot = await getDocs(publicDocsQuery);
+          const altDocuments: DocumentItem[] = [];
+          
+          publicSnapshot.forEach((doc) => {
+            const data = doc.data();
+            altDocuments.push({
+              id: doc.id,
+              title: data.title || 'Sin título',
+              description: data.description || '',
+              fileURL: data.fileURL || '',
+              fileName: data.fileName || 'archivo.pdf',
+              fileType: data.fileType || 'application/pdf',
+              fileSize: data.fileSize || 0,
+              isPublic: true
+            });
+          });
+          
+          if (altDocuments.length > 0) {
+            console.log(`Documentos alternativos encontrados: ${altDocuments.length}`);
+            setDocuments(altDocuments);
+            return;
+          }
+        } catch (altErr) {
+          console.error("También falló el método alternativo:", altErr);
+        }
+        
+        setError(`No se pudieron cargar los documentos: ${errorMessage}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    // Cargar documentos
+    loadDocuments();
+  }, [companyId]);
   
   // Formatear tamaño de archivo
   const formatFileSize = (bytes: number): string => {
@@ -69,65 +174,126 @@ export function CorporateDocuments({ companyId }: CorporateDocumentsProps) {
   }
   
   if (error) {
+    console.log("DEBUG: Mostrando error:", error);
     return (
       <Alert variant="error">
         <AlertDescription>
-          {error instanceof Error ? error.message : 'Error al cargar los documentos'}
+          {error}
+          <div className="mt-2">
+            <button 
+              onClick={() => window.location.reload()}
+              className="text-red-700 hover:text-red-900 underline text-sm"
+            >
+              Intentar nuevamente
+            </button>
+          </div>
         </AlertDescription>
       </Alert>
     );
   }
   
-  // Obtener documentos públicos
-  const documents = documentsResult?.success ? documentsResult.documents : [];
-  
   if (documents.length === 0) {
     return (
       <div className="py-4 text-center">
         <p className="text-sm text-gray-500">No hay documentos disponibles.</p>
+        <p className="text-xs text-gray-400 mt-2">ID de compañía: {companyId}</p>
+        {!isLoading && (
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
+          >
+            Recargar página
+          </button>
+        )}
       </div>
     );
   }
   
+  // Determinar si hay documentos duplicados o repetidos para una mejor visualización
+  const uniqueDocuments = documents.filter((doc, index, self) => 
+    index === self.findIndex((d) => d.id === doc.id)
+  );
+  
+  // Mostrar el número adecuado de documentos según el estado de expansión
+  const documentsToShow = isExpanded ? uniqueDocuments : uniqueDocuments.slice(0, visibleDocuments);
+  
+  // Ocultar el botón "Ver todos" si hay menos documentos que el límite inicial
+  const showExpandButton = uniqueDocuments.length > visibleDocuments;
+  
+  // Función para alternar entre vista expandida y compacta
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+  
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-      <h2 className="text-lg font-semibold border-b border-gray-200 px-6 py-4">
-        Documentos Corporativos
-      </h2>
-      <ul className="divide-y divide-gray-200">
-        {documents.map((document) => (
-          <li key={document.id} className="p-4 hover:bg-gray-50">
-            <a 
-              href={document.fileURL} 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-4 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-md p-2 -m-2"
-            >
-              <div className="flex-shrink-0">
-                {getFileIcon(document.fileType)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {document.title}
+      <div className="flex justify-between items-center border-b border-gray-200 px-6 py-4">
+        <h2 className="text-lg font-semibold">
+          Documentos Corporativos
+        </h2>
+        <span className="text-xs text-gray-500">
+          {uniqueDocuments.length} {uniqueDocuments.length === 1 ? 'documento' : 'documentos'}
+        </span>
+      </div>
+      
+      {/* Documentos en formato de tarjetas compacto */}
+      <div className="p-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {documentsToShow.map((document) => (
+          <a 
+            key={document.id}
+            href={document.fileURL} 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center border border-gray-100 rounded-md p-3 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex-shrink-0 mr-3">
+              {getFileIcon(document.fileType)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {document.title}
+              </p>
+              {document.description && (
+                <p className="text-xs text-gray-500 truncate">
+                  {document.description}
                 </p>
-                {document.description && (
-                  <p className="text-sm text-gray-500 truncate">
-                    {document.description}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  {document.fileName} ({formatFileSize(document.fileSize)})
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </a>
-          </li>
+              )}
+            </div>
+            <div className="flex-shrink-0 ml-2">
+              <svg className="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </a>
         ))}
-      </ul>
+      </div>
+      
+      {/* Botón para expandir/colapsar */}
+      {showExpandButton && (
+        <div className="flex justify-center p-3 border-t border-gray-100">
+          <button 
+            onClick={toggleExpand}
+            className="text-sm text-blue-600 hover:text-blue-800 flex items-center focus:outline-none"
+          >
+            {isExpanded ? (
+              <>
+                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                Mostrar menos
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                Ver todos los documentos ({uniqueDocuments.length})
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

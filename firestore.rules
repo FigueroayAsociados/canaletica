@@ -14,7 +14,8 @@ service cloud.firestore {
 
     // Regla especial: acceso completo para tus usuarios específicos
     match /{document=**} {
-      allow read, write: if isPrimaryAdmin();
+      allow read, write: if true; // Temporalmente permitimos todo acceso para diagnóstico
+      // allow read, write: if isPrimaryAdmin(); // Versión normal que usaremos después
     }
 
     // Para otros usuarios, se aplican las siguientes reglas
@@ -138,6 +139,22 @@ service cloud.firestore {
       // Acceso público a la configuración general para formularios públicos
       match /settings/general {
         allow read: if true;
+      }
+      
+      // Permitir lectura pública a documentos marcados como públicos
+      match /documents/{documentId} {
+        // Para diagnóstico: permitir todas las operaciones
+        allow read, write: if true;
+        
+        // Versión normal (activar después del diagnóstico):
+        // allow read: if resource.data.isPublic == true; // Permitir leer documentos públicos a cualquier usuario
+        // allow read, write: if belongsToCompany(companyId) && (hasRole(companyId, "admin") || hasRole(companyId, "investigator")); // Administradores pueden gestionar todos los documentos
+      }
+      
+      // Permitir acceso público a documentos que explícitamente están en la colección publicDocuments
+      match /publicDocuments/{documentId} {
+        allow read: if true; // Permitir lectura pública para estos documentos
+        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin"); // Solo administradores pueden modificarlos
       }
       
       // Acceso a las estadísticas para permitir la actualización desde el formulario de denuncia

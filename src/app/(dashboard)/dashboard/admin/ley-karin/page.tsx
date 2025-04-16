@@ -7,24 +7,18 @@ import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { ensureKarinCategoryExists } from '@/lib/services/setupService';
-import { 
-  // Ya no necesitamos importar addKarinPrecautionaryMeasures ya que usamos el componente
-  // Pero necesitamos importar getKarinReports para que el import esté disponible (usado en useKarinReports)
-  getKarinReports
-} from '@/lib/services/reportService';
+import { getKarinReports } from '@/lib/services/reportService';
 import { KarinProcessStage, DEFAULT_PRECAUTIONARY_MEASURES, KARIN_RISK_QUESTIONS } from '@/types/report';
 import { useKarinReports, useUpdateKarinStage } from '@/lib/hooks/useReports';
 import { PrecautionaryMeasures } from '@/components/investigation/PrecautionaryMeasures';
 
 export default function AdminLeyKarinPage() {
-  const { isAdmin, user } = useCurrentUser();
-  // Declarar todos los estados al inicio del componente
+  // 1. Estados de React - todos juntos al principio
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [reports, setReports] = useState<any[]>([]);
-  const [selectedMeasures, setSelectedMeasures] = useState<string[]>([]);
-  const [measuresJustification, setMeasuresJustification] = useState("");
+  // Estados para modales y UI
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isMeasuresModalOpen, setIsMeasuresModalOpen] = useState(false);
@@ -36,10 +30,35 @@ export default function AdminLeyKarinPage() {
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [editingMeasure, setEditingMeasure] = useState<string | null>(null);
   
-  // Utilizar los nuevos hooks para obtener datos y manejar errores automáticamente
+  // 2. Custom hooks
+  const { isAdmin } = useCurrentUser();
+  
+  // 3. Variables constantes
   const companyId = 'default'; // Usar ID predeterminado
   
-  // Usar hook de React Query para inicializar la categoría Ley Karin
+  // 4. Funciones traducidas
+  // Traducir etapa del proceso a español para mejor visualización
+  const translateStage = React.useCallback((stage?: string): string => {
+    if (!stage) return 'No definida';
+    
+    const stageMap: Record<string, string> = {
+      'orientation': 'Orientación',
+      'complaint_filed': 'Denuncia Interpuesta',
+      'reception': 'Recepción',
+      'precautionary_measures': 'Medidas Precautorias',
+      'decision_to_investigate': 'Decisión de Investigar',
+      'investigation': 'En Investigación',
+      'report': 'Informe',
+      'labor_department': 'En Dirección del Trabajo',
+      'measures_adoption': 'Adopción de Medidas',
+      'sanctions': 'Sanciones',
+      'closed': 'Cerrada'
+    };
+    
+    return stageMap[stage] || stage;
+  }, []);
+  
+  // 5. Hooks de React Query
   const initializeCategory = useMutation({
     mutationFn: () => ensureKarinCategoryExists(companyId),
     onSuccess: (result) => {
@@ -53,19 +72,79 @@ export default function AdminLeyKarinPage() {
     }
   });
   
-  // Usar hook de React Query para obtener reportes de Ley Karin
   const { 
     data: reportsData, 
     isLoading: isLoadingReports, 
     error: reportsError 
   } = useKarinReports(companyId);
   
-  // Efecto para inicializar la categoría Ley Karin al cargar la página
-  useEffect(() => {
-    initializeCategory.mutate();
+  const updateStageMutation = useUpdateKarinStage();
+  
+  // 6. Funciones de gestión con useCallback
+  const resetKarinCategory = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const result = await ensureKarinCategoryExists(companyId);
+      
+      if (result.success) {
+        setSuccess(`Categoría Ley Karin actualizada correctamente. Recargue la página.`);
+      } else {
+        setError(result.error || "Error desconocido al recrear categoría");
+      }
+    } catch (err) {
+      setError("Error al reiniciar: " + (err.message || "Error desconocido"));
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+  
+  const handleManageReport = React.useCallback((report: any) => {
+    setSelectedReport(report);
+    setIsManageReportModalOpen(true);
   }, []);
   
-  // Efecto para actualizar el estado cuando llegan los datos de reportes
+  const openMeasuresForm = React.useCallback(() => {
+    if (!selectedReport) return;
+    
+    setIsMeasuresFormModalOpen(true);
+    setIsManageReportModalOpen(false);
+  }, [selectedReport]);
+  
+  const updateReportStage = React.useCallback(async (reportId: string, newStage: string, additionalData = {}) => {
+    try {
+      setLoading(true);
+      
+      await updateStageMutation.mutateAsync({
+        companyId,
+        reportId,
+        newStage: newStage as KarinProcessStage,
+        additionalData
+      });
+      
+      setSuccess(`Etapa actualizada a: ${translateStage(newStage)}`);
+      setIsManageReportModalOpen(false);
+    } catch (error) {
+      console.error('Error al actualizar etapa:', error);
+      setError('Error al actualizar la etapa de la denuncia');
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId, updateStageMutation, translateStage]);
+  
+  // 7. Effects
+  // Estado para rastrear la inicialización
+  const [initAttempted, setInitAttempted] = useState(false);
+
+  useEffect(() => {
+    // Solo inicializar una vez al cargar la página
+    if (!initAttempted && !initializeCategory.isPending && !initializeCategory.isSuccess) {
+      setInitAttempted(true);
+      initializeCategory.mutate();
+    }
+  }, [initializeCategory, initAttempted]);
+  
   useEffect(() => {
     if (reportsData?.success) {
       setReports(reportsData.reports);
@@ -74,18 +153,17 @@ export default function AdminLeyKarinPage() {
     }
   }, [reportsData]);
   
-  // Actualizar estado de carga
   useEffect(() => {
     setLoading(initializeCategory.isPending || isLoadingReports);
   }, [initializeCategory.isPending, isLoadingReports]);
   
-  // Actualizar estado de error
   useEffect(() => {
     if (reportsError) {
       setError((reportsError as Error).message || 'Error al cargar denuncias Ley Karin');
     }
   }, [reportsError]);
-
+  
+  // 8. Renderizados condicionales
   if (!isAdmin) {
     return (
       <Alert variant="error" className="mb-4">
@@ -110,93 +188,7 @@ export default function AdminLeyKarinPage() {
     );
   }
 
-  // Función para gestionar una denuncia específica
-  const handleManageReport = (report: any) => {
-    setSelectedReport(report);
-    setIsManageReportModalOpen(true);
-    // Resetear los valores de medidas precautorias
-    setSelectedMeasures([]);
-    setMeasuresJustification("");
-  };
-  
-  // Función para abrir el formulario de medidas precautorias
-  const openMeasuresForm = () => {
-    if (!selectedReport) return;
-    
-    setIsMeasuresFormModalOpen(true);
-    setIsManageReportModalOpen(false);
-  };
-  
-  // Función para aplicar medidas precautorias
-  // Nota: Ya no necesitamos esta función porque usamos el componente PrecautionaryMeasures
-  // La mantenemos como referencia pero está comentada para evitar errores
-  /* 
-  const applyPrecautionaryMeasures = async () => {
-    if (!selectedReport || selectedMeasures.length === 0) {
-      setError("Debe seleccionar al menos una medida precautoria");
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      // Usar el hook en lugar de llamar directamente a la función
-      // Este código se ha movido al componente PrecautionaryMeasures
-    } catch (error) {
-      console.error('Error al aplicar medidas precautorias:', error);
-      setError('Error al aplicar medidas precautorias');
-    } finally {
-      setLoading(false);
-      setIsMeasuresFormModalOpen(false);
-    }
-  };
-  */
-
-  // Función para actualizar la etapa de una denuncia Ley Karin usando React Query
-  const updateStageMutation = useUpdateKarinStage();
-  
-  // Función para actualizar la etapa de una denuncia Ley Karin
-  const updateReportStage = async (reportId: string, newStage: string, additionalData = {}) => {
-    try {
-      setLoading(true);
-      
-      await updateStageMutation.mutateAsync({
-        companyId,
-        reportId,
-        newStage: newStage as KarinProcessStage,
-        additionalData
-      });
-      
-      setSuccess(`Etapa actualizada a: ${translateStage(newStage)}`);
-      setIsManageReportModalOpen(false);
-    } catch (error) {
-      console.error('Error al actualizar etapa:', error);
-      setError('Error al actualizar la etapa de la denuncia');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Traducir etapa del proceso a español para mejor visualización
-  const translateStage = (stage?: string): string => {
-    if (!stage) return 'No definida';
-    
-    const stageMap: Record<string, string> = {
-      'orientation': 'Orientación',
-      'complaint_filed': 'Denuncia Interpuesta',
-      'reception': 'Recepción',
-      'precautionary_measures': 'Medidas Precautorias',
-      'decision_to_investigate': 'Decisión de Investigar',
-      'investigation': 'En Investigación',
-      'report': 'Informe',
-      'labor_department': 'En Dirección del Trabajo',
-      'measures_adoption': 'Adopción de Medidas',
-      'sanctions': 'Sanciones',
-      'closed': 'Cerrada'
-    };
-    
-    return stageMap[stage] || stage;
-  };
-
+  // 9. Renderizado principal
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -252,29 +244,7 @@ export default function AdminLeyKarinPage() {
                 <Button 
                   variant="outline"
                   className="w-full"
-                  onClick={async () => {
-                    try {
-                      setLoading(true);
-                      setError(null);
-                      // Forzar la recreación de la categoría
-                      const companyId = 'default';
-                      
-                      console.log("Reiniciando categoría Ley Karin...");
-                      const result = await ensureKarinCategoryExists(companyId);
-                      console.log("Resultado:", result);
-                      
-                      if (result.success) {
-                        setSuccess(`Categoría Ley Karin actualizada (ID: ${result.categoryId}). Recargue la página.`);
-                      } else {
-                        setError(result.error || "Error desconocido al recrear categoría");
-                      }
-                    } catch (err) {
-                      console.error(err);
-                      setError("Error al reiniciar: " + (err.message || "Error desconocido"));
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
+                  onClick={resetKarinCategory}
                 >
                   Reiniciar Categoría
                 </Button>
@@ -417,15 +387,6 @@ export default function AdminLeyKarinPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Denuncias Ley Karin Activas</CardTitle>
-          <div className="flex items-center gap-2">
-            <select className="text-sm border rounded p-1">
-              <option value="all">Todas las etapas</option>
-              <option value="orientation">Orientación</option>
-              <option value="investigation">En Investigación</option>
-              <option value="measures">Medidas Adoptadas</option>
-            </select>
-            <Button size="sm" variant="outline">Exportar</Button>
-          </div>
         </CardHeader>
         <CardContent>
           {reports.length === 0 ? (
@@ -1132,9 +1093,6 @@ Este es un documento de plantilla para ${editingTemplate.toLowerCase()}.
             </div>
             
             <div className="mt-6 flex justify-end">
-              <Button variant="outline" className="mr-2" onClick={() => window.alert('Función para exportar estadísticas en desarrollo')}>
-                Exportar Datos
-              </Button>
               <Button onClick={() => setIsStatsModalOpen(false)}>
                 Cerrar
               </Button>

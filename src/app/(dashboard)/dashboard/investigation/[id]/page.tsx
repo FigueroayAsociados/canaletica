@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { InvestigationPlan } from '@/components/investigation/InvestigationPlan';
+import { PreliminaryReport } from '@/components/investigation/PreliminaryReport';
 import { InterviewList } from '@/components/investigation/InterviewList';
 import { FindingsList } from '@/components/investigation/FindingsList';
 import { TasksList } from '@/components/investigation/TasksList';
@@ -107,6 +108,14 @@ export default function InvestigationDetailPage() {
     setInvestigation(prev => ({
       ...prev,
       tasks
+    }));
+  };
+  
+  // Manejar la actualización del informe preliminar
+  const handlePreliminaryReportUpdated = (updatedReport: any) => {
+    setInvestigation(prev => ({
+      ...prev,
+      preliminaryReport: updatedReport
     }));
   };
   
@@ -264,7 +273,9 @@ export default function InvestigationDetailPage() {
   const hasEssentialElements = investigation.plan && 
                              investigation.interviews?.length > 0 && 
                              investigation.findings?.length > 0 && 
-                             investigation.finalReport;
+                             investigation.finalReport &&
+                             // Para casos Ley Karin, también necesitamos el informe preliminar
+                             (!investigation.isKarinLaw || investigation.preliminaryReport);
   
   const canComplete = hasEssentialElements && 
                     (investigation.status === 'En Investigación' || 
@@ -368,12 +379,15 @@ export default function InvestigationDetailPage() {
       
       {/* Pestañas */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className={`grid w-full ${investigation?.isKarinLaw ? 'grid-cols-7' : 'grid-cols-6'}`}>
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="plan">Plan</TabsTrigger>
+          {investigation?.isKarinLaw && (
+            <TabsTrigger value="preliminary" className="bg-red-50 text-red-800 hover:bg-red-100">Inf. Preliminar</TabsTrigger>
+          )}
           <TabsTrigger value="interviews">Entrevistas</TabsTrigger>
           <TabsTrigger value="findings">Hallazgos</TabsTrigger>
-          <TabsTrigger value="report">Informe</TabsTrigger>
+          <TabsTrigger value="report">Informe Final</TabsTrigger>
           {investigation?.isKarinLaw && (
             <TabsTrigger value="karin" className="bg-red-50 text-red-800 hover:bg-red-100">Ley Karin</TabsTrigger>
           )}
@@ -472,6 +486,44 @@ export default function InvestigationDetailPage() {
                   )}
                 </div>
                 
+                {investigation.isKarinLaw && (
+                  <div className="flex items-center">
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center mr-3 ${
+                      investigation.preliminaryReport ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      {investigation.preliminaryReport ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <span>2</span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-900">
+                        Informe Preliminar
+                        <span className="ml-2 text-xs text-red-600 font-normal">Ley Karin</span>
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {investigation.preliminaryReport 
+                          ? 'Informe creado el ' + formatDate(investigation.preliminaryReport.createdAt) 
+                          : 'Pendiente de crear - Requerido para Dirección del Trabajo'
+                        }
+                      </p>
+                    </div>
+                    {!investigation.preliminaryReport && canEdit && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="ml-auto"
+                        onClick={() => setActiveTab('preliminary')}
+                      >
+                        Crear Informe
+                      </Button>
+                    )}
+                  </div>
+                )}
+                
                 <div className="flex items-center">
                   <div className={`h-8 w-8 rounded-full flex items-center justify-center mr-3 ${
                     (investigation.interviews?.length || 0) > 0 
@@ -483,7 +535,7 @@ export default function InvestigationDetailPage() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     ) : (
-                      <span>2</span>
+                      <span>{investigation.isKarinLaw ? '3' : '2'}</span>
                     )}
                   </div>
                   <div>
@@ -518,7 +570,7 @@ export default function InvestigationDetailPage() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     ) : (
-                      <span>3</span>
+                      <span>{investigation.isKarinLaw ? '4' : '3'}</span>
                     )}
                   </div>
                   <div>
@@ -553,7 +605,7 @@ export default function InvestigationDetailPage() {
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     ) : (
-                      <span>4</span>
+                      <span>{investigation.isKarinLaw ? '5' : '4'}</span>
                     )}
                   </div>
                   <div>
@@ -652,11 +704,26 @@ export default function InvestigationDetailPage() {
           <InvestigationPlan 
             reportId={reportId}
             plan={investigation.plan}
+            reportData={investigation}
             isKarinLaw={investigation.isKarinLaw}
             canEdit={canEdit}
             onPlanUpdated={handlePlanUpdated}
           />
         </TabsContent>
+        
+        {/* Pestaña de Informe Preliminar */}
+        {investigation?.isKarinLaw && (
+          <TabsContent value="preliminary">
+            <PreliminaryReport 
+              reportId={reportId}
+              reportData={investigation || {}}
+              preliminaryReport={investigation?.preliminaryReport || null}
+              isKarinLaw={investigation?.isKarinLaw || false}
+              canEdit={canEdit}
+              onReportUpdated={handlePreliminaryReportUpdated}
+            />
+          </TabsContent>
+        )}
         
         {/* Pestaña de Entrevistas */}
         <TabsContent value="interviews">

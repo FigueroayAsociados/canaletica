@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   /* config options here */
   typescript: {
     // !! ADVERTENCIA !!
@@ -14,6 +13,7 @@ const nextConfig: NextConfig = {
   },
   // Paquetes que deben ser externalizados en el servidor
   serverExternalPackages: ['pdfkit', 'blob-stream', 'linebreak'],
+  output: 'standalone',
   webpack: (config) => {
     // Añadir fallbacks para módulos de Node.js que no funcionan en el navegador
     config.resolve.fallback = {
@@ -50,13 +50,8 @@ const nextConfig: NextConfig = {
       },
     });
     
-    // Añadir el plugin para proporcionar el módulo process
-    if (!config.plugins) {
-      config.plugins = [];
-    }
-    
     return config;
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

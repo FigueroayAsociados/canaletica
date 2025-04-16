@@ -38,6 +38,56 @@ if (typeof window === 'undefined') {
   PDFDocument = require('pdfkit');
 }
 // En el cliente, los módulos se importarán dinámicamente cuando sea necesario
+
+/**
+ * Función para asignar un reporte a un investigador o admin
+ */
+export async function assignReport(
+  companyId: string,
+  reportId: string,
+  investigatorId: string,
+  investigatorName: string
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return { success: false, error: 'Reporte no encontrado' };
+    }
+    
+    // Actualizar documento con la información del investigador asignado
+    await updateDoc(reportRef, {
+      investigatorId,
+      investigatorName,
+      assignedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      status: 'in_progress' // Actualizar estado a "en progreso"
+    });
+    
+    // Obtener datos para notificación
+    const reportData = reportDoc.data();
+    
+    // Crear notificación para el investigador asignado
+    await notifyInvestigatorAssigned(companyId, {
+      reportId,
+      reportCode: reportData.reportCode,
+      investigatorId,
+      category: reportData.category
+    });
+    
+    return { 
+      success: true,
+      message: `Reporte asignado a ${investigatorName}`
+    };
+  } catch (error) {
+    console.error('Error al asignar reporte:', error);
+    return {
+      success: false,
+      error: 'Error al asignar el reporte'
+    };
+  }
+}
   
   // Crear una nueva denuncia
   export async function createReport(companyId: string, reportData: ReportFormValues) {

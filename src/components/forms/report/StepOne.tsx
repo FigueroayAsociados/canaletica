@@ -450,7 +450,14 @@ const StepOne: React.FC<StepOneProps> = ({ formikProps }) => {
             </label>
             <p className="text-gray-500">
               Al marcar esta casilla, acepta que la información proporcionada sea utilizada para
-              la investigación de esta denuncia conforme a nuestra política de privacidad.
+              la investigación de esta denuncia conforme a nuestra <a 
+                href="/politica-privacidad.md" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                política de privacidad
+              </a>.
             </p>
           </div>
         </div>
