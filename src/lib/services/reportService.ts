@@ -508,9 +508,21 @@ export async function getReportByCodeAndAccessCode(
    */
   export async function getAllReports(companyId: string) {
     try {
+      if (!companyId) {
+        console.error('getAllReports: companyId is empty');
+        return { 
+          success: false, 
+          error: 'ID de compañía no válido',
+          reports: [] 
+        };
+      }
+      
+      console.log(`Buscando denuncias en: companies/${companyId}/reports`);
       const reportsRef = collection(db, `companies/${companyId}/reports`);
       const q = query(reportsRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
+      
+      console.log(`Se encontraron ${querySnapshot.size} denuncias`);
       
       if (querySnapshot.empty) {
         return { success: true, reports: [] };
@@ -523,9 +535,14 @@ export async function getReportByCodeAndAccessCode(
         // Si hay un investigador asignado, obtener su nombre
         let assignedToName = undefined;
         if (data.assignedTo) {
-          const userResult = await getUserProfileById(companyId, data.assignedTo);
-          if (userResult.success) {
-            assignedToName = userResult.profile.displayName;
+          try {
+            const userResult = await getUserProfileById(companyId, data.assignedTo);
+            if (userResult.success) {
+              assignedToName = userResult.profile.displayName;
+            }
+          } catch (err) {
+            console.error(`Error al obtener perfil de usuario ${data.assignedTo}:`, err);
+            // Continuar sin el nombre del usuario asignado
           }
         }
         
@@ -545,6 +562,7 @@ export async function getReportByCodeAndAccessCode(
       return {
         success: false,
         error: 'Error al obtener las denuncias',
+        reports: []
       };
     }
   }
@@ -5239,11 +5257,22 @@ export async function deleteReport(
   reportId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!companyId || !reportId) {
+      console.error('deleteReport: missing parameters', { companyId, reportId });
+      return {
+        success: false,
+        error: 'Parámetros incompletos para eliminar la denuncia'
+      };
+    }
+    
+    console.log(`Intentando eliminar denuncia: companies/${companyId}/reports/${reportId}`);
+    
     // Obtener la denuncia primero para verificar su existencia y datos
     const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
     const reportSnap = await getDoc(reportRef);
     
     if (!reportSnap.exists()) {
+      console.error(`La denuncia ${reportId} no existe`);
       return {
         success: false,
         error: 'La denuncia no existe'

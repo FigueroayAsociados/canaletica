@@ -28,9 +28,22 @@ export default function DeleteReportsPage() {
         setLoading(true);
         setError(null);
         
+        if (!companyId) {
+          console.log('No hay ID de compañía disponible');
+          setError('No hay ID de compañía disponible');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Cargando denuncias para compañía:', companyId);
         const result = await getAllReports(companyId);
+        console.log('Resultado de getAllReports:', result);
+        
         if (result.success) {
           setReports(result.reports || []);
+          if (result.reports.length === 0) {
+            console.log('No se encontraron denuncias para esta compañía');
+          }
         } else {
           setError(result.error || 'Error al cargar denuncias');
         }
@@ -42,8 +55,11 @@ export default function DeleteReportsPage() {
       }
     };
     
-    if (isAdmin || isSuperAdmin) {
+    if ((isAdmin || isSuperAdmin) && companyId) {
       loadReports();
+    } else {
+      console.log('Usuario no es admin o superadmin, o no hay companyId');
+      setLoading(false);
     }
   }, [companyId, isAdmin, isSuperAdmin]);
 
