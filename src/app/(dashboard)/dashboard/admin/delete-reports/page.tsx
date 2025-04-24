@@ -13,12 +13,15 @@ import { useReports } from '@/lib/hooks/useReports';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function DeleteReportsPage() {
-  const { companyId } = useCompany();
+  const { companyId: contextCompanyId } = useCompany();
   const { isAdmin, isSuperAdmin } = useCurrentUser();
   const [success, setSuccess] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
+  
+  // Usar un companyId fijo como en reports/page.tsx para asegurar consistencia
+  const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
   
   // Usar React Query para cargar los datos (igual que en reports/page.tsx)
   const { data, isLoading, isError, error } = useReports(companyId);
@@ -62,6 +65,7 @@ export default function DeleteReportsPage() {
       setSuccess(null);
       
       console.log(`Intentando eliminar denuncia ${reportId} de la compañía ${companyId}`);
+      // Usar el ID de compañía fijo para eliminar la denuncia
       const result = await deleteReport(companyId, reportId);
       
       if (result.success) {
@@ -74,6 +78,13 @@ export default function DeleteReportsPage() {
         queryClient.invalidateQueries({ 
           queryKey: ['reports', companyId] 
         });
+        
+        // También invalidar cualquier consulta que use el ID de compañía del contexto
+        if (contextCompanyId && contextCompanyId !== companyId) {
+          queryClient.invalidateQueries({ 
+            queryKey: ['reports', contextCompanyId] 
+          });
+        }
         
         console.log('Denuncia eliminada exitosamente');
       } else {
