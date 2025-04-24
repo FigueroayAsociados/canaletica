@@ -58,16 +58,8 @@ export default function ReportsPage() {
     searchTerm: searchParams.get('search') || '',
   });
   
-  // Obtener el ID de compañía del contexto
-  const { companyId: contextCompanyId } = useCompany();
-  // Usar el ID de compañía del contexto, con fallback a 'default' si no está disponible
-  const companyId = contextCompanyId || 'default';
-  
-  // Registrar el ID de compañía que se está utilizando para diagnóstico
-  useEffect(() => {
-    console.log('ReportsPage - ID de compañía utilizado:', companyId);
-    console.log('ReportsPage - ID de compañía del contexto:', contextCompanyId);
-  }, [companyId, contextCompanyId]);
+  // Usar un companyId fijo (default) para asegurar que los datos se carguen correctamente
+  const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
   
   // Usar React Query para cargar los datos
   const { data, isLoading, isError, error } = useReports(companyId);

@@ -13,21 +13,15 @@ import { useReports } from '@/lib/hooks/useReports';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function DeleteReportsPage() {
-  const { companyId: contextCompanyId } = useCompany();
+  const { companyId: contextCompanyId } = useCompany(); // Mantenemos la referencia aunque no la usamos por ahora
   const { isAdmin, isSuperAdmin } = useCurrentUser();
   const [success, setSuccess] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   
-  // Usar el ID de compañía del contexto, con fallback a 'default' si no está disponible
-  const companyId = contextCompanyId || 'default'; 
-  
-  // Registrar el ID de compañía que se está utilizando para diagnóstico
-  useEffect(() => {
-    console.log('DeleteReportsPage - ID de compañía utilizado:', companyId);
-    console.log('DeleteReportsPage - ID de compañía del contexto:', contextCompanyId);
-  }, [companyId, contextCompanyId]);
+  // Usar un companyId fijo (default) para asegurar que los datos se carguen correctamente
+  const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
   
   // Usar React Query para cargar los datos (igual que en reports/page.tsx)
   const { data, isLoading, isError, error } = useReports(companyId);
@@ -85,12 +79,8 @@ export default function DeleteReportsPage() {
           queryKey: ['reports', companyId] 
         });
         
-        // También invalidar cualquier consulta que use el ID de compañía del contexto
-        if (contextCompanyId && contextCompanyId !== companyId) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['reports', contextCompanyId] 
-          });
-        }
+        // Por ahora dejamos la invalidación solo con el ID fijo
+        // Si en el futuro implementamos multi-tenant, debemos invalidar ambos
         
         console.log('Denuncia eliminada exitosamente');
       } else {
