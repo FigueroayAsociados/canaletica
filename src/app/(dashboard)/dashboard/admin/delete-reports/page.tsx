@@ -9,59 +9,33 @@ import { Label } from '@/components/ui/label';
 import { useCompany } from '@/lib/contexts/CompanyContext';
 import { getAllReports, deleteReport } from '@/lib/services/reportService';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useReports } from '@/lib/hooks/useReports';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function DeleteReportsPage() {
   const { companyId } = useCompany();
   const { isAdmin, isSuperAdmin } = useCurrentUser();
-  const [reports, setReports] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
-
-  // Cargar todas las denuncias al montar el componente
+  
+  // Usar React Query para cargar los datos (igual que en reports/page.tsx)
+  const { data, isLoading, isError, error } = useReports(companyId);
+  
+  // Estado para los reportes procesados
+  const [reports, setReports] = useState<any[]>([]);
+  
+  // Actualizar los reportes cuando los datos cambien
   useEffect(() => {
-    const loadReports = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        if (!companyId) {
-          console.log('No hay ID de compañía disponible');
-          setError('No hay ID de compañía disponible');
-          setLoading(false);
-          return;
-        }
-        
-        console.log('Cargando denuncias para compañía:', companyId);
-        const result = await getAllReports(companyId);
-        console.log('Resultado de getAllReports:', result);
-        
-        if (result.success) {
-          setReports(result.reports || []);
-          if (result.reports.length === 0) {
-            console.log('No se encontraron denuncias para esta compañía');
-          }
-        } else {
-          setError(result.error || 'Error al cargar denuncias');
-        }
-      } catch (err) {
-        console.error('Error al cargar denuncias:', err);
-        setError('Error al cargar denuncias');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    if ((isAdmin || isSuperAdmin) && companyId) {
-      loadReports();
+    if (data?.success && data?.reports?.length) {
+      console.log(`useReports cargó ${data.reports.length} denuncias`);
+      setReports(data.reports);
     } else {
-      console.log('Usuario no es admin o superadmin, o no hay companyId');
-      setLoading(false);
+      console.log('useReports no encontró denuncias o falló:', data);
+      setReports([]);
     }
-  }, [companyId, isAdmin, isSuperAdmin]);
+  }, [data]);
 
   // Filtrar denuncias
   const filteredReports = reports.filter(report => {
@@ -73,6 +47,9 @@ export default function DeleteReportsPage() {
     );
   });
 
+  // Obtener el cliente de consulta para invalidar la caché después de eliminar
+  const queryClient = useQueryClient();
+
   // Función para eliminar una denuncia
   const handleDeleteReport = async (reportId: string) => {
     if (confirmDelete !== reportId) {
@@ -82,20 +59,32 @@ export default function DeleteReportsPage() {
     
     try {
       setDeleteInProgress(true);
-      setError(null);
       setSuccess(null);
       
+      console.log(`Intentando eliminar denuncia ${reportId} de la compañía ${companyId}`);
       const result = await deleteReport(companyId, reportId);
+      
       if (result.success) {
         setSuccess('Denuncia eliminada correctamente');
+        
         // Actualizar la lista de denuncias
         setReports(reports.filter(report => report.id !== reportId));
+        
+        // Invalidar la caché para recargar los datos en otras páginas
+        queryClient.invalidateQueries({ 
+          queryKey: ['reports', companyId] 
+        });
+        
+        console.log('Denuncia eliminada exitosamente');
       } else {
-        setError(result.error || 'Error al eliminar la denuncia');
+        console.error('Error al eliminar la denuncia:', result.error);
+        // Mostrar alerta de error
+        alert(`Error al eliminar la denuncia: ${result.error || 'Error desconocido'}`);
       }
     } catch (err) {
       console.error('Error al eliminar denuncia:', err);
-      setError('Error al eliminar la denuncia');
+      // Mostrar alerta de error
+      alert('Error al eliminar la denuncia. Por favor, inténtalo de nuevo.');
     } finally {
       setDeleteInProgress(false);
       setConfirmDelete(null);
@@ -135,9 +124,11 @@ export default function DeleteReportsPage() {
         <p className="text-gray-600">Esta página permite eliminar denuncias del sistema. Utilícela para quitar denuncias de prueba o registros erróneos.</p>
       </div>
       
-      {error && (
+      {isError && (
         <Alert variant="error">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {error instanceof Error ? error.message : 'Ha ocurrido un error al cargar las denuncias'}
+          </AlertDescription>
         </Alert>
       )}
       
@@ -166,7 +157,7 @@ export default function DeleteReportsPage() {
             />
           </div>
           
-          {loading ? (
+          {isLoading ? (
             <div className="text-center py-6">
               <div className="inline-block animate-spin text-primary mb-4">
                 <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
