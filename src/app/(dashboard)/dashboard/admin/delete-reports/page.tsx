@@ -20,8 +20,14 @@ export default function DeleteReportsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   
-  // Usar un companyId fijo como en reports/page.tsx para asegurar consistencia
-  const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
+  // Usar el ID de compañía del contexto, con fallback a 'default' si no está disponible
+  const companyId = contextCompanyId || 'default'; 
+  
+  // Registrar el ID de compañía que se está utilizando para diagnóstico
+  useEffect(() => {
+    console.log('DeleteReportsPage - ID de compañía utilizado:', companyId);
+    console.log('DeleteReportsPage - ID de compañía del contexto:', contextCompanyId);
+  }, [companyId, contextCompanyId]);
   
   // Usar React Query para cargar los datos (igual que en reports/page.tsx)
   const { data, isLoading, isError, error } = useReports(companyId);

@@ -13,6 +13,7 @@ import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useReports } from '@/lib/hooks/useReports';
 import { Spinner } from '@/components/ui/spinner';
+import { useCompany } from '@/lib/contexts/CompanyContext';
 
 // Tipos para los filtros y denuncias
 interface ReportFilters {
@@ -57,8 +58,18 @@ export default function ReportsPage() {
     searchTerm: searchParams.get('search') || '',
   });
   
+  // Obtener el ID de compañía del contexto
+  const { companyId: contextCompanyId } = useCompany();
+  // Usar el ID de compañía del contexto, con fallback a 'default' si no está disponible
+  const companyId = contextCompanyId || 'default';
+  
+  // Registrar el ID de compañía que se está utilizando para diagnóstico
+  useEffect(() => {
+    console.log('ReportsPage - ID de compañía utilizado:', companyId);
+    console.log('ReportsPage - ID de compañía del contexto:', contextCompanyId);
+  }, [companyId, contextCompanyId]);
+  
   // Usar React Query para cargar los datos
-  const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
   const { data, isLoading, isError, error } = useReports(companyId);
   
   // Estado para los reportes filtrados y seleccionados
