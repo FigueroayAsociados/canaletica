@@ -16,7 +16,6 @@ import SuccessStep from '@/components/forms/report/SuccessStep';
 import { createReport, uploadEvidence } from '@/lib/services/reportService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
-import { CorporateDocuments } from '@/components/public/CorporateDocuments';
 
 // Validación para cada paso del formulario
 const validationSchemas = [
@@ -28,6 +27,7 @@ const validationSchemas = [
     isVictim: Yup.boolean().when(['isKarinLaw', 'isAnonymous'], {
       is: (isKarinLaw, isAnonymous) => isKarinLaw === true && isAnonymous === false,
       then: () => Yup.boolean().required('Debe indicar si es la persona afectada'),
+      otherwise: () => Yup.boolean().notRequired()
     }),
     contactInfo: Yup.object().when('isAnonymous', {
       is: false,
@@ -36,7 +36,7 @@ const validationSchemas = [
         email: Yup.string().email('Ingrese un email válido').required('El email es obligatorio'),
         phone: Yup.string().required('El teléfono es obligatorio'),
       }),
-      otherwise: () => Yup.object().notRequired(),
+      otherwise: () => Yup.object().notRequired()
     }),
     // Validación para cuando es denuncia Ley Karin y no es la víctima directa
     victimInfo: Yup.object().when(['isKarinLaw', 'isVictim'], {
@@ -44,17 +44,17 @@ const validationSchemas = [
       then: () => Yup.object({
         name: Yup.string().required('El nombre de la persona afectada es obligatorio'),
       }),
-      otherwise: () => Yup.object().notRequired(),
+      otherwise: () => Yup.object().notRequired()
     }),
     relationToVictim: Yup.string().when(['isKarinLaw', 'isVictim'], {
       is: (isKarinLaw, isVictim) => isKarinLaw === true && isVictim === false,
       then: () => Yup.string().required('La relación con la persona afectada es obligatoria'),
-      otherwise: () => Yup.string().notRequired(),
+      otherwise: () => Yup.string().notRequired()
     }),
     authorizationDocument: Yup.mixed().when(['isKarinLaw', 'isVictim'], {
       is: (isKarinLaw, isVictim) => isKarinLaw === true && isVictim === false,
       then: () => Yup.mixed().required('Debe adjuntar el documento de autorización'),
-      otherwise: () => Yup.mixed().notRequired(),
+      otherwise: () => Yup.mixed().notRequired()
     }),
     acceptPrivacyPolicy: Yup.boolean()
       .oneOf([true], 'Debe aceptar la política de privacidad')
@@ -176,18 +176,25 @@ export default function ReportPage() {
     setShowKarinModal(false);
     setInitialAsked(true);
     setIsKarinReport(isKarin);
+    setValidationError(null);
     
     if (isKarin) {
       // Si es Ley Karin, establecer los valores correspondientes
-      setValidationError(null);
       console.log("Usuario indicó que es denuncia Ley Karin");
     } else {
       console.log("Usuario indicó que NO es denuncia Ley Karin");
     }
+    
+    // Añadir un pequeño retardo para asegurar que el estado se actualice correctamente
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 100);
   };
 
   // Validación adicional entre pasos para manejar reglas específicas
   const validateBeforeNextStep = (values: ReportFormValues, currentStep: number) => {
+    console.log(`Validando paso ${currentStep}:`, values);
+    
     // Si el usuario indicó inicialmente que es una denuncia Ley Karin, verificar que no sea anónima
     if (isKarinReport && values.isAnonymous) {
       console.error("Intento de denuncia anónima para Ley Karin detectado en validación");
@@ -220,6 +227,25 @@ export default function ReportPage() {
       }
     }
     
+    // Verificación específica para el Paso 1
+    if (currentStep === 0) {
+      // Si no es anónimo, verificar que tenga datos de contacto completos
+      if (!values.isAnonymous) {
+        const contactInfo = values.contactInfo || {};
+        if (!contactInfo.name || !contactInfo.email || !contactInfo.phone) {
+          console.log("Datos de contacto incompletos:", contactInfo);
+          // No retornamos error aquí porque Formik ya lo validará con el esquema
+        }
+      }
+      
+      // Verificar la aceptación de la política de privacidad
+      if (!values.acceptPrivacyPolicy) {
+        console.log("Política de privacidad no aceptada");
+        // No retornamos error aquí porque Formik ya lo validará con el esquema
+      }
+    }
+    
+    console.log(`Validación del paso ${currentStep} completada correctamente`);
     // Todo correcto, no hay errores
     return null;
   };
@@ -245,6 +271,10 @@ export default function ReportPage() {
         // Limpiar cualquier error de validación anterior
         setValidationError(null);
       }
+      
+      // Registrar en consola el paso actual de la validación
+      console.log(`Avanzando del paso ${activeStep} al paso ${activeStep + 1}`);
+      console.log("Valores actuales del formulario:", values);
       
       handleNext();
       return;
@@ -502,35 +532,6 @@ export default function ReportPage() {
         </div>
       )}
 
-      {/* Documentos corporativos */}
-      <div className="p-6 pt-4 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Recursos y Documentos</h3>
-        <p className="text-sm text-gray-500 mb-4">
-          A continuación encontrará documentos informativos sobre nuestros procedimientos, políticas y compromisos.
-        </p>
-        
-        {/* Componente para mostrar documentos corporativos */}
-        <div className="mt-2">
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">Información importante</h3>
-                <div className="mt-1 text-sm text-blue-700">
-                  Le recomendamos revisar todos los documentos antes de continuar con su denuncia.
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Los documentos se cargarán de Firebase */}
-          <CorporateDocuments companyId="default" />
-        </div>
-      </div>
 
       {/* Formulario */}
       <Formik
@@ -540,7 +541,9 @@ export default function ReportPage() {
           // Establecer isKarinLaw basado en la selección del usuario
           isKarinLaw: isKarinReport,
           // Asegurarnos de que isAnonymous es siempre false para denuncias Ley Karin
-          isAnonymous: isKarinReport ? false : initialValues.isAnonymous
+          isAnonymous: isKarinReport ? false : initialValues.isAnonymous,
+          // Asegurar que otros campos relacionados estén inicializados correctamente
+          acceptPrivacyPolicy: initialValues.acceptPrivacyPolicy || false
         }}
         validationSchema={validationSchemas[activeStep]}
         onSubmit={handleSubmit}
