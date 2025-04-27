@@ -40,7 +40,10 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
         console.log('Resultado de getCategories:', categoriesResult);
         
         if (!categoriesResult.success || !categoriesResult.categories || categoriesResult.categories.length === 0) {
-          console.warn('No se pudieron cargar las categorías o no hay categorías. Usando valores predeterminados.');
+          console.warn('⚠️ No se pudieron cargar las categorías o no hay categorías en la colección default.');
+          console.warn('Si ha creado categorías y no aparecen, es posible que estén en otra colección.');
+          console.warn('Ejecute el script scripts/migrate-categories.js para migrar las categorías.');
+          console.warn('Utilizando valores predeterminados por ahora...');
           useDefaultCategoriesAndSubcategories();
           return;
         }
@@ -49,11 +52,15 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
         const activeCategories = categoriesResult.categories.filter(cat => cat.isActive);
         
         if (activeCategories.length === 0) {
-          console.warn('No hay categorías activas. Usando valores predeterminados.');
+          console.warn('⚠️ No hay categorías activas en la colección default.');
+          console.warn('Todas las categorías existentes están marcadas como inactivas.');
+          console.warn('Active las categorías desde el panel de administración o cree nuevas categorías.');
+          console.warn('Utilizando valores predeterminados por ahora...');
           useDefaultCategoriesAndSubcategories();
           return;
         }
         
+        console.log(`✅ Se encontraron ${activeCategories.length} categorías activas en la colección default.`);
         setCategories(activeCategories);
         console.log('Categorías cargadas:', activeCategories);
 
@@ -86,15 +93,82 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
     
     // Función para establecer valores predeterminados en caso de error
     const useDefaultCategoriesAndSubcategories = () => {
-      // No usar categorías predeterminadas - solo usar las de Firebase
-      console.warn('No se pudieron cargar categorías desde Firebase. El formulario requiere categorías en la base de datos.');
+      console.warn('No se pudieron cargar categorías desde Firebase. Usando categorías predeterminadas.');
       
-      // Establecer arrays vacíos en lugar de datos predeterminados
-      setCategories([]);
-      setSubcategoriesByCategory({});
+      // Proporcionar categorías predeterminadas para que el formulario pueda funcionar
+      const defaultCategories = [
+        { 
+          id: 'modelo_prevencion', 
+          name: 'Prevención de Delitos', 
+          description: 'Denuncias relacionadas con el modelo de prevención de delitos',
+          isActive: true,
+          isKarinLaw: false,
+          order: 1
+        },
+        { 
+          id: 'ley_karin', 
+          name: 'Ley Karin', 
+          description: 'Denuncias relacionadas con acoso laboral o sexual',
+          isActive: true,
+          isKarinLaw: true,
+          order: 2
+        },
+        { 
+          id: 'reglamento_interno', 
+          name: 'Reglamento Interno', 
+          description: 'Denuncias relacionadas con el reglamento interno',
+          isActive: true,
+          isKarinLaw: false,
+          order: 3
+        },
+        { 
+          id: 'politicas_codigos', 
+          name: 'Políticas y Códigos', 
+          description: 'Denuncias relacionadas con incumplimiento de políticas o códigos',
+          isActive: true,
+          isKarinLaw: false,
+          order: 4
+        },
+        { 
+          id: 'represalias', 
+          name: 'Represalias', 
+          description: 'Denuncias de represalias',
+          isActive: true,
+          isKarinLaw: false,
+          order: 5
+        },
+        { 
+          id: 'otros', 
+          name: 'Otros', 
+          description: 'Otras denuncias',
+          isActive: true,
+          isKarinLaw: false,
+          order: 6
+        }
+      ];
       
-      // Mostrar error
-      setError('No se pudieron cargar las categorías. Por favor, contacte al administrador.');
+      // Establecer subcategorías predeterminadas
+      const defaultSubcategories = {
+        'modelo_prevencion': [
+          { id: 'cohecho', name: 'Cohecho', isActive: true, categoryId: 'modelo_prevencion', order: 1 },
+          { id: 'lavado_activos', name: 'Lavado de Activos', isActive: true, categoryId: 'modelo_prevencion', order: 2 },
+          { id: 'financiamiento_terrorismo', name: 'Financiamiento del Terrorismo', isActive: true, categoryId: 'modelo_prevencion', order: 3 }
+        ],
+        'ley_karin': [
+          { id: 'acoso_laboral', name: 'Acoso Laboral', isActive: true, categoryId: 'ley_karin', order: 1 },
+          { id: 'acoso_sexual', name: 'Acoso Sexual', isActive: true, categoryId: 'ley_karin', order: 2 },
+          { id: 'violencia_trabajo', name: 'Violencia en el Trabajo', isActive: true, categoryId: 'ley_karin', order: 3 }
+        ],
+        'represalias': [
+          { id: 'represalia_denuncia', name: 'Represalia por Denuncia', isActive: true, categoryId: 'represalias', order: 1 }
+        ]
+      };
+      
+      setCategories(defaultCategories);
+      setSubcategoriesByCategory(defaultSubcategories);
+      
+      // Actualizar el mensaje de error para indicar que se están usando valores predeterminados
+      setError('No se pudieron cargar las categorías desde la base de datos. Se están utilizando categorías predeterminadas.');
     };
 
     loadCategoriesAndSubcategories();

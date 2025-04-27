@@ -297,13 +297,21 @@ export async function getCategories(companyId: string): Promise<{ success: boole
     const querySnapshot = await getDocs(q);
     const categories: Category[] = [];
     
-    console.log(`getCategories: Encontradas ${querySnapshot.size} categorías`);
+    console.log(`getCategories: Encontradas ${querySnapshot.size} categorías en companies/${normalizedCompanyId}/categories`);
+    
+    if (querySnapshot.size === 0) {
+      console.warn(`⚠️ NO SE ENCONTRARON CATEGORÍAS en companies/${normalizedCompanyId}/categories`);
+      console.warn('Esto puede indicar que las categorías están en otra colección o no han sido creadas.');
+      console.warn('Ejecute el script scripts/migrate-categories.js para consolidar todas las categorías.');
+    }
     
     querySnapshot.forEach((doc) => {
+      const categoryData = doc.data();
       categories.push({
         id: doc.id,
-        ...doc.data()
+        ...categoryData
       } as Category);
+      console.log(`- Categoría cargada: ${categoryData.name} (ID: ${doc.id}, Activa: ${categoryData.isActive})`);
     });
     
     return {
@@ -451,25 +459,35 @@ export async function getSubcategories(
     let q;
     
     if (categoryId) {
+      console.log(`getSubcategories: Buscando subcategorías para la categoría ${categoryId}`);
       q = query(
         subcategoriesRef, 
         where('categoryId', '==', categoryId),
         orderBy('order', 'asc')
       );
     } else {
+      console.log(`getSubcategories: Buscando todas las subcategorías`);
       q = query(subcategoriesRef, orderBy('categoryId'), orderBy('order', 'asc'));
     }
     
     const querySnapshot = await getDocs(q);
     const subcategories: Subcategory[] = [];
     
-    console.log(`getSubcategories: Encontradas ${querySnapshot.size} subcategorías`);
+    console.log(`getSubcategories: Encontradas ${querySnapshot.size} subcategorías en companies/${normalizedCompanyId}/subcategories`);
+    
+    if (querySnapshot.size === 0 && categoryId) {
+      console.warn(`⚠️ NO SE ENCONTRARON SUBCATEGORÍAS para la categoría ${categoryId}`);
+      console.warn('Esto puede indicar que las subcategorías están en otra colección o no han sido creadas.');
+      console.warn('Ejecute el script scripts/migrate-categories.js para consolidar todas las subcategorías.');
+    }
     
     querySnapshot.forEach((doc) => {
+      const subcategoryData = doc.data();
       subcategories.push({
         id: doc.id,
-        ...doc.data()
+        ...subcategoryData
       } as Subcategory);
+      console.log(`- Subcategoría cargada: ${subcategoryData.name} (ID: ${doc.id}, CategoríaID: ${subcategoryData.categoryId})`);
     });
     
     return {

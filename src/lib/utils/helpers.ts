@@ -16,25 +16,31 @@ import { DEFAULT_COMPANY_ID } from './constants/index';
  * @returns ID de compañía normalizado para entorno de desarrollo
  */
 export function normalizeCompanyId(companyId: string | null | undefined): string {
-  // Para desarrollo, siempre usar default
-  if (process.env.NODE_ENV === 'development' || process.env.VERCEL_ENV === 'preview') {
-    // Si es un ID generado por Vercel o no es un ID válido, usar default
-    if (!companyId || 
-        companyId.startsWith('canaletica-') || 
-        companyId.includes('-ricardo-figueroas-projects-')) {
-      console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}" para desarrollo/pruebas`);
-      return DEFAULT_COMPANY_ID;
-    }
-    
-    // En ambiente de desarrollo, también normalizamos otros IDs a default
-    // excepto si está explícitamente solicitado otro ID para probar multi-tenant
-    // (La verificación de parámetros de URL se hace en el CompanyContext)
-    if (companyId !== DEFAULT_COMPANY_ID) {
-      console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}" para desarrollo/pruebas`);
-      return DEFAULT_COMPANY_ID;
-    }
+  // FASE ACTUAL: Desarrollo/Consolidación - Siempre usar default para todas las operaciones
+  // NOTA IMPORTANTE: Esta configuración es temporal y está diseñada para consolidar 
+  // todos los datos en la colección 'default' durante la fase de desarrollo.
+  
+  // Si es un ID generado por Vercel o no es un ID válido, usar default
+  if (!companyId || 
+      companyId.startsWith('canaletica-') || 
+      companyId.includes('-ricardo-figueroas-projects-')) {
+    console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`);
+    return DEFAULT_COMPANY_ID;
   }
   
-  // Para producción o cuando se especifica explícitamente un ID, usar el proporcionado
-  return companyId || DEFAULT_COMPANY_ID;
+  // COMENTARIO: Esta sección se ha modificado temporalmente para garantizar
+  // que todas las operaciones usen la colección 'default', evitando la
+  // dispersión de datos entre múltiples colecciones.
+  // 
+  // Cuando estemos listos para la implementación multi-tenant, descomentar
+  // el código original y eliminar la línea de retorno forzado a DEFAULT_COMPANY_ID.
+  
+  // Forzar el uso de 'default' para todas las operaciones
+  if (companyId !== DEFAULT_COMPANY_ID) {
+    console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`);
+    return DEFAULT_COMPANY_ID;
+  }
+  
+  // Para el ID default, retornar tal cual
+  return DEFAULT_COMPANY_ID;
 }
