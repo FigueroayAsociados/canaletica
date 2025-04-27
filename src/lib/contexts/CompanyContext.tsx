@@ -7,6 +7,8 @@ import { usePathname } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants/index';
+import { normalizeCompanyId } from '@/lib/utils/helpers';
 
 interface CompanyContextType {
   companyId: string;
@@ -16,8 +18,6 @@ interface CompanyContextType {
   secondaryColor: string;
   isLoading: boolean;
 }
-
-import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants/index';
 
 // Valor predeterminado del contexto
 const defaultContextValue: CompanyContextType = {
@@ -51,30 +51,42 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
     const extractCompanyId = () => {
       // Implementación para multi-tenant
+      let extractedId = DEFAULT_COMPANY_ID;
+      
       // Primero verificar rutas (/empresa/[companyId]/...)
       const pathParts = pathname.split('/');
       if (pathParts.length > 2 && pathParts[1] === 'empresa' && pathParts[2]) {
-        return pathParts[2];
+        extractedId = pathParts[2];
+        console.log('ID de compañía extraído de la ruta:', extractedId);
       }
-      
       // Luego verificar subdominios
-      if (typeof window !== 'undefined') {
+      else if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         const subdomain = hostname.split('.')[0];
         if (hostname !== 'localhost' && subdomain !== 'www' && subdomain !== 'canaletica') {
-          return subdomain;
+          extractedId = subdomain;
+          console.log('ID de compañía extraído del subdominio:', extractedId);
         }
-        
         // Verificar parámetros de URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const companyParam = urlParams.get('company');
-        if (companyParam) {
-          return companyParam;
+        else {
+          const urlParams = new URLSearchParams(window.location.search);
+          const companyParam = urlParams.get('company');
+          if (companyParam) {
+            extractedId = companyParam;
+            console.log('ID de compañía extraído de parámetros URL:', extractedId);
+          } else {
+            console.log('Usando ID de compañía predeterminado:', DEFAULT_COMPANY_ID);
+          }
         }
       }
       
-      // Valor predeterminado si no se encontró ningún identificador
-      return DEFAULT_COMPANY_ID;
+      // Normalizar el ID para entorno de desarrollo/pruebas
+      const normalizedId = normalizeCompanyId(extractedId);
+      if (normalizedId !== extractedId) {
+        console.log(`CompanyContext: ID normalizado de "${extractedId}" a "${normalizedId}"`);
+      }
+      
+      return normalizedId;
     };
 
     const loadCompanyData = async (id: string) => {
