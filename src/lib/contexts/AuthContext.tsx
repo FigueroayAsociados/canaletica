@@ -17,8 +17,9 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { getUserProfileByEmail, updateLastLogin } from '@/lib/services/userService';
-import { DEFAULT_COMPANY_ID, UserRole } from '@/lib/utils/constants/index';
+import { DEFAULT_COMPANY_ID, UserRole, ADMIN_UIDS } from '@/lib/utils/constants/index';
 import { UserProfile } from '@/lib/services/userService';
+import { logger } from '@/lib/utils/logger';
 
 type AuthContextType = {
   currentUser: User | null;
@@ -112,7 +113,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return updatePassword(currentUser, password);
   }
 
+  // Modo demo controlado por variable de entorno
+  const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+  
   useEffect(() => {
+    // Verificar si el modo demo está activo
+    if (DEMO_MODE) {
+      logger.warn('Modo DEMO activado: usando usuario demo', null, { prefix: 'AuthContext' });
+      
+      // Crear un objeto user demo
+      const demoUser = {
+        uid: 'demo-user-123',
+        email: 'demo@canaletica.com',
+        displayName: 'Usuario Demo',
+        // Otros campos necesarios
+        emailVerified: true,
+        isAnonymous: false,
+        getIdToken: () => Promise.resolve('fake-token-for-demo-123456'),
+        // Métodos básicos simulados
+        delete: () => Promise.resolve(),
+        reload: () => Promise.resolve(),
+        toJSON: () => ({ uid: 'demo-user-123' }),
+      } as unknown as User;
+      
+      // Crear un perfil demo con permisos de super admin
+      const demoProfile = {
+        uid: 'demo-user-123',
+        email: 'demo@canaletica.com',
+        displayName: 'Super Usuario Demo',
+        role: UserRole.SUPER_ADMIN, // Acceso total para demo
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastLogin: new Date(),
+        company: companyId
+      } as UserProfile;
+      
+      // Establecer los estados con los valores demo
+      setCurrentUser(demoUser);
+      setUserProfile(demoProfile);
+      setUserRole(UserRole.SUPER_ADMIN); // Acceso total para demo
+      setLoading(false);
+      return;
+    }
+    
+    // Comportamiento normal (no demo)
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       
@@ -124,11 +169,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userProfileResult = await getUserProfileByEmail(companyId, user.email);
             
             if (userProfileResult.success && userProfileResult.profile) {
-              setUserProfile(userProfileResult.profile);
-              // Usar el UserRole del enum importado
-              setUserRole(userProfileResult.profile.role);
+              // Verificar si el usuario es un super admin definido por UID
+              if (ADMIN_UIDS.includes(user.uid)) {
+                logger.info(`Usuario ${user.email} es un SUPER_ADMIN por UID`, null, { prefix: 'AuthContext' });
+                // Garantizar que siempre tenga acceso como SUPER_ADMIN independientemente del perfil
+                const superAdminProfile = {
+                  ...userProfileResult.profile,
+                  role: UserRole.SUPER_ADMIN
+                };
+                setUserProfile(superAdminProfile);
+                setUserRole(UserRole.SUPER_ADMIN);
+              } else {
+                // Usuario normal, usar su rol asignado
+                setUserProfile(userProfileResult.profile);
+                setUserRole(userProfileResult.profile.role);
+              }
             } else {
-              console.error('Error al cargar perfil de usuario:', userProfileResult.error);
+              logger.error('Error al cargar perfil de usuario:', userProfileResult.error);
               setUserProfile(null);
               setUserRole(null);
             }
@@ -151,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, [companyId]);
 
   const value = {

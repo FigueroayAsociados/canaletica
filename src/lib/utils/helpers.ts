@@ -1,6 +1,7 @@
 // src/lib/utils/helpers.ts
 
 import { DEFAULT_COMPANY_ID } from './constants/index';
+import { logger } from './logger';
 
 /**
  * Normaliza el ID de la compañía para entorno de desarrollo
@@ -24,7 +25,7 @@ export function normalizeCompanyId(companyId: string | null | undefined): string
   if (!companyId || 
       companyId.startsWith('canaletica-') || 
       companyId.includes('-ricardo-figueroas-projects-')) {
-    console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`);
+    logger.info(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`, null, { prefix: 'normalizeCompanyId' });
     return DEFAULT_COMPANY_ID;
   }
   
@@ -37,7 +38,7 @@ export function normalizeCompanyId(companyId: string | null | undefined): string
   
   // Forzar el uso de 'default' para todas las operaciones
   if (companyId !== DEFAULT_COMPANY_ID) {
-    console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`);
+    logger.info(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`, null, { prefix: 'normalizeCompanyId' });
     return DEFAULT_COMPANY_ID;
   }
   

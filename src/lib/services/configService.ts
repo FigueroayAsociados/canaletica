@@ -19,6 +19,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/config';
 import { KarinRiskQuestion, KARIN_RISK_QUESTIONS, KarinRiskFactorType } from '@/types/report';
 import { normalizeCompanyId } from '@/lib/utils/helpers';
+import { logger } from '@/lib/utils/logger';
 
 // Interfaz para empresas
 export interface Company {
@@ -289,7 +290,7 @@ export async function getCategories(companyId: string): Promise<{ success: boole
   try {
     // Normalizar ID para entorno de desarrollo
     const normalizedCompanyId = normalizeCompanyId(companyId);
-    console.log(`getCategories: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    logger.info(`Obteniendo categorías para companyId=${normalizedCompanyId} (original: ${companyId})`, null, { prefix: 'getCategories' });
     
     const categoriesRef = collection(db, `companies/${normalizedCompanyId}/categories`);
     const q = query(categoriesRef, orderBy('order', 'asc'));
@@ -297,12 +298,12 @@ export async function getCategories(companyId: string): Promise<{ success: boole
     const querySnapshot = await getDocs(q);
     const categories: Category[] = [];
     
-    console.log(`getCategories: Encontradas ${querySnapshot.size} categorías en companies/${normalizedCompanyId}/categories`);
+    logger.info(`Encontradas ${querySnapshot.size} categorías en companies/${normalizedCompanyId}/categories`, null, { prefix: 'getCategories' });
     
     if (querySnapshot.size === 0) {
-      console.warn(`⚠️ NO SE ENCONTRARON CATEGORÍAS en companies/${normalizedCompanyId}/categories`);
-      console.warn('Esto puede indicar que las categorías están en otra colección o no han sido creadas.');
-      console.warn('Ejecute el script scripts/migrate-categories.js para consolidar todas las categorías.');
+      logger.warn(`NO SE ENCONTRARON CATEGORÍAS en companies/${normalizedCompanyId}/categories`, null, { prefix: 'getCategories' });
+      logger.warn('Esto puede indicar que las categorías están en otra colección o no han sido creadas.', null, { prefix: 'getCategories' });
+      logger.warn('Ejecute el script scripts/migrate-categories.js para consolidar todas las categorías.', null, { prefix: 'getCategories' });
     }
     
     querySnapshot.forEach((doc) => {
@@ -311,7 +312,7 @@ export async function getCategories(companyId: string): Promise<{ success: boole
         id: doc.id,
         ...categoryData
       } as Category);
-      console.log(`- Categoría cargada: ${categoryData.name} (ID: ${doc.id}, Activa: ${categoryData.isActive})`);
+      logger.debug(`Categoría cargada: ${categoryData.name} (ID: ${doc.id}, Activa: ${categoryData.isActive})`, null, { prefix: 'getCategories' });
     });
     
     return {
@@ -319,7 +320,7 @@ export async function getCategories(companyId: string): Promise<{ success: boole
       categories
     };
   } catch (error) {
-    console.error('Error al obtener categorías:', error);
+    logger.error('Error al obtener categorías', error);
     return {
       success: false,
       error: 'Error al obtener las categorías'
@@ -453,32 +454,32 @@ export async function getSubcategories(
   try {
     // Normalizar ID para entorno de desarrollo
     const normalizedCompanyId = normalizeCompanyId(companyId);
-    console.log(`getSubcategories: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    logger.info(`Obteniendo subcategorías para companyId=${normalizedCompanyId} (original: ${companyId})`, null, { prefix: 'getSubcategories' });
     
     const subcategoriesRef = collection(db, `companies/${normalizedCompanyId}/subcategories`);
     let q;
     
     if (categoryId) {
-      console.log(`getSubcategories: Buscando subcategorías para la categoría ${categoryId}`);
+      logger.info(`Buscando subcategorías para la categoría ${categoryId}`, null, { prefix: 'getSubcategories' });
       q = query(
         subcategoriesRef, 
         where('categoryId', '==', categoryId),
         orderBy('order', 'asc')
       );
     } else {
-      console.log(`getSubcategories: Buscando todas las subcategorías`);
+      logger.info(`Buscando todas las subcategorías`, null, { prefix: 'getSubcategories' });
       q = query(subcategoriesRef, orderBy('categoryId'), orderBy('order', 'asc'));
     }
     
     const querySnapshot = await getDocs(q);
     const subcategories: Subcategory[] = [];
     
-    console.log(`getSubcategories: Encontradas ${querySnapshot.size} subcategorías en companies/${normalizedCompanyId}/subcategories`);
+    logger.info(`Encontradas ${querySnapshot.size} subcategorías en companies/${normalizedCompanyId}/subcategories`, null, { prefix: 'getSubcategories' });
     
     if (querySnapshot.size === 0 && categoryId) {
-      console.warn(`⚠️ NO SE ENCONTRARON SUBCATEGORÍAS para la categoría ${categoryId}`);
-      console.warn('Esto puede indicar que las subcategorías están en otra colección o no han sido creadas.');
-      console.warn('Ejecute el script scripts/migrate-categories.js para consolidar todas las subcategorías.');
+      logger.warn(`NO SE ENCONTRARON SUBCATEGORÍAS para la categoría ${categoryId}`, null, { prefix: 'getSubcategories' });
+      logger.warn('Esto puede indicar que las subcategorías están en otra colección o no han sido creadas.', null, { prefix: 'getSubcategories' });
+      logger.warn('Ejecute el script scripts/migrate-categories.js para consolidar todas las subcategorías.', null, { prefix: 'getSubcategories' });
     }
     
     querySnapshot.forEach((doc) => {
@@ -487,7 +488,7 @@ export async function getSubcategories(
         id: doc.id,
         ...subcategoryData
       } as Subcategory);
-      console.log(`- Subcategoría cargada: ${subcategoryData.name} (ID: ${doc.id}, CategoríaID: ${subcategoryData.categoryId})`);
+      logger.debug(`Subcategoría cargada: ${subcategoryData.name} (ID: ${doc.id}, CategoríaID: ${subcategoryData.categoryId})`, null, { prefix: 'getSubcategories' });
     });
     
     return {
@@ -495,7 +496,7 @@ export async function getSubcategories(
       subcategories
     };
   } catch (error) {
-    console.error('Error al obtener subcategorías:', error);
+    logger.error('Error al obtener subcategorías', error);
     return {
       success: false,
       error: 'Error al obtener las subcategorías'
