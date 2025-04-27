@@ -209,8 +209,7 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
   }, [values.category, values.isAnonymous, values.isKarinLaw, setFieldValue, categories]);
 
   // Obtener opciones de subcategoría según la categoría seleccionada desde la base de datos
-  // Memoizado para evitar recálculos innecesarios
-  const getSubcategoryOptions = useMemo(() => {
+  const getSubcategoryOptions = () => {
     if (!values.category) {
       return (
         <>
@@ -242,7 +241,7 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
         <option value="otra_subcategoria">Otra situación no listada</option>
       </>
     );
-  }, [values.category, subcategoriesByCategory]);
+  };
 
   return (
     <div className="space-y-6">
@@ -322,7 +321,7 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
           {loading ? (
             <option value="">Cargando subcategorías...</option>
           ) : (
-            getSubcategoryOptions
+            getSubcategoryOptions()
           )}
         </Field>
         <ErrorMessage name="subcategory">
