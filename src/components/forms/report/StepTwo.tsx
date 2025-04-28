@@ -7,9 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getCategories, Category } from '@/lib/services/configService';
+import { getCategories, getSubcategories, Category, Subcategory } from '@/lib/services/configService';
 import { useCompany } from '@/lib/contexts/CompanyContext';
-import SubcategorySelector from './SubcategorySelector';
 
 interface StepTwoProps {
   formikProps: FormikProps<ReportFormValues>;
@@ -171,6 +170,46 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
     }
   }, [values.category, categories, values.isKarinLaw, values.isAnonymous, setFieldValue]);
 
+  // Estado para subcategorías
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [loadingSubcategories, setLoadingSubcategories] = useState<boolean>(false);
+
+  // Cargar subcategorías cuando cambia la categoría seleccionada
+  useEffect(() => {
+    const loadSubcategories = async () => {
+      if (!values.category) {
+        setSubcategories([]);
+        return;
+      }
+      
+      try {
+        setLoadingSubcategories(true);
+        console.log(`Cargando subcategorías para categoría ${values.category}`);
+        
+        const effectiveCompanyId = companyId || 'default';
+        const result = await getSubcategories(effectiveCompanyId, values.category);
+        
+        if (result.success && result.subcategories && result.subcategories.length > 0) {
+          console.log(`${result.subcategories.length} subcategorías cargadas`);
+          setSubcategories(result.subcategories.filter(sub => sub.isActive));
+        } else if (DEFAULT_SUBCATEGORIES[values.category]) {
+          console.log(`Usando subcategorías predeterminadas para ${values.category}`);
+          setSubcategories(DEFAULT_SUBCATEGORIES[values.category]);
+        } else {
+          console.log(`No hay subcategorías para ${values.category}`);
+          setSubcategories([]);
+        }
+      } catch (err) {
+        console.error('Error cargando subcategorías:', err);
+        setSubcategories(DEFAULT_SUBCATEGORIES[values.category] || []);
+      } finally {
+        setLoadingSubcategories(false);
+      }
+    };
+    
+    loadSubcategories();
+  }, [values.category, companyId]);
+
   return (
     <div className="space-y-6">
       <div className="mb-8">
@@ -215,8 +254,60 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
         </ErrorMessage>
       </div>
 
-      {/* Subcategoría - Componente independiente */}
-      <SubcategorySelector formikProps={formikProps} />
+      {/* Subcategoría - Implementación directa simplificada */}
+      <div className="mb-6">
+        <Label htmlFor="subcategory" required>
+          Subcategoría específica
+        </Label>
+        <Field
+          as={Select}
+          id="subcategory"
+          name="subcategory"
+          error={touched.subcategory && errors.subcategory}
+          className="mt-1"
+          disabled={!values.category || loadingSubcategories}
+        >
+          <option value="">
+            {!values.category 
+              ? "Seleccione primero una categoría" 
+              : loadingSubcategories 
+                ? "Cargando subcategorías..." 
+                : "Seleccione una subcategoría"}
+          </option>
+          
+          {subcategories.map(subcategory => (
+            <option key={subcategory.id} value={subcategory.id}>
+              {subcategory.name}
+            </option>
+          ))}
+          
+          {values.category && !loadingSubcategories && (
+            <option value="otra_subcategoria">Otra situación no listada</option>
+          )}
+        </Field>
+        <ErrorMessage name="subcategory">
+          {msg => <div className="text-error text-sm mt-1">{msg}</div>}
+        </ErrorMessage>
+      </div>
+      
+      {/* Campo para descripción personalizada */}
+      {values.subcategory === 'otra_subcategoria' && (
+        <div className="mb-6">
+          <Label htmlFor="customSubcategoryDescription" required>
+            Describa la subcategoría
+          </Label>
+          <Field
+            as={Input}
+            id="customSubcategoryDescription"
+            name="customSubcategoryDescription"
+            placeholder="Describa el tipo específico de situación que desea reportar"
+            className="mt-1"
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Por favor, proporcione una breve descripción del tipo específico de situación que está reportando.
+          </p>
+        </div>
+      )}
 
       {/* Alerta Ley Karin */}
       {values.isKarinLaw && (
