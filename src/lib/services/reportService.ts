@@ -164,8 +164,7 @@ export async function assignReport(
         const investigationDeadline = calculateBusinessDays(today, 30);
         
         reportToSave.karinProcess = {
-          stage: 'orientation', // Comienza en la etapa de orientación
-          orientationDate: todayISO,
+          stage: 'complaint_filed', // Comienza en la etapa de denuncia interpuesta
           receivedDate: todayISO,
           investigationStartDate: todayISO,
           investigationDeadline: investigationDeadline.toISOString(),
@@ -174,7 +173,7 @@ export async function assignReport(
         };
         
         // También cambiamos el estado a específico de Ley Karin
-        reportToSave.status = 'Ley Karin - Orientación';
+        reportToSave.status = 'Ley Karin - Denuncia Interpuesta';
       }
   
       // Guardar en Firestore

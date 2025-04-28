@@ -179,7 +179,10 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       'retaliation_review': 'Revisión de Represalias',
       'third_party': 'Caso con Terceros',
       'subcontracting': 'Régimen de Subcontratación',
-      'closed': 'Caso Cerrado'
+      'closed': 'Caso Cerrado',
+      // Mapear valores antiguos por compatibilidad
+      'orientation': 'Interposición de Denuncia', // Valor antiguo mapeado a etapa actual
+      'preliminaryReport': 'Creación de Informe' // Valor antiguo mapeado a etapa actual
     };
     
     return stages[stage] || stage;
@@ -187,6 +190,14 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
   
   // Determinar siguiente etapa según la etapa actual
   const getNextStage = (currentStage: string): string => {
+    // Manejar etapas antiguas mapeándolas a las nuevas
+    let mappedStage = currentStage;
+    if (currentStage === 'orientation') {
+      mappedStage = 'complaint_filed';
+    } else if (currentStage === 'preliminaryReport') {
+      mappedStage = 'report_creation';
+    }
+    
     // Flujo principal
     const mainFlow: {[key: string]: string} = {
       'complaint_filed': 'reception',
@@ -217,8 +228,8 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
     };
     
     // Verificar si hay un flujo alternativo aplicable
-    if (currentStage in alternativeFlows) {
-      for (const {condition, nextStage} of alternativeFlows[currentStage]) {
+    if (mappedStage in alternativeFlows) {
+      for (const {condition, nextStage} of alternativeFlows[mappedStage]) {
         if (condition) {
           return nextStage;
         }
@@ -226,7 +237,7 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
     }
     
     // Si no hay flujo alternativo, seguir el flujo principal
-    return mainFlow[currentStage] || 'closed';
+    return mainFlow[mappedStage] || 'closed';
   };
   
   // Convertir timestamp o fecha en formato legible

@@ -58,7 +58,10 @@ export default function AdminLeyKarinPage() {
       'sanctions': 'Sanciones',
       'third_party': 'Caso con Terceros',
       'subcontracting': 'Régimen Subcontratación',
-      'closed': 'Cerrada'
+      'closed': 'Cerrada',
+      // Mapear valores antiguos por compatibilidad
+      'orientation': 'Denuncia Interpuesta', // Mapeo de etapa antigua a nueva
+      'preliminaryReport': 'Creación de Informe' // Mapeo de etapa antigua a nueva
     };
     
     return stageMap[stage] || stage;
