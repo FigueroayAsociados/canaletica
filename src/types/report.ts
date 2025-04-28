@@ -127,7 +127,8 @@ export type KarinProcessStage =
   | 'retaliation_review'    // Caso especial: Prohibición de Represalias
   | 'third_party'           // Caso especial: Conductas por terceros
   | 'subcontracting'        // Caso especial: Régimen de Subcontratación
-  | 'closed';               // Finalizado
+  | 'closed'                // Finalizado
+  | 'orientation';          // Valor antiguo (mantenido para compatibilidad)
 
 // Ahora CategoryType puede ser cualquier string (ID de la categoría)
 export type CategoryType = string;

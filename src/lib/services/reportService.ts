@@ -1128,7 +1128,6 @@ export async function addCommunicationByCode(
 function calculateKarinStageDeadline(startDate: Date, stage: KarinProcessStage): Date {
   // Plazos según documento oficial de procedimiento Ley Karin
   const deadlines: Record<KarinProcessStage, number> = {
-    'orientation': 1,                  // 1 día hábil para orientación
     'complaint_filed': 1,              // 1 día hábil para interponer denuncia
     'reception': 3,                    // 3 días hábiles para recibir y validar denuncia
     'precautionary_measures': 1,       // 24 horas (1 día) para medidas precautorias
@@ -1141,6 +1140,9 @@ function calculateKarinStageDeadline(startDate: Date, stage: KarinProcessStage):
     'sanctions': 10,                   // 10 días hábiles para proceso de sanciones
     'false_claim': 10,                 // 10 días hábiles para investigar denuncia falsa
     'retaliation_review': 5,           // 5 días hábiles para revisión de represalias
+    'subsanation': 5,                  // 5 días hábiles para subsanación
+    'dt_notification': 10,             // 10 días hábiles para notificación a DT
+    'suseso_notification': 10,         // 10 días hábiles para notificación a SUSESO
     'closed': 0                        // No hay plazo para etapa cerrada
   };
   
@@ -1311,8 +1313,8 @@ export async function updateKarinProcessStage(
     
     // Obtener el proceso actual o crear uno nuevo si no existe
     const karinProcess = reportData.karinProcess || {
-      stage: 'orientation',
-      orientationDate: new Date().toISOString(),
+      stage: 'complaint_filed',
+      complaintFiledDate: new Date().toISOString(),
       stageHistory: []
     };
     
@@ -1356,9 +1358,6 @@ export async function updateKarinProcessStage(
     // Determinar el nuevo estado visible para los usuarios
     let newStatus = '';
     switch(newStage) {
-      case 'orientation':
-        newStatus = 'Ley Karin - Orientación';
-        break;
       case 'complaint_filed':
         newStatus = 'Ley Karin - Denuncia Interpuesta';
         break;
@@ -1394,6 +1393,15 @@ export async function updateKarinProcessStage(
         break;
       case 'retaliation_review':
         newStatus = 'Ley Karin - Revisión de Represalias';
+        break;
+      case 'subsanation':
+        newStatus = 'Ley Karin - Subsanación';
+        break;
+      case 'dt_notification':
+        newStatus = 'Ley Karin - Notificación a DT';
+        break;
+      case 'suseso_notification':
+        newStatus = 'Ley Karin - Notificación a SUSESO';
         break;
       case 'closed':
         newStatus = 'Ley Karin - Cerrado';
