@@ -153,37 +153,41 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
 
       try {
         setLoading(true);
+        console.log(`Cargando subcategorías para categoría: ${values.category}`);
         
-        // Verificar si hay subcategorías predeterminadas para esta categoría
-        if (DEFAULT_SUBCATEGORIES[values.category]) {
-          const defaultSubcats = DEFAULT_SUBCATEGORIES[values.category];
-          
-          // Si estamos usando categorías de Firebase, intentar cargar subcategorías reales
-          const effectiveCompanyId = companyId || 'default';
-          const subcategoriesResult = await getSubcategories(effectiveCompanyId, values.category);
-          
-          if (subcategoriesResult.success && subcategoriesResult.subcategories && subcategoriesResult.subcategories.length > 0) {
-            // Usar subcategorías reales
-            setSubcategories(subcategoriesResult.subcategories.filter(subcat => subcat.isActive));
-          } else {
-            // Usar subcategorías predeterminadas
-            setSubcategories(defaultSubcats);
-          }
-        } else {
-          // Si no hay subcategorías predeterminadas, intentar cargar desde Firebase
-          const effectiveCompanyId = companyId || 'default';
-          const subcategoriesResult = await getSubcategories(effectiveCompanyId, values.category);
-          
-          if (subcategoriesResult.success && subcategoriesResult.subcategories) {
-            setSubcategories(subcategoriesResult.subcategories.filter(subcat => subcat.isActive));
-          } else {
-            setSubcategories([]);
-          }
+        // Siempre intentar cargar desde Firebase primero
+        const effectiveCompanyId = companyId || 'default';
+        console.log(`Usando companyId efectivo: ${effectiveCompanyId}`);
+        
+        const subcategoriesResult = await getSubcategories(effectiveCompanyId, values.category);
+        console.log('Resultado de la consulta de subcategorías:', subcategoriesResult);
+        
+        // Si hay subcategorías en Firebase, usarlas
+        if (subcategoriesResult.success && subcategoriesResult.subcategories && subcategoriesResult.subcategories.length > 0) {
+          const activeSubcats = subcategoriesResult.subcategories.filter(subcat => subcat.isActive);
+          console.log(`Se encontraron ${activeSubcats.length} subcategorías activas en Firebase`);
+          setSubcategories(activeSubcats);
+        } 
+        // Si no hay en Firebase pero hay predeterminadas, usar esas
+        else if (DEFAULT_SUBCATEGORIES[values.category]) {
+          console.log(`Usando subcategorías predeterminadas para ${values.category}`);
+          setSubcategories(DEFAULT_SUBCATEGORIES[values.category]);
+        } 
+        // Si no hay en ningún lado, usar array vacío
+        else {
+          console.log(`No se encontraron subcategorías para ${values.category}`);
+          setSubcategories([]);
         }
       } catch (err) {
         console.error('Error al cargar subcategorías:', err);
-        // Usar subcategorías predeterminadas si existen
-        setSubcategories(DEFAULT_SUBCATEGORIES[values.category] || []);
+        
+        // En caso de error, intentar con las subcategorías predeterminadas
+        if (DEFAULT_SUBCATEGORIES[values.category]) {
+          console.log(`Fallback a subcategorías predeterminadas para ${values.category}`);
+          setSubcategories(DEFAULT_SUBCATEGORIES[values.category]);
+        } else {
+          setSubcategories([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -194,14 +198,17 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
 
   // Actualizar preferencias cuando cambia la categoría
   useEffect(() => {
-    // Resetear subcategoría cuando cambia la categoría
-    if (values.subcategory) {
+    // Solo resetear subcategoría cuando cambia la categoría (prevención de pérdida de datos)
+    if (values.subcategory && values.subcategory !== 'otra_subcategoria') {
+      console.log('Reseteando subcategoría debido a cambio de categoría');
       setFieldValue('subcategory', '');
     }
     
     // Verificar si es denuncia Ley Karin
     const selectedCategory = categories.find(cat => cat.id === values.category);
     if (!selectedCategory) return;
+    
+    console.log('Categoría seleccionada:', selectedCategory);
     
     const isKarinCategory = 
       selectedCategory.isKarinLaw === true || 
@@ -210,11 +217,13 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
     
     // Actualizar si hay discrepancia
     if (isKarinCategory !== values.isKarinLaw) {
+      console.log('Actualizando isKarinLaw a:', isKarinCategory);
       setFieldValue('isKarinLaw', isKarinCategory);
     }
     
     // Si es Ley Karin, asegurarse de que no sea anónima
     if (isKarinCategory && values.isAnonymous) {
+      console.log('Desactivando anonimato para denuncia Ley Karin');
       setFieldValue('isAnonymous', false);
     }
   }, [values.category, categories, values.isKarinLaw, values.isAnonymous, setFieldValue, values.subcategory]);
@@ -275,6 +284,10 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
           error={touched.subcategory && errors.subcategory}
           className="mt-1"
           disabled={!values.category || loading}
+          onChange={(e) => {
+            console.log('Subcategoría seleccionada:', e.target.value);
+            setFieldValue('subcategory', e.target.value);
+          }}
         >
           <option value="">
             {!values.category ? "Seleccione primero una categoría" : 
@@ -297,7 +310,7 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
         </ErrorMessage>
       </div>
       
-      {/* Campo para descripción personalizada cuando se selecciona "otro" como subcategoría */}
+      {/* Campo para descripción personalizada cuando se selecciona "otro" o "otra situación no listada" */}
       {(values.subcategory === 'otro' || values.subcategory === 'otra_subcategoria') && (
         <div className="mb-6">
           <Label htmlFor="customSubcategoryDescription" required>
@@ -309,6 +322,9 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
             name="customSubcategoryDescription"
             placeholder="Describa el tipo específico de situación que desea reportar"
             className="mt-1"
+            onFocus={() => {
+              console.log('Campo de descripción personalizada enfocado');
+            }}
           />
           <p className="text-sm text-gray-500 mt-1">
             Por favor, proporcione una breve descripción del tipo específico de situación que está reportando.
