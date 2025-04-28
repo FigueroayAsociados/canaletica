@@ -1,7 +1,3 @@
-
-
-// src/app/(public)/track/[code]/page.tsx
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -14,9 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getReportByCode, getReportByCodeAndAccessCode, addCommunicationByCode } from '@/lib/services/reportService';
-
-
-
 
 // Aseguramos que estos estados coincidan exactamente con los utilizados en ReportStatusBadge
 const STATUS_COLORS: Record<string, string> = {
@@ -187,7 +180,7 @@ export default function ReportDetailsPage() {
 
   return (
     <div className="p-6 space-y-8">
-      {/* Cabecera con resumen de la denuncia */}
+      {/* Cabecera con resumen */}
       <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
@@ -560,7 +553,6 @@ export default function ReportDetailsPage() {
                       )}
                     </div>
                   )}
-                  </div>
                 </div>
               </div>
             </CardContent>
