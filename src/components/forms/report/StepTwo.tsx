@@ -196,13 +196,26 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
     loadSubcategories();
   }, [values.category, companyId]);
 
-  // Actualizar preferencias cuando cambia la categoría
+  // Referencia para la categoría anterior
+  const previousCategoryRef = React.useRef(values.category);
+
+  // Actualizar preferencias solo cuando cambia la categoría
   useEffect(() => {
-    // Solo resetear subcategoría cuando cambia la categoría (prevención de pérdida de datos)
-    if (values.subcategory && values.subcategory !== 'otra_subcategoria') {
-      console.log('Reseteando subcategoría debido a cambio de categoría');
+    // Si la categoría no ha cambiado realmente, no hacer nada
+    if (previousCategoryRef.current === values.category) {
+      return;
+    }
+    
+    console.log(`Categoría cambiada de ${previousCategoryRef.current} a ${values.category}`);
+    
+    // Resetear subcategoría cuando realmente cambia la categoría
+    if (values.subcategory) {
+      console.log('Reseteando subcategoría debido a cambio real de categoría');
       setFieldValue('subcategory', '');
     }
+    
+    // Actualizar referencia
+    previousCategoryRef.current = values.category;
     
     // Verificar si es denuncia Ley Karin
     const selectedCategory = categories.find(cat => cat.id === values.category);
@@ -285,8 +298,9 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
           className="mt-1"
           disabled={!values.category || loading}
           onChange={(e) => {
-            console.log('Subcategoría seleccionada:', e.target.value);
-            setFieldValue('subcategory', e.target.value);
+            const value = e.target.value;
+            console.log('Subcategoría seleccionada:', value);
+            // No hacer nada más - dejemos que Formik maneje el cambio normalmente
           }}
         >
           <option value="">
