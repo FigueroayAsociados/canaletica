@@ -292,8 +292,8 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
 
       {/* Impacto personal, laboral o económico */}
       <div className="mb-6">
-        <Label htmlFor="impactType">
-          Tipo de impacto (opcional)
+        <Label htmlFor="impactType" required>
+          Tipo de impacto
         </Label>
         <Field
           as={Select}
@@ -321,21 +321,26 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
             </>
           )}
         </Field>
+        <ErrorMessage name="impactType">
+          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+        </ErrorMessage>
 
-        <Label htmlFor="impact">
-          Descripción del impacto (opcional)
-        </Label>
-        <Field
-          as={Textarea}
-          id="impact"
-          name="impact"
-          rows={4}
-          className="mt-1"
-          placeholder="Describa cómo esta situación le ha afectado a usted o a otras personas, tanto personal como laboralmente."
-        />
-        <p className="text-sm text-gray-500 mt-1">
-          Esta información nos ayuda a comprender la gravedad de la situación.
-        </p>
+        <div className={values.impactType === 'personal' ? "block" : "hidden"}>
+          <Label htmlFor="impact">
+            Descripción del impacto personal
+          </Label>
+          <Field
+            as={Textarea}
+            id="impact"
+            name="impact"
+            rows={4}
+            className="mt-1"
+            placeholder="Describa cómo esta situación le ha afectado a usted o a otras personas, tanto personal como laboralmente."
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Esta información nos ayuda a comprender la gravedad de la situación y evaluar posibles riesgos psicológicos.
+          </p>
+        </div>
       </div>
       
       {/* Preguntas específicas para Ley Karin - aparecen solo cuando es denuncia Ley Karin */}
