@@ -1,6 +1,6 @@
 
 
-// scr/app/(public)/track/[code]/page.tsx
+// src/app/(public)/track/[code]/page.tsx
 
 'use client';
 
@@ -187,7 +187,7 @@ export default function ReportDetailsPage() {
 
   return (
     <div className="p-6 space-y-8">
-      {/* Cabecera con resumen */}
+      {/* Cabecera con resumen de la denuncia */}
       <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
