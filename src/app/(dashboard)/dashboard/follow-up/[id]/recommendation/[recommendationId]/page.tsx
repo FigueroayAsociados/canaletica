@@ -1,3 +1,5 @@
+
+
 // src/app/(dashboard)/dashboard/follow-up/[id]/recommendation/[recommendationId]/page.tsx
 
 'use client';
@@ -18,6 +20,9 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { getUserProfileById } from '@/lib/services/userService';
 import { doc, getDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+
+
+
 
 // Esquema de validación para actualización de recomendación
 const RecommendationUpdateSchema = Yup.object().shape({
@@ -251,9 +256,21 @@ async function loadData() {
       {/* Detalles de la recomendación */}
       <Card>
         <CardHeader>
-          <CardTitle>Detalles de la Recomendación</CardTitle>
+          <CardTitle>
+            Detalles de la Recomendación
+            {report.isKarinLaw && (
+              <span className="ml-2 text-xs font-normal text-red-600 py-1 px-2 bg-red-50 border border-red-100 rounded-md">
+                Ley Karin
+              </span>
+            )}
+          </CardTitle>
           <CardDescription>
             Recomendación creada el {formatDate(recommendation.createdAt)}
+            {report.isKarinLaw && recommendation.dueDate && (
+              <span className="ml-2 text-red-600">
+                • Plazo legal: 15 días corridos (hasta {formatDate(recommendation.dueDate)})
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -319,6 +336,11 @@ async function loadData() {
                     <div>
                       <Label htmlFor="evidence" required={values.status === 'Completado'}>
                         Evidencia de Implementación
+                        {report.isKarinLaw && (
+                          <span className="ml-2 text-xs font-normal text-red-600">
+                            (Obligatorio para Ley Karin)
+                          </span>
+                        )}
                       </Label>
                       <Field
                         as={Textarea}
@@ -330,10 +352,21 @@ async function loadData() {
                           touched.evidence && errors.evidence ? 'border-error' : ''
                         }`}
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Incluya referencias a documentos, URLs, actas de reunión o cualquier otra evidencia
-                        que respalde la implementación de esta recomendación.
-                      </p>
+                      {report.isKarinLaw ? (
+                        <p className="text-xs text-red-600 mt-1">
+                          <strong>Documentación obligatoria Ley Karin:</strong> Detalle: 
+                          1) Acciones específicas realizadas
+                          2) Fecha exacta de implementación 
+                          3) Personal involucrado
+                          4) Método de verificación del cumplimiento
+                          5) Referencias a documentos o respaldos adjuntos
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Incluya referencias a documentos, URLs, actas de reunión o cualquier otra evidencia
+                          que respalde la implementación de esta recomendación.
+                        </p>
+                      )}
                       <ErrorMessage name="evidence">
                         {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
                       </ErrorMessage>
