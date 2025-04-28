@@ -343,8 +343,8 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
         </div>
       </div>
       
-      {/* Preguntas específicas para Ley Karin - aparecen solo cuando es denuncia Ley Karin */}
-      {values.isKarinLaw && (
+      {/* Preguntas específicas para Ley Karin - aparecen solo cuando es denuncia Ley Karin Y el impacto es personal o laboral */}
+      {values.isKarinLaw && (values.impactType === 'personal' || values.impactType === 'laboral') && (
         <div className="mt-8 border-t pt-6">
           <div className="mb-6">
             <h3 className="text-lg font-medium text-gray-900 mb-2">
