@@ -117,12 +117,14 @@ export type KarinProcessStage =
   | 'precautionary_measures'// Etapa 3: Medidas Precautorias o de Resguardo
   | 'decision_to_investigate'// Etapa 4: Decisión de Investigar
   | 'investigation'         // Etapa 5: Investigación
-  | 'report_creation'       // Etapa 6a: Creación del Informe
-  | 'report_approval'       // Etapa 6b: Aprobación del Informe
-  | 'labor_department'      // Etapa 7: Remisión a la Dirección del Trabajo
-  | 'dt_resolution'         // Etapa 7.1: Resolución de la DT (30 días hábiles)
-  | 'measures_adoption'     // Etapa 8: Adopción de Medidas (15 días corridos)
-  | 'sanctions'             // Etapa 9: Sanciones y su Impugnación
+  | 'report_creation'       // Etapa 6a: Creación del Informe Preliminar
+  | 'report_approval'       // Etapa 6b: Aprobación del Informe Preliminar
+  | 'labor_department'      // Etapa 7: Investigación completa (30 días máximo)
+  | 'final_report'          // Etapa 8a: Creación del Informe Final
+  | 'dt_submission'         // Etapa 8b: Envío a DT (2 días desde finalización)
+  | 'dt_resolution'         // Etapa 9: Resolución de la DT (30 días hábiles)
+  | 'measures_adoption'     // Etapa 10: Adopción de Medidas (15 días corridos)
+  | 'sanctions'             // Etapa 11: Sanciones y su Impugnación
   | 'false_claim'           // Caso especial: Denuncias Falsas
   | 'retaliation_review'    // Caso especial: Prohibición de Represalias
   | 'third_party'           // Caso especial: Conductas por terceros

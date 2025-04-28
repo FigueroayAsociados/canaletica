@@ -164,16 +164,18 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       'complaint_filed': 'Interposición de Denuncia',
       'reception': 'Recepción de Denuncia',
       'subsanation': 'Subsanación de Denuncia',
-      'dt_notification': 'Notificación Inicial a DT',
-      'suseso_notification': 'Notificación a Mutualidad',
+      'dt_notification': 'Notificación Inicial a DT (3 días)',
+      'suseso_notification': 'Notificación a Mutualidad (5 días)',
       'precautionary_measures': 'Medidas Precautorias',
       'decision_to_investigate': 'Decisión de Investigar',
       'investigation': 'Investigación',
-      'report_creation': 'Creación de Informe',
-      'report_approval': 'Aprobación de Informe',
-      'labor_department': 'Remisión a Dirección del Trabajo',
-      'dt_resolution': 'Resolución de la DT',
-      'measures_adoption': 'Adopción de Medidas',
+      'report_creation': 'Informe Preliminar', 
+      'report_approval': 'Revisión de Informe Preliminar',
+      'labor_department': 'Investigación Completa',
+      'final_report': 'Informe Final',
+      'dt_submission': 'Envío a DT (2 días)',
+      'dt_resolution': 'Resolución de la DT (30 días)',
+      'measures_adoption': 'Adopción de Medidas (15 días)',
       'sanctions': 'Sanciones',
       'false_claim': 'Denuncia Falsa',
       'retaliation_review': 'Revisión de Represalias',
@@ -182,7 +184,7 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       'closed': 'Caso Cerrado',
       // Mapear valores antiguos por compatibilidad
       'orientation': 'Interposición de Denuncia', // Valor antiguo mapeado a etapa actual
-      'preliminaryReport': 'Creación de Informe' // Valor antiguo mapeado a etapa actual
+      'preliminaryReport': 'Informe Preliminar' // Valor antiguo mapeado a etapa actual
     };
     
     return stages[stage] || stage;
@@ -198,18 +200,20 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       mappedStage = 'report_creation';
     }
     
-    // Flujo principal
+    // Flujo principal actualizado según plazos de Ley Karin
     const mainFlow: {[key: string]: string} = {
       'complaint_filed': 'reception',
-      'reception': 'dt_notification', // Primero notificar a DT (3 días)
-      'dt_notification': 'suseso_notification', // Luego notificar a mutualidades (5 días)
-      'suseso_notification': 'precautionary_measures', // Luego implementar medidas precautorias
+      'reception': 'dt_notification', // Notificar a DT (3 días desde recepción)
+      'dt_notification': 'suseso_notification', // Notificar a SUSESO (5 días desde recepción)
+      'suseso_notification': 'precautionary_measures', // Implementar medidas precautorias
       'precautionary_measures': 'decision_to_investigate',
       'decision_to_investigate': 'investigation',
-      'investigation': 'report_creation',
-      'report_creation': 'report_approval',
-      'report_approval': 'labor_department',
-      'labor_department': 'dt_resolution', // Etapa de espera de resolución DT (30 días)
+      'investigation': 'report_creation', // Informe preliminar
+      'report_creation': 'report_approval', // Revisión del informe preliminar
+      'report_approval': 'labor_department', // Investigación completa (30 días máximo)
+      'labor_department': 'final_report', // Crear informe final
+      'final_report': 'dt_submission', // Enviar a DT (2 días desde finalización)
+      'dt_submission': 'dt_resolution', // Esperar resolución DT (30 días)
       'dt_resolution': 'measures_adoption', // Adoptar medidas (15 días corridos)
       'measures_adoption': 'sanctions',
       'sanctions': 'closed'
@@ -322,13 +326,23 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       return false;
     }
     
-    // Aprobación de informe - Verificar informe final
-    if (currentStage === 'report_approval' && !report.finalReport) {
+    // Aprobación de informe preliminar - Verificar informe preliminar
+    if (currentStage === 'report_approval' && !report.preliminaryReport) {
       return false;
     }
     
-    // Remisión a DT - Verificar envío completo
-    if (currentStage === 'labor_department' && !report.karinProcess?.laborDepartmentReferralCompleteFile) {
+    // Investigación completa - Verificar que se completó la investigación
+    if (currentStage === 'labor_department' && !report.karinProcess?.investigationCompleted) {
+      return false;
+    }
+    
+    // Informe Final - Verificar que existe el informe final
+    if (currentStage === 'final_report' && !report.finalReport) {
+      return false;
+    }
+    
+    // Envío a DT - Verificar envío completo
+    if (currentStage === 'dt_submission' && !report.karinProcess?.laborDepartmentReferralCompleteFile) {
       return false;
     }
     
@@ -572,19 +586,35 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                     
                     {currentStage === 'report_creation' && (
                       <p className="text-xs text-orange-600 mt-1">
-                        <strong>Requisito:</strong> El informe debe incluir hallazgos, conclusiones y recomendaciones detalladas.
+                        <strong>Requisito:</strong> El informe preliminar es parte de la notificación a la DT que debe realizarse 
+                        dentro de los 3 días hábiles de recibida la denuncia.
                       </p>
                     )}
                     
                     {currentStage === 'report_approval' && (
                       <p className="text-xs text-orange-600 mt-1">
-                        <strong>Requisito legal:</strong> Una vez aprobado, deberá enviarse a la Dirección del Trabajo dentro de los 2 días hábiles siguientes.
+                        <strong>Requisito:</strong> Se debe revisar el informe preliminar antes de que sea enviado como 
+                        parte de la notificación a la DT.
                       </p>
                     )}
                     
                     {currentStage === 'labor_department' && (
                       <p className="text-xs text-orange-600 mt-1">
-                        <strong>Plazo legal:</strong> Debe enviarse el informe final y todo el expediente a la DT dentro de 2 días hábiles de finalizada la investigación.
+                        <strong>Plazo legal:</strong> La investigación debe completarse en un máximo de 30 días hábiles.
+                      </p>
+                    )}
+                    
+                    {currentStage === 'final_report' && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        <strong>Requisito:</strong> El informe final debe incluir todos los hallazgos, 
+                        conclusiones y recomendaciones detalladas según exige la Ley Karin.
+                      </p>
+                    )}
+                    
+                    {currentStage === 'dt_submission' && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        <strong>Plazo legal:</strong> Debe enviarse el informe final y todo el expediente 
+                        a la DT dentro de 2 días hábiles de finalizada la investigación.
                       </p>
                     )}
                     
@@ -724,12 +754,26 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                         
                         {currentStage === 'report_approval' && (
                           <ul className="list-disc pl-5 mt-1 text-xs">
-                            <li>Debe crear y aprobar el informe final</li>
-                            <li>El informe debe contener todos los requisitos legales mínimos</li>
+                            <li>Debe crear y aprobar el informe preliminar</li>
+                            <li>El informe forma parte de la notificación inicial a la DT</li>
                           </ul>
                         )}
                         
-                        {currentStage === 'labor_department' && !report.karinProcess?.laborDepartmentReferralCompleteFile && (
+                        {currentStage === 'labor_department' && (
+                          <ul className="list-disc pl-5 mt-1 text-xs">
+                            <li>La investigación debe completarse en un plazo máximo de 30 días hábiles</li>
+                            <li>Esta etapa implica concluir todas las diligencias de investigación</li>
+                          </ul>
+                        )}
+                        
+                        {currentStage === 'final_report' && (
+                          <ul className="list-disc pl-5 mt-1 text-xs">
+                            <li>Debe crear el informe final con todos los hallazgos</li>
+                            <li>El informe debe cumplir con todos los requisitos legales de la Ley Karin</li>
+                          </ul>
+                        )}
+                        
+                        {currentStage === 'dt_submission' && !report.karinProcess?.laborDepartmentReferralCompleteFile && (
                           <ul className="list-disc pl-5 mt-1 text-xs">
                             <li>Debe enviar el expediente completo a la DT</li>
                             <li>Plazo legal: 2 días hábiles desde finalización de la investigación</li>
