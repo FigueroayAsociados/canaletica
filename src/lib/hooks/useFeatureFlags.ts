@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useCompany } from '@/lib/contexts/CompanyContext';
-import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { FeatureFlags, getFeatureFlags, updateFeatureFlag } from '@/lib/services/featureFlagService';
 
 export function useFeatureFlags() {
   const { companyId } = useCompany();
-  // Usar useCurrentUser para verificación de permisos
-  const { uid, isSuperAdmin } = useCurrentUser();
+  // Usar useAuth en lugar de useCurrentUser para evitar dependencia circular
+  const { currentUser, isSuperAdmin } = useAuth();
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function useFeatureFlags() {
   // Función para actualizar un feature flag (solo si es super admin)
   const updateFlag = useCallback(
     async (featureName: keyof FeatureFlags, enabled: boolean) => {
-      if (!companyId || !uid) {
+      if (!companyId || !currentUser) {
         return { success: false, error: 'No autenticado o sin empresa seleccionada' };
       }
 
@@ -56,7 +56,7 @@ export function useFeatureFlags() {
       }
 
       try {
-        const result = await updateFeatureFlag(companyId, featureName, enabled, uid);
+        const result = await updateFeatureFlag(companyId, featureName, enabled, currentUser.uid);
         
         if (result.success) {
           // Actualizar estado local
@@ -75,7 +75,7 @@ export function useFeatureFlags() {
         return { success: false, error: 'Error al actualizar configuración' };
       }
     },
-    [companyId, uid, isSuperAdmin]
+    [companyId, currentUser, isSuperAdmin]
   );
 
   // Función auxiliar para verificar si un feature está habilitado
@@ -93,7 +93,7 @@ export function useFeatureFlags() {
     error,
     updateFlag,
     isEnabled,
-    canManageFeatures: isSuperAdmin()
+    canManageFeatures: isSuperAdmin && isSuperAdmin()
   };
 }
 

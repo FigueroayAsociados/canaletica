@@ -4,11 +4,11 @@
 import { useEffect, useState } from 'react';
 import { useCompany } from '@/lib/contexts/CompanyContext';
 import { getEnvironmentConfig } from '@/lib/services/environmentService';
-import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function EnvironmentIndicatorClient() {
   const { companyId } = useCompany();
-  const { isSuperAdmin } = useCurrentUser();
+  const { isSuperAdmin } = useAuth();
   const [environment, setEnvironment] = useState<'development' | 'demo' | 'production' | null>(null);
   const [loading, setLoading] = useState(true);
   
