@@ -9,12 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { getAllCompanies, createCompany } from '@/lib/services/companyService';
 import { EnvironmentType } from '@/lib/services/environmentService';
 import useFeatureFlags from '@/lib/hooks/useFeatureFlags';
 
 export default function SuperAdminPage() {
-  const { currentUser, isSuperAdmin, switchCompany, companyId } = useAuth();
+  const { currentUser, switchCompany, companyId } = useAuth();
+  const { isSuperAdmin } = useCurrentUser(); // Usar el hook de usuario actual para la verificación
   const router = useRouter();
   const { features, loading: featuresLoading, updateFlag } = useFeatureFlags();
   

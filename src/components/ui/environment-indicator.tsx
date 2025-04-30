@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useCompany } from '@/lib/contexts/CompanyContext';
 import { getEnvironmentConfig } from '@/lib/services/environmentService';
-import { useAuth } from '@/lib/contexts/AuthContext';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 /**
  * Componente que muestra un indicador del entorno actual (desarrollo, demo, producción)
@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
  */
 export function EnvironmentIndicator() {
   const { companyId } = useCompany();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin } = useCurrentUser();
   const [environment, setEnvironment] = useState<'development' | 'demo' | 'production' | null>(null);
   const [loading, setLoading] = useState(true);
   

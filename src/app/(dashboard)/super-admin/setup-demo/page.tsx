@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { setupDemoCompany } from '@/lib/services/companyService';
 
 export default function SetupDemoPage() {
-  const { currentUser, isSuperAdmin, switchCompany } = useAuth();
+  const { currentUser, switchCompany } = useAuth();
+  const { isSuperAdmin } = useCurrentUser(); // Usar el hook de usuario actual para la verificación
   const router = useRouter();
   
   const [loading, setLoading] = useState(false);

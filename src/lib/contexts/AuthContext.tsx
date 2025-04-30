@@ -127,7 +127,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Verificar si el usuario actual es super admin
   function isSuperAdmin() {
     if (!currentUser) return false;
-    return ADMIN_UIDS.includes(currentUser.uid);
+    
+    // Primero verificar la lista ADMIN_UIDS (método rápido)
+    if (ADMIN_UIDS.includes(currentUser.uid)) {
+      return true;
+    }
+    
+    // Si no está en la lista, verificar el rol del perfil de usuario (si existe)
+    if (userProfile && userProfile.role === UserRole.SUPER_ADMIN) {
+      return true;
+    }
+    
+    // Por defecto, no es super admin
+    return false;
   }
   
   // Cambiar entre empresas (solo para super admin)

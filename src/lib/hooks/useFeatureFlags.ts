@@ -7,6 +7,7 @@ import { FeatureFlags, getFeatureFlags, updateFeatureFlag } from '@/lib/services
 
 export function useFeatureFlags() {
   const { companyId } = useCompany();
+  // Usar useCurrentUser para verificación de permisos
   const { uid, isSuperAdmin } = useCurrentUser();
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
   const [loading, setLoading] = useState(true);
