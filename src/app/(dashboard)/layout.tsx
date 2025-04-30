@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import EnvironmentIndicatorClient from '@/components/ui/environment-indicator-client';
 
 export default function DashboardLayout({
   children,
@@ -396,6 +397,9 @@ export default function DashboardLayout({
             {children}
           </div>
         </main>
+        
+        {/* Indicador de entorno */}
+        <EnvironmentIndicatorClient />
       </div>
     </div>
   );
