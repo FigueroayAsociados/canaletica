@@ -123,6 +123,17 @@ const StepOne: React.FC<StepOneProps> = ({ formikProps }) => {
   const handleAnonymousChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const isAnonymous = e.target.value === 'true';
     setFieldValue('isAnonymous', isAnonymous);
+    
+    // Si cambia de anónimo a no anónimo, asegurarse de que contactInfo esté inicializado
+    if (!isAnonymous && (!values.contactInfo || Object.keys(values.contactInfo).length === 0)) {
+      console.log('Inicializando contactInfo al cambiar a denuncia no anónima');
+      setFieldValue('contactInfo', {
+        name: '',
+        email: '',
+        phone: '',
+        position: ''
+      });
+    }
   };
 
   return (

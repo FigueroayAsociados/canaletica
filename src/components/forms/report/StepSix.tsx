@@ -82,8 +82,8 @@ const StepSix: React.FC<StepSixProps> = ({ formikProps }) => {
             <p className="font-medium">Denuncia bajo Ley Karin</p>
             <p className="text-sm mt-1">
               Su denuncia será tratada según el procedimiento especial establecido por la
-              Ley Karin (Ley N° 21.363), con plazos más estrictos y medidas específicas.
-              La investigación debe iniciarse en un máximo de 5 días hábiles.
+              Ley Karin (Ley N° 21.363), con plazos estrictos y medidas específicas.
+              La investigación tendrá una duración máxima de 30 días hábiles administrativos.
             </p>
           </AlertDescription>
         </Alert>

@@ -18,6 +18,8 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase/config';
 import { KarinRiskQuestion, KARIN_RISK_QUESTIONS, KarinRiskFactorType } from '@/types/report';
+import { normalizeCompanyId } from '@/lib/utils/helpers';
+import { logger } from '@/lib/utils/logger';
 
 // Interfaz para empresas
 export interface Company {
@@ -131,14 +133,11 @@ export interface ExternalIntegration {
  */
 export async function getCompanyConfig(companyId: string): Promise<{ success: boolean; config?: CompanyConfig; error?: string }> {
   try {
-    // Usar empresa default si no se proporciona companyId
-    if (!companyId || companyId === '') {
-      companyId = 'default';
-    }
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`getCompanyConfig: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
     
-    console.log(`Obteniendo configuración para empresa: ${companyId}`);
-    
-    const configRef = doc(db, `companies/${companyId}/settings/general`);
+    const configRef = doc(db, `companies/${normalizedCompanyId}/settings/general`);
     
     try {
       const configSnap = await getDoc(configRef);
@@ -212,7 +211,11 @@ export async function saveCompanyConfig(
   config: CompanyConfig
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const configRef = doc(db, `companies/${companyId}/settings/general`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`saveCompanyConfig: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
+    const configRef = doc(db, `companies/${normalizedCompanyId}/settings/general`);
 
     // Añadir metadatos
     const configWithMeta = {
@@ -285,17 +288,31 @@ export async function uploadCompanyLogo(
  */
 export async function getCategories(companyId: string): Promise<{ success: boolean; categories?: Category[]; error?: string }> {
   try {
-    const categoriesRef = collection(db, `companies/${companyId}/categories`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    logger.info(`Obteniendo categorías para companyId=${normalizedCompanyId} (original: ${companyId})`, null, { prefix: 'getCategories' });
+    
+    const categoriesRef = collection(db, `companies/${normalizedCompanyId}/categories`);
     const q = query(categoriesRef, orderBy('order', 'asc'));
     
     const querySnapshot = await getDocs(q);
     const categories: Category[] = [];
     
+    logger.info(`Encontradas ${querySnapshot.size} categorías en companies/${normalizedCompanyId}/categories`, null, { prefix: 'getCategories' });
+    
+    if (querySnapshot.size === 0) {
+      logger.warn(`NO SE ENCONTRARON CATEGORÍAS en companies/${normalizedCompanyId}/categories`, null, { prefix: 'getCategories' });
+      logger.warn('Esto puede indicar que las categorías están en otra colección o no han sido creadas.', null, { prefix: 'getCategories' });
+      logger.warn('Ejecute el script scripts/migrate-categories.js para consolidar todas las categorías.', null, { prefix: 'getCategories' });
+    }
+    
     querySnapshot.forEach((doc) => {
+      const categoryData = doc.data();
       categories.push({
         id: doc.id,
-        ...doc.data()
+        ...categoryData
       } as Category);
+      logger.debug(`Categoría cargada: ${categoryData.name} (ID: ${doc.id}, Activa: ${categoryData.isActive})`, null, { prefix: 'getCategories' });
     });
     
     return {
@@ -303,7 +320,7 @@ export async function getCategories(companyId: string): Promise<{ success: boole
       categories
     };
   } catch (error) {
-    console.error('Error al obtener categorías:', error);
+    logger.error('Error al obtener categorías', error);
     return {
       success: false,
       error: 'Error al obtener las categorías'
@@ -319,7 +336,11 @@ export async function createCategory(
   categoryData: Omit<Category, 'id' | 'updatedAt'>
 ): Promise<{ success: boolean; categoryId?: string; error?: string }> {
   try {
-    const categoriesRef = collection(db, `companies/${companyId}/categories`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`createCategory: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
+    const categoriesRef = collection(db, `companies/${normalizedCompanyId}/categories`);
     
     const dataToSave = {
       ...categoryData,
@@ -350,7 +371,11 @@ export async function updateCategory(
   updates: Partial<Omit<Category, 'id' | 'updatedAt'>>
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const categoryRef = doc(db, `companies/${companyId}/categories/${categoryId}`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`updateCategory: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
+    const categoryRef = doc(db, `companies/${normalizedCompanyId}/categories/${categoryId}`);
     
     const updatedData = {
       ...updates,
@@ -377,8 +402,12 @@ export async function deleteCategory(
   categoryId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`deleteCategory: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
     // Comprobar si hay subcategorías asociadas
-    const subcategoriesRef = collection(db, `companies/${companyId}/subcategories`);
+    const subcategoriesRef = collection(db, `companies/${normalizedCompanyId}/subcategories`);
     const q = query(subcategoriesRef, where('categoryId', '==', categoryId));
     const querySnapshot = await getDocs(q);
     
@@ -390,7 +419,7 @@ export async function deleteCategory(
     }
     
     // Comprobar si hay denuncias asociadas a esta categoría
-    const reportsRef = collection(db, `companies/${companyId}/reports`);
+    const reportsRef = collection(db, `companies/${normalizedCompanyId}/reports`);
     const reportsQuery = query(reportsRef, where('category', '==', categoryId));
     const reportsSnapshot = await getDocs(reportsQuery);
     
@@ -402,7 +431,7 @@ export async function deleteCategory(
     }
     
     // Si no hay dependencias, eliminar la categoría
-    const categoryRef = doc(db, `companies/${companyId}/categories/${categoryId}`);
+    const categoryRef = doc(db, `companies/${normalizedCompanyId}/categories/${categoryId}`);
     await deleteDoc(categoryRef);
     
     return { success: true };
@@ -423,27 +452,43 @@ export async function getSubcategories(
   categoryId?: string
 ): Promise<{ success: boolean; subcategories?: Subcategory[]; error?: string }> {
   try {
-    const subcategoriesRef = collection(db, `companies/${companyId}/subcategories`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    logger.info(`Obteniendo subcategorías para companyId=${normalizedCompanyId} (original: ${companyId})`, null, { prefix: 'getSubcategories' });
+    
+    const subcategoriesRef = collection(db, `companies/${normalizedCompanyId}/subcategories`);
     let q;
     
     if (categoryId) {
+      logger.info(`Buscando subcategorías para la categoría ${categoryId}`, null, { prefix: 'getSubcategories' });
       q = query(
         subcategoriesRef, 
         where('categoryId', '==', categoryId),
         orderBy('order', 'asc')
       );
     } else {
+      logger.info(`Buscando todas las subcategorías`, null, { prefix: 'getSubcategories' });
       q = query(subcategoriesRef, orderBy('categoryId'), orderBy('order', 'asc'));
     }
     
     const querySnapshot = await getDocs(q);
     const subcategories: Subcategory[] = [];
     
+    logger.info(`Encontradas ${querySnapshot.size} subcategorías en companies/${normalizedCompanyId}/subcategories`, null, { prefix: 'getSubcategories' });
+    
+    if (querySnapshot.size === 0 && categoryId) {
+      logger.warn(`NO SE ENCONTRARON SUBCATEGORÍAS para la categoría ${categoryId}`, null, { prefix: 'getSubcategories' });
+      logger.warn('Esto puede indicar que las subcategorías están en otra colección o no han sido creadas.', null, { prefix: 'getSubcategories' });
+      logger.warn('Ejecute el script scripts/migrate-categories.js para consolidar todas las subcategorías.', null, { prefix: 'getSubcategories' });
+    }
+    
     querySnapshot.forEach((doc) => {
+      const subcategoryData = doc.data();
       subcategories.push({
         id: doc.id,
-        ...doc.data()
+        ...subcategoryData
       } as Subcategory);
+      logger.debug(`Subcategoría cargada: ${subcategoryData.name} (ID: ${doc.id}, CategoríaID: ${subcategoryData.categoryId})`, null, { prefix: 'getSubcategories' });
     });
     
     return {
@@ -451,7 +496,7 @@ export async function getSubcategories(
       subcategories
     };
   } catch (error) {
-    console.error('Error al obtener subcategorías:', error);
+    logger.error('Error al obtener subcategorías', error);
     return {
       success: false,
       error: 'Error al obtener las subcategorías'
@@ -467,8 +512,12 @@ export async function createSubcategory(
   subcategoryData: Omit<Subcategory, 'id' | 'updatedAt'>
 ): Promise<{ success: boolean; subcategoryId?: string; error?: string }> {
   try {
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`createSubcategory: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
     // Comprobar que la categoría padre existe
-    const categoryRef = doc(db, `companies/${companyId}/categories/${subcategoryData.categoryId}`);
+    const categoryRef = doc(db, `companies/${normalizedCompanyId}/categories/${subcategoryData.categoryId}`);
     const categorySnap = await getDoc(categoryRef);
     
     if (!categorySnap.exists()) {
@@ -478,7 +527,7 @@ export async function createSubcategory(
       };
     }
     
-    const subcategoriesRef = collection(db, `companies/${companyId}/subcategories`);
+    const subcategoriesRef = collection(db, `companies/${normalizedCompanyId}/subcategories`);
     
     const dataToSave = {
       ...subcategoryData,
@@ -509,9 +558,13 @@ export async function updateSubcategory(
   updates: Partial<Omit<Subcategory, 'id' | 'updatedAt'>>
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`updateSubcategory: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
     // Si se está actualizando la categoría padre, comprobar que existe
     if (updates.categoryId) {
-      const categoryRef = doc(db, `companies/${companyId}/categories/${updates.categoryId}`);
+      const categoryRef = doc(db, `companies/${normalizedCompanyId}/categories/${updates.categoryId}`);
       const categorySnap = await getDoc(categoryRef);
       
       if (!categorySnap.exists()) {
@@ -522,7 +575,7 @@ export async function updateSubcategory(
       }
     }
     
-    const subcategoryRef = doc(db, `companies/${companyId}/subcategories/${subcategoryId}`);
+    const subcategoryRef = doc(db, `companies/${normalizedCompanyId}/subcategories/${subcategoryId}`);
     
     const updatedData = {
       ...updates,
@@ -549,8 +602,12 @@ export async function deleteSubcategory(
   subcategoryId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`deleteSubcategory: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
     // Comprobar si hay denuncias asociadas a esta subcategoría
-    const reportsRef = collection(db, `companies/${companyId}/reports`);
+    const reportsRef = collection(db, `companies/${normalizedCompanyId}/reports`);
     const reportsQuery = query(reportsRef, where('subcategory', '==', subcategoryId));
     const reportsSnapshot = await getDocs(reportsQuery);
     
@@ -562,7 +619,7 @@ export async function deleteSubcategory(
     }
     
     // Si no hay dependencias, eliminar la subcategoría
-    const subcategoryRef = doc(db, `companies/${companyId}/subcategories/${subcategoryId}`);
+    const subcategoryRef = doc(db, `companies/${normalizedCompanyId}/subcategories/${subcategoryId}`);
     await deleteDoc(subcategoryRef);
     
     return { success: true };
@@ -1245,15 +1302,12 @@ export async function getFormOptions(
   optionType: string
 ): Promise<{ success: boolean; options?: FormOptionValue[]; error?: string }> {
   try {
-    // Para formularios públicos, siempre use la empresa default
-    if (!companyId || companyId === '') {
-      companyId = 'default';
-    }
-    
-    console.log(`Obteniendo opciones de formulario para companyId: ${companyId}, optionType: ${optionType}`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`getFormOptions: Usando companyId=${normalizedCompanyId} (original: ${companyId}), optionType: ${optionType}`);
     
     try {
-      const optionsRef = collection(db, `companies/${companyId}/formOptions/${optionType}/values`);
+      const optionsRef = collection(db, `companies/${normalizedCompanyId}/formOptions/${optionType}/values`);
       const q = query(optionsRef, orderBy('order', 'asc'));
       
       const querySnapshot = await getDocs(q);
@@ -1337,7 +1391,11 @@ export async function createFormOption(
   optionData: Omit<FormOptionValue, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<{ success: boolean; optionId?: string; error?: string }> {
   try {
-    const optionsRef = collection(db, `companies/${companyId}/formOptions/${optionType}/values`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`createFormOption: Usando companyId=${normalizedCompanyId} (original: ${companyId}), optionType: ${optionType}`);
+    
+    const optionsRef = collection(db, `companies/${normalizedCompanyId}/formOptions/${optionType}/values`);
     
     const dataToSave = {
       ...optionData,
@@ -1370,7 +1428,11 @@ export async function updateFormOption(
   updates: Partial<Omit<FormOptionValue, 'id' | 'createdAt' | 'updatedAt'>>
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const optionRef = doc(db, `companies/${companyId}/formOptions/${optionType}/values/${optionId}`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`updateFormOption: Usando companyId=${normalizedCompanyId} (original: ${companyId}), optionType: ${optionType}`);
+    
+    const optionRef = doc(db, `companies/${normalizedCompanyId}/formOptions/${optionType}/values/${optionId}`);
     
     const updatedData = {
       ...updates,
@@ -1398,7 +1460,11 @@ export async function deleteFormOption(
   optionId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const optionRef = doc(db, `companies/${companyId}/formOptions/${optionType}/values/${optionId}`);
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`deleteFormOption: Usando companyId=${normalizedCompanyId} (original: ${companyId}), optionType: ${optionType}`);
+    
+    const optionRef = doc(db, `companies/${normalizedCompanyId}/formOptions/${optionType}/values/${optionId}`);
     await deleteDoc(optionRef);
     
     return { success: true };
@@ -1504,8 +1570,12 @@ async function initializeCompanyStructure(companyId: string): Promise<void> {
  */
 export async function getKarinRiskQuestions(companyId: string) {
   try {
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`getKarinRiskQuestions: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
     // Intentar obtener preguntas personalizadas de la base de datos
-    const questionsRef = collection(db, `companies/${companyId}/config/karinrisk/questions`);
+    const questionsRef = collection(db, `companies/${normalizedCompanyId}/config/karinrisk/questions`);
     const q = query(questionsRef, orderBy('order', 'asc'));
     const querySnapshot = await getDocs(q);
     
@@ -1561,10 +1631,14 @@ export async function getKarinRiskQuestions(companyId: string) {
  */
 export async function saveKarinRiskQuestion(companyId: string, question: KarinRiskQuestion) {
   try {
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`saveKarinRiskQuestion: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
     // Obtener el orden de la pregunta si ya existe, o asignar uno nuevo
     let order = 0;
     
-    const questionRef = doc(db, `companies/${companyId}/config/karinrisk/questions/${question.id}`);
+    const questionRef = doc(db, `companies/${normalizedCompanyId}/config/karinrisk/questions/${question.id}`);
     const docSnap = await getDoc(questionRef);
     
     // Si ya existe, mantener su orden actual
@@ -1572,7 +1646,7 @@ export async function saveKarinRiskQuestion(companyId: string, question: KarinRi
       order = docSnap.data().order || 0;
     } else {
       // Si es nueva, obtener el máximo orden y sumar 1
-      const questionsRef = collection(db, `companies/${companyId}/config/karinrisk/questions`);
+      const questionsRef = collection(db, `companies/${normalizedCompanyId}/config/karinrisk/questions`);
       const querySnapshot = await getDocs(questionsRef);
       if (!querySnapshot.empty) {
         const orders = querySnapshot.docs.map(doc => doc.data().order || 0);
@@ -1607,6 +1681,10 @@ export async function saveKarinRiskQuestion(companyId: string, question: KarinRi
  */
 export async function deleteKarinRiskQuestion(companyId: string, questionId: KarinRiskFactorType) {
   try {
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`deleteKarinRiskQuestion: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
     // Verificar que no sea una de las preguntas predefinidas
     const isPredefined = KARIN_RISK_QUESTIONS.some(q => q.id === questionId);
     if (isPredefined && !questionId.toString().startsWith('custom_')) {
@@ -1616,7 +1694,7 @@ export async function deleteKarinRiskQuestion(companyId: string, questionId: Kar
       };
     }
     
-    const questionRef = doc(db, `companies/${companyId}/config/karinrisk/questions/${questionId}`);
+    const questionRef = doc(db, `companies/${normalizedCompanyId}/config/karinrisk/questions/${questionId}`);
     await deleteDoc(questionRef);
     
     return {
@@ -1636,10 +1714,14 @@ export async function deleteKarinRiskQuestion(companyId: string, questionId: Kar
  */
 export async function saveKarinRiskQuestionsOrder(companyId: string, questions: KarinRiskQuestion[]) {
   try {
+    // Normalizar ID para entorno de desarrollo
+    const normalizedCompanyId = normalizeCompanyId(companyId);
+    console.log(`saveKarinRiskQuestionsOrder: Usando companyId=${normalizedCompanyId} (original: ${companyId})`);
+    
     const batch = writeBatch(db);
     
     questions.forEach((question, index) => {
-      const questionRef = doc(db, `companies/${companyId}/config/karinrisk/questions/${question.id}`);
+      const questionRef = doc(db, `companies/${normalizedCompanyId}/config/karinrisk/questions/${question.id}`);
       batch.update(questionRef, { 
         order: index,
         updatedAt: serverTimestamp()

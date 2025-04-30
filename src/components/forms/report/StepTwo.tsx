@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Field, ErrorMessage, FormikProps } from 'formik';
-import { ReportFormValues, CategoryType } from '@/types/report';
+import { ReportFormValues } from '@/types/report';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -14,19 +14,87 @@ interface StepTwoProps {
   formikProps: FormikProps<ReportFormValues>;
 }
 
+// Categorías predeterminadas para usar en caso de error
+const DEFAULT_CATEGORIES = [
+  { 
+    id: 'modelo_prevencion', 
+    name: 'Prevención de Delitos', 
+    description: 'Denuncias relacionadas con el modelo de prevención de delitos',
+    isActive: true,
+    isKarinLaw: false,
+    order: 1
+  },
+  { 
+    id: 'ley_karin', 
+    name: 'Ley Karin', 
+    description: 'Denuncias relacionadas con acoso laboral o sexual',
+    isActive: true,
+    isKarinLaw: true,
+    order: 2
+  },
+  { 
+    id: 'reglamento_interno', 
+    name: 'Reglamento Interno', 
+    description: 'Denuncias relacionadas con el reglamento interno',
+    isActive: true,
+    isKarinLaw: false,
+    order: 3
+  },
+  { 
+    id: 'politicas_codigos', 
+    name: 'Políticas y Códigos', 
+    description: 'Denuncias relacionadas con incumplimiento de políticas o códigos',
+    isActive: true,
+    isKarinLaw: false,
+    order: 4
+  },
+  { 
+    id: 'represalias', 
+    name: 'Represalias', 
+    description: 'Denuncias de represalias',
+    isActive: true,
+    isKarinLaw: false,
+    order: 5
+  },
+  { 
+    id: 'otros', 
+    name: 'Otros', 
+    description: 'Otras denuncias',
+    isActive: true,
+    isKarinLaw: false,
+    order: 6
+  }
+];
+
+// Subcategorías predeterminadas para usar en caso de error
+const DEFAULT_SUBCATEGORIES = {
+  'modelo_prevencion': [
+    { id: 'cohecho', name: 'Cohecho', isActive: true, categoryId: 'modelo_prevencion', order: 1 },
+    { id: 'lavado_activos', name: 'Lavado de Activos', isActive: true, categoryId: 'modelo_prevencion', order: 2 },
+    { id: 'financiamiento_terrorismo', name: 'Financiamiento del Terrorismo', isActive: true, categoryId: 'modelo_prevencion', order: 3 }
+  ],
+  'ley_karin': [
+    { id: 'acoso_laboral', name: 'Acoso Laboral', isActive: true, categoryId: 'ley_karin', order: 1 },
+    { id: 'acoso_sexual', name: 'Acoso Sexual', isActive: true, categoryId: 'ley_karin', order: 2 },
+    { id: 'violencia_trabajo', name: 'Violencia en el Trabajo', isActive: true, categoryId: 'ley_karin', order: 3 }
+  ],
+  'represalias': [
+    { id: 'represalia_denuncia', name: 'Represalia por Denuncia', isActive: true, categoryId: 'represalias', order: 1 }
+  ]
+};
+
 const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
   const { values, errors, touched, setFieldValue } = formikProps;
   const { companyId } = useCompany();
 
-  // Estados para almacenar las categorías y subcategorías cargadas
+  // Estados para almacenar datos
   const [categories, setCategories] = useState<Category[]>([]);
-  const [subcategoriesByCategory, setSubcategoriesByCategory] = useState<{ [categoryId: string]: Subcategory[] }>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar las categorías y subcategorías al montar el componente
+  // Cargar categorías al montar el componente
   useEffect(() => {
-    const loadCategoriesAndSubcategories = async () => {
+    const loadCategories = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -37,133 +105,110 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
 
         // Obtener categorías
         const categoriesResult = await getCategories(effectiveCompanyId);
-        console.log('Resultado de getCategories:', categoriesResult);
         
         if (!categoriesResult.success || !categoriesResult.categories || categoriesResult.categories.length === 0) {
-          console.warn('No se pudieron cargar las categorías o no hay categorías. Usando valores predeterminados.');
-          useDefaultCategoriesAndSubcategories();
-          return;
-        }
-
-        // Filtrar solo categorías activas
-        const activeCategories = categoriesResult.categories.filter(cat => cat.isActive);
-        
-        if (activeCategories.length === 0) {
-          console.warn('No hay categorías activas. Usando valores predeterminados.');
-          useDefaultCategoriesAndSubcategories();
-          return;
-        }
-        
-        setCategories(activeCategories);
-        console.log('Categorías cargadas:', activeCategories);
-
-        // Cargar subcategorías para cada categoría
-        const subcatsMap: { [categoryId: string]: Subcategory[] } = {};
-        
-        for (const category of activeCategories) {
-          console.log(`Cargando subcategorías para categoría ${category.id}`);
-          const subcategoriesResult = await getSubcategories(effectiveCompanyId, category.id);
-          console.log(`Resultado subcategorías para ${category.id}:`, subcategoriesResult);
+          console.log('No se pudieron cargar las categorías, usando valores predeterminados');
+          setCategories(DEFAULT_CATEGORIES.filter(cat => 
+            values.isKarinLaw ? (cat.isKarinLaw || cat.id === 'ley_karin') : !(cat.isKarinLaw || cat.id === 'ley_karin')
+          ));
+          setError('No se pudieron cargar las categorías desde la base de datos. Se están utilizando categorías predeterminadas.');
+        } else {
+          // Filtrar solo categorías activas y relevantes
+          const filteredCategories = categoriesResult.categories.filter(cat => 
+            cat.isActive && (values.isKarinLaw ? (cat.isKarinLaw || cat.id === 'ley_karin') : !(cat.isKarinLaw || cat.id === 'ley_karin'))
+          );
           
-          if (subcategoriesResult.success && subcategoriesResult.subcategories) {
-            // Filtrar solo subcategorías activas
-            subcatsMap[category.id] = subcategoriesResult.subcategories.filter(subcat => subcat.isActive);
+          if (filteredCategories.length === 0) {
+            console.log('No hay categorías activas, usando valores predeterminados');
+            setCategories(DEFAULT_CATEGORIES.filter(cat => 
+              values.isKarinLaw ? (cat.isKarinLaw || cat.id === 'ley_karin') : !(cat.isKarinLaw || cat.id === 'ley_karin')
+            ));
+            setError('No hay categorías activas disponibles. Se están utilizando categorías predeterminadas.');
           } else {
-            subcatsMap[category.id] = [];
+            setCategories(filteredCategories);
           }
         }
-
-        setSubcategoriesByCategory(subcatsMap);
-        console.log('Subcategorías cargadas:', subcatsMap);
       } catch (err) {
-        console.error('Error al cargar categorías y subcategorías:', err);
-        setError('Ocurrió un error al cargar los datos. Se usarán valores predeterminados.');
-        useDefaultCategoriesAndSubcategories();
+        console.error('Error al cargar categorías:', err);
+        setCategories(DEFAULT_CATEGORIES.filter(cat => 
+          values.isKarinLaw ? (cat.isKarinLaw || cat.id === 'ley_karin') : !(cat.isKarinLaw || cat.id === 'ley_karin')
+        ));
+        setError('Ocurrió un error al cargar las categorías. Se están utilizando categorías predeterminadas.');
       } finally {
         setLoading(false);
       }
     };
-    
-    // Función para establecer valores predeterminados en caso de error
-    const useDefaultCategoriesAndSubcategories = () => {
-      // No usar categorías predeterminadas - solo usar las de Firebase
-      console.warn('No se pudieron cargar categorías desde Firebase. El formulario requiere categorías en la base de datos.');
-      
-      // Establecer arrays vacíos en lugar de datos predeterminados
-      setCategories([]);
-      setSubcategoriesByCategory({});
-      
-      // Mostrar error
-      setError('No se pudieron cargar las categorías. Por favor, contacte al administrador.');
-    };
 
-    loadCategoriesAndSubcategories();
-  }, [companyId]);
+    loadCategories();
+  }, [companyId, values.isKarinLaw]);
 
-  // Actualizar subcategoría cuando cambia la categoría
+  // Actualizar preferencias cuando cambia la categoría
   useEffect(() => {
-    setFieldValue('subcategory', '');
+    if (!values.category) return;
     
     // Verificar si es denuncia Ley Karin
-    // Buscar la categoría seleccionada
     const selectedCategory = categories.find(cat => cat.id === values.category);
+    if (!selectedCategory) return;
+    
     console.log('Categoría seleccionada:', selectedCategory);
     
-    // Aunque ya tenemos values.isKarinLaw establecido desde el inicio del formulario,
-    // vamos a verificar también basados en la categoría seleccionada para mayor seguridad
-    const categoryIsKarin = selectedCategory?.isKarinLaw || 
-                      (selectedCategory?.name && selectedCategory.name.includes('Karin')) || 
-                      selectedCategory?.id === 'ley_karin' ||
-                      false;
+    const isKarinCategory = 
+      selectedCategory.isKarinLaw === true || 
+      selectedCategory.id === 'ley_karin' ||
+      (selectedCategory.name && selectedCategory.name.toLowerCase().includes('karin'));
     
-    // Solo ajustar isKarinLaw si está en conflicto con la categoría seleccionada
-    // Esto evita modificar el valor establecido inicialmente en el modal
-    if (categoryIsKarin !== values.isKarinLaw && selectedCategory) {
-      console.log(`Ajustando isKarinLaw=${categoryIsKarin} basado en categoría seleccionada`);
-      setFieldValue('isKarinLaw', categoryIsKarin);
+    // Actualizar si hay discrepancia
+    if (isKarinCategory !== values.isKarinLaw) {
+      console.log('Actualizando isKarinLaw a:', isKarinCategory);
+      setFieldValue('isKarinLaw', isKarinCategory);
     }
     
     // Si es Ley Karin, asegurarse de que no sea anónima
-    if ((values.isKarinLaw || categoryIsKarin) && values.isAnonymous) {
-      console.log("StepTwo: Detectada categoría Ley Karin - forzando denuncia no anónima");
+    if (isKarinCategory && values.isAnonymous) {
+      console.log('Desactivando anonimato para denuncia Ley Karin');
       setFieldValue('isAnonymous', false);
     }
-  }, [values.category, values.isAnonymous, values.isKarinLaw, setFieldValue, categories]);
+  }, [values.category, categories, values.isKarinLaw, values.isAnonymous, setFieldValue]);
 
-  // Obtener opciones de subcategoría según la categoría seleccionada desde la base de datos
-  const getSubcategoryOptions = () => {
-    if (!values.category) {
-      return (
-        <>
-          <option value="">Seleccione primero una categoría</option>
-        </>
-      );
-    }
+  // Estado para subcategorías
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [loadingSubcategories, setLoadingSubcategories] = useState<boolean>(false);
 
-    const selectedCategoryId = values.category;
-    const subcategories = subcategoriesByCategory[selectedCategoryId] || [];
-
-    if (subcategories.length === 0) {
-      return (
-        <>
-          <option value="">No hay subcategorías disponibles</option>
-          <option value="otra_subcategoria">Otra situación no listada</option>
-        </>
-      );
-    }
-
-    return (
-      <>
-        <option value="">Seleccione una subcategoría</option>
-        {subcategories.map(subcategory => (
-          <option key={subcategory.id} value={subcategory.id}>
-            {subcategory.name}
-          </option>
-        ))}
-        <option value="otra_subcategoria">Otra situación no listada</option>
-      </>
-    );
-  };
+  // Cargar subcategorías cuando cambia la categoría seleccionada
+  useEffect(() => {
+    const loadSubcategories = async () => {
+      if (!values.category) {
+        setSubcategories([]);
+        return;
+      }
+      
+      try {
+        setLoadingSubcategories(true);
+        console.log(`Cargando subcategorías para categoría ${values.category}`);
+        
+        const effectiveCompanyId = companyId || 'default';
+        const result = await getSubcategories(effectiveCompanyId, values.category);
+        
+        if (result.success && result.subcategories && result.subcategories.length > 0) {
+          console.log(`${result.subcategories.length} subcategorías cargadas`);
+          setSubcategories(result.subcategories.filter(sub => sub.isActive));
+        } else if (DEFAULT_SUBCATEGORIES[values.category]) {
+          console.log(`Usando subcategorías predeterminadas para ${values.category}`);
+          setSubcategories(DEFAULT_SUBCATEGORIES[values.category]);
+        } else {
+          console.log(`No hay subcategorías para ${values.category}`);
+          setSubcategories([]);
+        }
+      } catch (err) {
+        console.error('Error cargando subcategorías:', err);
+        setSubcategories(DEFAULT_SUBCATEGORIES[values.category] || []);
+      } finally {
+        setLoadingSubcategories(false);
+      }
+    };
+    
+    loadSubcategories();
+  }, [values.category, companyId]);
 
   return (
     <div className="space-y-6">
@@ -177,57 +222,39 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
         </p>
       </div>
 
+      {/* Mostrar mensaje de error si lo hay */}
+      {error && (
+        <Alert variant="error" className="mb-2">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Categoría principal */}
       <div className="mb-6">
         <Label htmlFor="category" required>
           Categoría principal de la denuncia
         </Label>
-        {error && (
-          <Alert variant="error" className="mb-2">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        {loading ? (
-          <div className="text-sm text-gray-500 mt-2">Cargando categorías...</div>
-        ) : (
-          <Field
-            as={Select}
-            id="category"
-            name="category"
-            error={touched.category && errors.category}
-            className="mt-1"
-          >
-            <option value="">Seleccione una categoría</option>
-            {categories
-              // Filtrar categorías duplicadas - usar un Set para extraer ids únicos
-              .filter((category, index, self) => 
-                index === self.findIndex(c => c.id === category.id)
-              )
-              // Filtrar categorías según si es Ley Karin o no
-              .filter(category => {
-                const isKarinCategory = 
-                  category.isKarinLaw || 
-                  category.name?.includes('Karin') || 
-                  category.id === 'ley_karin';
-                
-                // Si values.isKarinLaw es true, mostrar solo categorías Ley Karin
-                // Si values.isKarinLaw es false, mostrar solo categorías que NO son Ley Karin
-                return values.isKarinLaw ? isKarinCategory : !isKarinCategory;
-              })
-              .map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))
-            }
-          </Field>
-        )}
+        <Field
+          as={Select}
+          id="category"
+          name="category"
+          error={touched.category && errors.category}
+          className="mt-1"
+          disabled={loading}
+        >
+          <option value="">Seleccione una categoría</option>
+          {categories.map(category => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </Field>
         <ErrorMessage name="category">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+          {msg => <div className="text-error text-sm mt-1">{msg}</div>}
         </ErrorMessage>
       </div>
 
-      {/* Subcategoría */}
+      {/* Subcategoría - Implementación directa simplificada */}
       <div className="mb-6">
         <Label htmlFor="subcategory" required>
           Subcategoría específica
@@ -238,21 +265,33 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
           name="subcategory"
           error={touched.subcategory && errors.subcategory}
           className="mt-1"
-          disabled={!values.category || loading}
+          disabled={!values.category || loadingSubcategories}
         >
-          {loading ? (
-            <option value="">Cargando subcategorías...</option>
-          ) : (
-            getSubcategoryOptions()
+          <option value="">
+            {!values.category 
+              ? "Seleccione primero una categoría" 
+              : loadingSubcategories 
+                ? "Cargando subcategorías..." 
+                : "Seleccione una subcategoría"}
+          </option>
+          
+          {subcategories.map(subcategory => (
+            <option key={subcategory.id} value={subcategory.id}>
+              {subcategory.name}
+            </option>
+          ))}
+          
+          {values.category && !loadingSubcategories && (
+            <option value="otra_subcategoria">Otra situación no listada</option>
           )}
         </Field>
         <ErrorMessage name="subcategory">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+          {msg => <div className="text-error text-sm mt-1">{msg}</div>}
         </ErrorMessage>
       </div>
       
-      {/* Campo para descripción personalizada cuando se selecciona "otro" como subcategoría */}
-      {(values.subcategory === 'otro' || values.subcategory === 'otra_subcategoria') && (
+      {/* Campo para descripción personalizada */}
+      {values.subcategory === 'otra_subcategoria' && (
         <div className="mb-6">
           <Label htmlFor="customSubcategoryDescription" required>
             Describa la subcategoría
@@ -300,7 +339,7 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
           max={new Date().toISOString().split('T')[0]} // No permitir fechas futuras
         />
         <ErrorMessage name="eventDate">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+          {msg => <div className="text-error text-sm mt-1">{msg}</div>}
         </ErrorMessage>
         <p className="text-sm text-gray-500 mt-1">
           Si los hechos ocurrieron durante un período, indique la fecha más reciente.
@@ -322,7 +361,7 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
           max={new Date().toISOString().split('T')[0]} // No permitir fechas futuras
         />
         <ErrorMessage name="knowledgeDate">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+          {msg => <div className="text-error text-sm mt-1">{msg}</div>}
         </ErrorMessage>
       </div>
 
@@ -344,7 +383,7 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
           <option value="conocimiento_indirecto">Conocimiento indirecto</option>
         </Field>
         <ErrorMessage name="relationWithFacts">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+          {msg => <div className="text-error text-sm mt-1">{msg}</div>}
         </ErrorMessage>
       </div>
     </div>

@@ -42,17 +42,26 @@ export default function AdminLeyKarinPage() {
     if (!stage) return 'No definida';
     
     const stageMap: Record<string, string> = {
-      'orientation': 'Orientación',
       'complaint_filed': 'Denuncia Interpuesta',
       'reception': 'Recepción',
+      'subsanation': 'Subsanación',
+      'dt_notification': 'Notificación Inicial a DT',
+      'suseso_notification': 'Notificación a SUSESO',
       'precautionary_measures': 'Medidas Precautorias',
       'decision_to_investigate': 'Decisión de Investigar',
       'investigation': 'En Investigación',
-      'report': 'Informe',
-      'labor_department': 'En Dirección del Trabajo',
+      'report_creation': 'Creación de Informe',
+      'report_approval': 'Aprobación de Informe',
+      'labor_department': 'Remisión a Dir. del Trabajo',
+      'dt_resolution': 'Resolución de DT',
       'measures_adoption': 'Adopción de Medidas',
       'sanctions': 'Sanciones',
-      'closed': 'Cerrada'
+      'third_party': 'Caso con Terceros',
+      'subcontracting': 'Régimen Subcontratación',
+      'closed': 'Cerrada',
+      // Mapear valores antiguos por compatibilidad
+      'orientation': 'Denuncia Interpuesta', // Mapeo de etapa antigua a nueva
+      'preliminaryReport': 'Creación de Informe' // Mapeo de etapa antigua a nueva
     };
     
     return stageMap[stage] || stage;
@@ -306,8 +315,9 @@ export default function AdminLeyKarinPage() {
           <div className="p-4 bg-gray-50 rounded-lg overflow-x-auto">
             <div className="flex flex-nowrap min-w-max gap-2">
               {/* Etapas del proceso como diagrama de flujo */}
-              {['orientation', 'complaint_filed', 'reception', 'precautionary_measures', 
-                'decision_to_investigate', 'investigation', 'report', 'measures_adoption', 'closed']
+              {['complaint_filed', 'reception', 'subsanation', 'dt_notification', 'suseso_notification', 'precautionary_measures', 
+                'decision_to_investigate', 'investigation', 'report_creation', 'report_approval', 
+                'labor_department', 'dt_resolution', 'measures_adoption', 'sanctions', 'closed']
                 .map((stage, index, stages) => {
                   // Determinar si la etapa está completa o activa basado en el reporte seleccionado
                   let isActive = false;
@@ -519,9 +529,10 @@ export default function AdminLeyKarinPage() {
               <div className="border-t pt-4">
                 <h4 className="font-medium mb-2">Actualizar etapa del proceso</h4>
                 <div className="grid grid-cols-1 gap-4">
-                  {['orientation', 'complaint_filed', 'reception', 'precautionary_measures', 
-                   'decision_to_investigate', 'investigation', 'report', 'labor_department',
-                   'measures_adoption', 'sanctions', 'closed'].map((stage) => (
+                  {['complaint_filed', 'reception', 'subsanation', 'dt_notification', 'suseso_notification',
+                   'precautionary_measures', 'decision_to_investigate', 'investigation', 
+                   'report_creation', 'report_approval', 'labor_department', 'dt_resolution',
+                   'measures_adoption', 'sanctions', 'third_party', 'subcontracting', 'closed'].map((stage) => (
                     <Button 
                       key={stage}
                       variant={selectedReport.karinProcess?.stage === stage ? "default" : "outline"} 
@@ -909,9 +920,6 @@ Este es un documento de plantilla para ${editingTemplate.toLowerCase()}.
               <div className="p-4 bg-gray-50 rounded-lg">
                 <ol className="list-decimal pl-5 space-y-4">
                   <li>
-                    <strong>Orientación:</strong> La empresa debe proporcionar información clara sobre cómo presentar una denuncia por acoso.
-                  </li>
-                  <li>
                     <strong>Interposición de la denuncia:</strong> La persona afectada o un tercero presenta la denuncia formal.
                   </li>
                   <li>
@@ -927,13 +935,19 @@ Este es un documento de plantilla para ${editingTemplate.toLowerCase()}.
                     <strong>Investigación:</strong> Plazo máximo de 30 días hábiles.
                   </li>
                   <li>
-                    <strong>Informe final:</strong> Conclusiones y recomendaciones.
+                    <strong>Creación del Informe:</strong> Redacción del informe con hallazgos.
                   </li>
                   <li>
-                    <strong>Dirección del Trabajo:</strong> En caso de existir indicios de acoso, se debe remitir a la Dirección del Trabajo.
+                    <strong>Aprobación del Informe:</strong> Revisión y aprobación del informe final.
                   </li>
                   <li>
-                    <strong>Adopción de medidas:</strong> Protección para la víctima y sanciones para el acosador.
+                    <strong>Dirección del Trabajo (DT):</strong> <span className="text-orange-700">Dentro de los 2 días hábiles siguientes a la finalización de la investigación</span>, se debe enviar el informe final y todo el expediente a la Dirección del Trabajo, quienes tendrán <span className="text-orange-700">30 días hábiles para revisar el procedimiento</span>.
+                  </li>
+                  <li>
+                    <strong>Adopción de medidas:</strong> Una vez que la DT emite su pronunciamiento, hay un plazo de <span className="text-orange-700">15 días para implementar las medidas</span> propuestas en la investigación o las que la DT disponga.
+                  </li>
+                  <li>
+                    <strong>Sanciones:</strong> Aplicación de sanciones según corresponda.
                   </li>
                 </ol>
               </div>
@@ -954,6 +968,18 @@ Este es un documento de plantilla para ${editingTemplate.toLowerCase()}.
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border">Investigación</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border">30 días hábiles</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border">Envío a Dirección del Trabajo</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border">2 días hábiles tras finalizar investigación</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border">Revisión por Dirección del Trabajo</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border">30 días hábiles</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border">Implementación de medidas</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border">15 días tras resolución de DT</td>
                   </tr>
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border">Información a partes</td>

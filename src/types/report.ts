@@ -107,22 +107,30 @@ export const KARIN_RISK_QUESTIONS: KarinRiskQuestion[] = [
   }
 ];
 
-// Etapas del proceso Ley Karin (según documento oficial)
+// Etapas del proceso Ley Karin (según documento oficial actualizado)
 export type KarinProcessStage =
-  | 'orientation'           // Etapa 1: Orientación
-  | 'complaint_filed'       // Etapa 2: Interposición de la Denuncia
-  | 'reception'             // Etapa 3: Recepción de Denuncia
-  | 'precautionary_measures'// Etapa 4: Medidas Precautorias o de Resguardo
-  | 'decision_to_investigate'// Etapa 5: Decisión de Investigar
-  | 'investigation'         // Etapa 6: Investigación
-  | 'report_creation'       // Etapa 7a: Creación del Informe
-  | 'report_approval'       // Etapa 7b: Aprobación del Informe
-  | 'labor_department'      // Etapa 8: Remisión a la Dirección del Trabajo
-  | 'measures_adoption'     // Etapa 9: Adopción de Medidas
-  | 'sanctions'             // Etapa 10: Sanciones y su Impugnación
-  | 'false_claim'           // Etapa 11: Denuncias Falsas (Proceso especial)
-  | 'retaliation_review'    // Etapa 12: Prohibición de Represalias
-  | 'closed';               // Finalizado
+  | 'complaint_filed'       // Etapa 1: Interposición de la Denuncia
+  | 'reception'             // Etapa 2: Recepción de Denuncia
+  | 'subsanation'           // Etapa 2.1: Subsanación de la Denuncia (si es necesario)
+  | 'dt_notification'       // Etapa 2.2: Notificación inicial a DT (3 días desde recepción)
+  | 'suseso_notification'   // Etapa 2.3: Notificación a mutualidades/SUSESO (5 días)
+  | 'precautionary_measures'// Etapa 3: Medidas Precautorias o de Resguardo
+  | 'decision_to_investigate'// Etapa 4: Decisión de Investigar
+  | 'investigation'         // Etapa 5: Investigación
+  | 'report_creation'       // Etapa 6a: Creación del Informe Preliminar
+  | 'report_approval'       // Etapa 6b: Aprobación del Informe Preliminar
+  | 'labor_department'      // Etapa 7: Investigación completa (30 días máximo)
+  | 'final_report'          // Etapa 8a: Creación del Informe Final
+  | 'dt_submission'         // Etapa 8b: Envío a DT (2 días desde finalización)
+  | 'dt_resolution'         // Etapa 9: Resolución de la DT (30 días hábiles)
+  | 'measures_adoption'     // Etapa 10: Adopción de Medidas (15 días corridos)
+  | 'sanctions'             // Etapa 11: Sanciones y su Impugnación
+  | 'false_claim'           // Caso especial: Denuncias Falsas
+  | 'retaliation_review'    // Caso especial: Prohibición de Represalias
+  | 'third_party'           // Caso especial: Conductas por terceros
+  | 'subcontracting'        // Caso especial: Régimen de Subcontratación
+  | 'closed'                // Finalizado
+  | 'orientation';          // Valor antiguo (mantenido para compatibilidad)
 
 // Ahora CategoryType puede ser cualquier string (ID de la categoría)
 export type CategoryType = string;
@@ -293,31 +301,37 @@ export interface ReportFormValues {
       notes?: string;
     }>;
     
-    // Etapa 1: Orientación
-    orientationDate?: string;
-    orientationNotes?: string;
-    orientationType?: 'presencial' | 'telefonica' | 'email' | 'web';
-    orientationOfficer?: string;
-    
-    // Etapa 2: Interposición de la Denuncia
+    // Etapa 1: Interposición de la Denuncia
     complaintFiledDate?: string;
     complaintChannel?: 'verbal' | 'escrita' | 'email' | 'jefe' | 'web';
     complaintDocumentId?: string; // ID del documento adjunto
     
-    // Etapa 3: Recepción de Denuncia
+    // Etapa 2: Recepción de Denuncia
     receivedDate?: string;
     receivedBy?: string;
     requiresSubsanation?: boolean;
     subsanationRequested?: string; // Fecha de solicitud de subsanación
     subsanationReceived?: string; // Fecha de recepción de subsanación
+    subsanationDeadline?: string; // Plazo de 5 días hábiles para subsanar
     initialRiskAssessment?: 'high' | 'medium' | 'low';
+    informedRights?: boolean; // Se informó a la víctima sobre sus derechos
     
-    // Etapa 4: Medidas Precautorias
+    // Etapa 2.2: Notificación inicial a DT
+    dtInitialNotificationDate?: string; // Fecha de notificación inicial a DT (3 días desde recepción)
+    dtInitialNotificationId?: string; // ID o referencia de la notificación
+    derivedToDT?: boolean; // Se derivó directamente a la DT por solicitud del trabajador
+    derivedToDTManagement?: boolean; // Se derivó a la DT por involucrar a gerencia (Art. 4 CT)
+    
+    // Etapa 2.3: Notificación a SUSESO/Mutualidades
+    susesoNotificationDate?: string; // Fecha de notificación a mutualidades
+    susesoNotificationId?: string; // ID o referencia de la notificación
+    
+    // Etapa 3: Medidas Precautorias
     precautionaryMeasures?: string[];
     precautionaryMeasuresDates?: {[key: string]: string}; // Medida -> Fecha de aplicación
     precautionaryJustification?: string;
     precautionaryAppliedDate?: string;
-    precautionaryDeadline?: string; // 24 horas desde recepción
+    precautionaryDeadline?: string; // 3 días hábiles desde recepción
     
     // Etapa 5: Decisión de Investigar
     decisionToInvestigateDate?: string;
@@ -342,23 +356,28 @@ export interface ReportFormValues {
       status: 'approved' | 'rejected' | 'needs_changes';
     }>;
     
-    // Etapa 8: Remisión a la Dirección del Trabajo
-    laborDepartmentReferralDate?: string;
+    // Etapa 7: Remisión a la Dirección del Trabajo
+    laborDepartmentReferralDate?: string; // Plazo de 2 días hábiles desde finalización investigación
     laborDepartmentReferralId?: string; // ID de seguimiento
+    laborDepartmentReferralCompleteFile?: boolean; // Se envió expediente completo a DT
     laborDepartmentResponse?: string;
     laborDepartmentResponseDate?: string;
+    laborDepartmentDeadline?: string; // 30 días hábiles desde remisión
+    laborDepartmentNoResponse?: boolean; // La DT no respondió en plazo
     
-    // Etapa 9: Adopción de Medidas
+    // Etapa 8: Adopción de Medidas
     measuresAdoptionDate?: string;
+    measuresAdoptionDeadline?: string; // 15 días corridos tras pronunciamiento DT
     measuresAdopted?: Array<{
       measure: string;
       date: string;
       implementedBy: string;
       status: 'pending' | 'in_progress' | 'implemented' | 'verified';
       verificationDate?: string;
+      isFromDT?: boolean; // La medida fue dispuesta por la DT
     }>;
     
-    // Etapa 10: Sanciones
+    // Etapa 9: Sanciones
     sanctionsDate?: string;
     sanctionsApplied?: Array<{
       type: 'menor' | 'media' | 'economica' | 'maxima';
@@ -366,11 +385,19 @@ export interface ReportFormValues {
       date: string;
       appliedTo: string;
       appliedBy: string;
+      legalReference?: string; // Referencia a artículo del Código del Trabajo (ej. 160.1.b, 160.1.f)
     }>;
     impugnationFiled?: boolean;
     impugnationDate?: string;
     impugnationResolution?: string;
     impugnationResolutionDate?: string;
+    
+    // Casos Especiales
+    isThirdParty?: boolean; // Caso con terceros ajenos a la relación laboral
+    thirdPartyType?: 'cliente' | 'proveedor' | 'usuario' | 'otro';
+    isSubcontracting?: boolean; // Caso de subcontratación
+    subcontractingType?: 'empresa_principal' | 'contratista' | 'subcontratista' | 'transitoria';
+    multipleEmployersInvolved?: boolean; // Involucra trabajadores de distintas empresas
     
     // Documentación y seguimiento
     testimonies?: Array<{
@@ -382,6 +409,8 @@ export interface ReportFormValues {
       summary: string;
       fileId?: string; // ID del documento
       folioNumber?: string; // Número de folio digital
+      hasSigned?: boolean; // Testimonio firmado en todas sus hojas
+      physicalCopy?: boolean; // Existe copia física en papel
     }>;
     evidence?: Array<{
       type: string;
@@ -391,20 +420,31 @@ export interface ReportFormValues {
       folioNumber?: string;
     }>;
     notifications?: Array<{
-      type: 'complainant' | 'accused' | 'labor_dept' | 'authority';
+      type: 'complainant' | 'accused' | 'labor_dept' | 'authority' | 'suseso' | 'mutual' | 'police';
       date: string;
-      method: 'email' | 'letter' | 'verbal' | 'system';
+      method: 'email' | 'letter' | 'verbal' | 'system' | 'electronic';
       subject: string;
       recipient: string;
       sentBy: string;
       fileId?: string;
+      requiresResponse?: boolean;
+      responseReceived?: boolean;
+      responseDate?: string;
     }>;
+    
+    // Información de derechos y obligaciones legales
+    rightsToCriminalReport?: boolean; // Se informó sobre derechos de denuncia penal
+    rightsToDTReport?: boolean; // Se informó sobre derechos de denuncia a DT
+    obligationArticle175CPP?: boolean; // Se cumplió con obligación art. 175 Código Procesal Penal
+    psychologicalSupportOffered?: boolean; // Se ofreció apoyo psicológico temprano (mutualidad)
     
     // Información cierre
     resolutionDate?: string;
-    closingType?: 'founded' | 'unfounded' | 'insufficient_evidence' | 'abandoned';
+    closingType?: 'founded' | 'unfounded' | 'insufficient_evidence' | 'abandoned' | 'derived_to_dt';
     closingJustification?: string;
     closingFileId?: string;
+    allPartiesNotified?: boolean; // Se notificó a todas las partes involucradas
+    partyNotificationDate?: string; // Fecha de notificación a partes (5 días hábiles);
   };
 }
 

@@ -164,8 +164,7 @@ export async function assignReport(
         const investigationDeadline = calculateBusinessDays(today, 30);
         
         reportToSave.karinProcess = {
-          stage: 'orientation', // Comienza en la etapa de orientación
-          orientationDate: todayISO,
+          stage: 'complaint_filed', // Comienza en la etapa de denuncia interpuesta
           receivedDate: todayISO,
           investigationStartDate: todayISO,
           investigationDeadline: investigationDeadline.toISOString(),
@@ -174,7 +173,7 @@ export async function assignReport(
         };
         
         // También cambiamos el estado a específico de Ley Karin
-        reportToSave.status = 'Ley Karin - Orientación';
+        reportToSave.status = 'Ley Karin - Denuncia Interpuesta';
       }
   
       // Guardar en Firestore
@@ -508,9 +507,21 @@ export async function getReportByCodeAndAccessCode(
    */
   export async function getAllReports(companyId: string) {
     try {
+      if (!companyId) {
+        console.error('getAllReports: companyId is empty');
+        return { 
+          success: false, 
+          error: 'ID de compañía no válido',
+          reports: [] 
+        };
+      }
+      
+      console.log(`Buscando denuncias en: companies/${companyId}/reports`);
       const reportsRef = collection(db, `companies/${companyId}/reports`);
       const q = query(reportsRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
+      
+      console.log(`Se encontraron ${querySnapshot.size} denuncias`);
       
       if (querySnapshot.empty) {
         return { success: true, reports: [] };
@@ -523,9 +534,14 @@ export async function getReportByCodeAndAccessCode(
         // Si hay un investigador asignado, obtener su nombre
         let assignedToName = undefined;
         if (data.assignedTo) {
-          const userResult = await getUserProfileById(companyId, data.assignedTo);
-          if (userResult.success) {
-            assignedToName = userResult.profile.displayName;
+          try {
+            const userResult = await getUserProfileById(companyId, data.assignedTo);
+            if (userResult.success) {
+              assignedToName = userResult.profile.displayName;
+            }
+          } catch (err) {
+            console.error(`Error al obtener perfil de usuario ${data.assignedTo}:`, err);
+            // Continuar sin el nombre del usuario asignado
           }
         }
         
@@ -545,6 +561,7 @@ export async function getReportByCodeAndAccessCode(
       return {
         success: false,
         error: 'Error al obtener las denuncias',
+        reports: []
       };
     }
   }
@@ -1111,7 +1128,6 @@ export async function addCommunicationByCode(
 function calculateKarinStageDeadline(startDate: Date, stage: KarinProcessStage): Date {
   // Plazos según documento oficial de procedimiento Ley Karin
   const deadlines: Record<KarinProcessStage, number> = {
-    'orientation': 1,                  // 1 día hábil para orientación
     'complaint_filed': 1,              // 1 día hábil para interponer denuncia
     'reception': 3,                    // 3 días hábiles para recibir y validar denuncia
     'precautionary_measures': 1,       // 24 horas (1 día) para medidas precautorias
@@ -1124,6 +1140,9 @@ function calculateKarinStageDeadline(startDate: Date, stage: KarinProcessStage):
     'sanctions': 10,                   // 10 días hábiles para proceso de sanciones
     'false_claim': 10,                 // 10 días hábiles para investigar denuncia falsa
     'retaliation_review': 5,           // 5 días hábiles para revisión de represalias
+    'subsanation': 5,                  // 5 días hábiles para subsanación
+    'dt_notification': 10,             // 10 días hábiles para notificación a DT
+    'suseso_notification': 10,         // 10 días hábiles para notificación a SUSESO
     'closed': 0                        // No hay plazo para etapa cerrada
   };
   
@@ -1294,8 +1313,8 @@ export async function updateKarinProcessStage(
     
     // Obtener el proceso actual o crear uno nuevo si no existe
     const karinProcess = reportData.karinProcess || {
-      stage: 'orientation',
-      orientationDate: new Date().toISOString(),
+      stage: 'complaint_filed',
+      complaintFiledDate: new Date().toISOString(),
       stageHistory: []
     };
     
@@ -1339,9 +1358,6 @@ export async function updateKarinProcessStage(
     // Determinar el nuevo estado visible para los usuarios
     let newStatus = '';
     switch(newStage) {
-      case 'orientation':
-        newStatus = 'Ley Karin - Orientación';
-        break;
       case 'complaint_filed':
         newStatus = 'Ley Karin - Denuncia Interpuesta';
         break;
@@ -1377,6 +1393,15 @@ export async function updateKarinProcessStage(
         break;
       case 'retaliation_review':
         newStatus = 'Ley Karin - Revisión de Represalias';
+        break;
+      case 'subsanation':
+        newStatus = 'Ley Karin - Subsanación';
+        break;
+      case 'dt_notification':
+        newStatus = 'Ley Karin - Notificación a DT';
+        break;
+      case 'suseso_notification':
+        newStatus = 'Ley Karin - Notificación a SUSESO';
         break;
       case 'closed':
         newStatus = 'Ley Karin - Cerrado';
@@ -5239,11 +5264,22 @@ export async function deleteReport(
   reportId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!companyId || !reportId) {
+      console.error('deleteReport: missing parameters', { companyId, reportId });
+      return {
+        success: false,
+        error: 'Parámetros incompletos para eliminar la denuncia'
+      };
+    }
+    
+    console.log(`Intentando eliminar denuncia: companies/${companyId}/reports/${reportId}`);
+    
     // Obtener la denuncia primero para verificar su existencia y datos
     const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
     const reportSnap = await getDoc(reportRef);
     
     if (!reportSnap.exists()) {
+      console.error(`La denuncia ${reportId} no existe`);
       return {
         success: false,
         error: 'La denuncia no existe'

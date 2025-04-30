@@ -14,7 +14,7 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { addRecommendation, getRecommendations } from '@/lib/services/reportService';
+import { addRecommendation, getRecommendations, getReportById } from '@/lib/services/reportService';
 
 // Esquema de validación para nuevas recomendaciones
 const RecommendationSchema = Yup.object().shape({
@@ -43,6 +43,8 @@ export default function RecommendationsList({
   canAdd,
   investigators = [] 
 }: RecommendationsListProps) {
+  // Estado para guardar información del reporte principal
+  const [report, setReport] = useState<any>(null);
   const { uid } = useCurrentUser();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -50,17 +52,32 @@ export default function RecommendationsList({
   const [loading, setLoading] = useState(true);
   const [recommendations, setRecommendations] = useState<any[]>([]);
 
-  // Cargar recomendaciones al montar el componente
+  // Cargar recomendaciones e información del reporte al montar el componente
   useEffect(() => {
-    async function fetchRecommendations() {
+    async function fetchData() {
       try {
         setLoading(true);
         console.log('Obteniendo recomendaciones para:', { companyId, reportId });
+        
+        // Obtener el reporte principal para saber si es Ley Karin
+        const reportResult = await getReportById(companyId, reportId);
+        if (reportResult.success) {
+          setReport(reportResult.report);
+        }
+        
+        // Obtener recomendaciones
         const result = await getRecommendations(companyId, reportId);
         
         if (result.success) {
           console.log('Recomendaciones obtenidas:', result.recommendations);
-          setRecommendations(result.recommendations || []);
+          
+          // Añadir información del reporte a cada recomendación para referencia
+          const recommendationsWithReport = (result.recommendations || []).map(rec => ({
+            ...rec,
+            report: reportResult.success ? reportResult.report : null
+          }));
+          
+          setRecommendations(recommendationsWithReport);
           setError(null);
         } else {
           console.error('Error al obtener recomendaciones:', result.error);
@@ -74,7 +91,7 @@ export default function RecommendationsList({
       }
     }
 
-    fetchRecommendations();
+    fetchData();
   }, [reportId, companyId]);
   // Valores iniciales para el formulario
   const initialValues = {
@@ -152,9 +169,33 @@ export default function RecommendationsList({
         <CardTitle>Recomendaciones y Seguimiento</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Formulario para añadir recomendaciones */}
+        {/* Guía de recomendaciones según tipo de denuncia */}
         {canAdd && (
           <div className="mb-6">
+            <div className="grid grid-cols-1 gap-4 mb-6">
+              {(report?.isKarinLaw || (recommendations.length > 0 && recommendations[0]?.report?.isKarinLaw)) ? (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-md">
+                  <h3 className="font-medium text-red-800 mb-2">Recomendaciones para Ley Karin</h3>
+                  <p className="text-sm text-red-700 mb-2">
+                    Las recomendaciones para denuncias bajo Ley Karin deben seguir las directrices legales:
+                  </p>
+                  <ul className="list-disc pl-5 text-sm text-red-700">
+                    <li><span className="font-medium">Plazo obligatorio:</span> 15 días corridos para implementación completa</li>
+                    <li><span className="font-medium">Tipos de medidas:</span> Disciplinarias, preventivas y reparatorias</li>
+                    <li><span className="font-medium">Documentación:</span> Se requiere evidencia detallada de cada medida implementada</li>
+                    <li><span className="font-medium">Seguimiento:</span> Debe verificarse la efectividad de cada medida</li>
+                  </ul>
+                </div>
+              ) : (
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-md">
+                  <h3 className="font-medium text-blue-800 mb-2">Recomendaciones Estándar</h3>
+                  <p className="text-sm text-blue-700">
+                    Añada recomendaciones para mejorar procesos y prevenir situaciones similares en el futuro.
+                    Las recomendaciones deben incluir un responsable específico y una fecha límite para su implementación.
+                  </p>
+                </div>
+              )}
+            </div>
             <h3 className="text-lg font-medium mb-4">Añadir Nueva Recomendación</h3>
             <Formik
               initialValues={initialValues}
@@ -309,9 +350,9 @@ export default function RecommendationsList({
               {recommendations.map((recommendation) => (
                 <div
                   key={recommendation.id}
-                  className="border rounded-md overflow-hidden"
+                  className={`border rounded-md overflow-hidden ${recommendation.report?.isKarinLaw ? 'border-red-200' : ''}`}
                 >
-                  <div className="bg-gray-50 px-4 py-2 flex justify-between items-center border-b">
+                  <div className={`${recommendation.report?.isKarinLaw ? 'bg-red-50' : 'bg-gray-50'} px-4 py-2 flex justify-between items-center border-b`}>
                     <span className="font-medium">{recommendation.action}</span>
                     <span
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${

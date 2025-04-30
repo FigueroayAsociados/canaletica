@@ -1,5 +1,3 @@
-// scr/app/(public)/track/[code]/page.tsx
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -13,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getReportByCode, getReportByCodeAndAccessCode, addCommunicationByCode } from '@/lib/services/reportService';
 
+// Aseguramos que estos estados coincidan exactamente con los utilizados en ReportStatusBadge
 const STATUS_COLORS: Record<string, string> = {
   'Nuevo': 'bg-red-100 text-red-800',
   'Admitida': 'bg-orange-100 text-orange-800',
@@ -263,99 +262,297 @@ export default function ReportDetailsPage() {
                   {/* Línea vertical */}
                   <div className="absolute top-0 left-5 h-full w-0.5 bg-gray-200"></div>
                   
-                  {/* Pasos del proceso */}
-                  <div className="space-y-8">
-                    <div className="relative">
-                      <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
-                        report.status === 'Nuevo' ||
-                        ['Admitida', 'Asignada', 'En Investigación', 'En Evaluación', 'Resuelta', 'Cerrada'].includes(report.status)
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
+                  {/* Pasos del proceso - Diferencia entre proceso normal y Ley Karin */}
+                  {report.isKarinLaw ? (
+                    // Proceso para Ley Karin
+                    <div className="space-y-8">
+                      {/* Paso 1: Interposición de Denuncia */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          report.status.includes('Denuncia Interpuesta') || report.status.includes('Recepción') ||
+                          report.status.includes('Notificación') || report.status.includes('Medidas Precautorias') ||
+                          report.status.includes('Decisión') || report.status.includes('Investigación') || 
+                          report.status.includes('Informe') || report.status.includes('Resolución') || 
+                          report.status.includes('Adopción') || report.status.includes('Sanciones') || 
+                          report.status.includes('Cerrado')
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Interposición de Denuncia</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            La denuncia Ley Karin ha sido interpuesta correctamente.
+                          </p>
+                        </div>
                       </div>
-                      <div className="ml-14">
-                        <h4 className="text-base font-medium text-gray-900">Recepción</h4>
-                        <p className="text-sm text-gray-500 mt-1">
-                          La denuncia ha sido recibida en el sistema.
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="relative">
-                      <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
-                        ['Admitida', 'Asignada', 'En Investigación', 'En Evaluación', 'Resuelta', 'Cerrada'].includes(report.status)
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                      {/* Paso 2: Notificaciones y Medidas */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          report.status.includes('Notificación') || report.status.includes('Medidas Precautorias') ||
+                          report.status.includes('Decisión') || report.status.includes('Investigación') || 
+                          report.status.includes('Informe') || report.status.includes('Resolución') || 
+                          report.status.includes('Adopción') || report.status.includes('Sanciones') || 
+                          report.status.includes('Cerrado')
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Notificaciones y Medidas</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Notificación a la DT (3 días), SUSESO (5 días) y aplicación de medidas precautorias.
+                          </p>
+                        </div>
                       </div>
-                      <div className="ml-14">
-                        <h4 className="text-base font-medium text-gray-900">Evaluación Inicial</h4>
-                        <p className="text-sm text-gray-500 mt-1">
-                          La denuncia ha sido evaluada y admitida para investigación.
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="relative">
-                      <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
-                        ['Asignada', 'En Investigación', 'En Evaluación', 'Resuelta', 'Cerrada'].includes(report.status)
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
+                      {/* Paso 3: Investigación */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          report.status.includes('Investigación') || 
+                          report.status.includes('Informe') || report.status.includes('Resolución') || 
+                          report.status.includes('Adopción') || report.status.includes('Sanciones') || 
+                          report.status.includes('Cerrado')
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Investigación</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            La investigación está en curso (plazo máximo: 30 días hábiles).
+                          </p>
+                        </div>
                       </div>
-                      <div className="ml-14">
-                        <h4 className="text-base font-medium text-gray-900">Asignación</h4>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Un investigador ha sido asignado al caso.
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="relative">
-                      <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
-                        ['En Investigación', 'En Evaluación', 'Resuelta', 'Cerrada'].includes(report.status)
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                      {/* Paso 4: Informe Final */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          report.status.includes('Informe') || report.status.includes('Resolución') || 
+                          report.status.includes('Adopción') || report.status.includes('Sanciones') || 
+                          report.status.includes('Cerrado')
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Informe y Envío a DT</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Creación del informe final y envío a la Dirección del Trabajo (2 días).
+                          </p>
+                        </div>
                       </div>
-                      <div className="ml-14">
-                        <h4 className="text-base font-medium text-gray-900">Investigación</h4>
-                        <p className="text-sm text-gray-500 mt-1">
-                          La investigación está en curso. El investigador recopila evidencias y entrevista a las partes involucradas.
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="relative">
-                      <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
-                        ['Resuelta', 'Cerrada'].includes(report.status)
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                      {/* Paso 5: Resolución DT */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          report.status.includes('Resolución') || 
+                          report.status.includes('Adopción') || report.status.includes('Sanciones') || 
+                          report.status.includes('Cerrado')
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Resolución DT</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            La Dirección del Trabajo evalúa el procedimiento (30 días hábiles).
+                          </p>
+                        </div>
                       </div>
-                      <div className="ml-14">
-                        <h4 className="text-base font-medium text-gray-900">Resolución</h4>
-                        <p className="text-sm text-gray-500 mt-1">
-                          La investigación ha concluido y se han tomado decisiones sobre el caso.
-                        </p>
+
+                      {/* Paso 6: Medidas y Sanciones */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          report.status.includes('Adopción') || report.status.includes('Sanciones') || 
+                          report.status.includes('En Seguimiento') ||
+                          report.status.includes('Cerrado')
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Medidas y Sanciones</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Implementación de medidas correctivas y sanciones (15 días corridos).
+                          </p>
+                          {report.status.includes('En Seguimiento') && (
+                            <div className="mt-2 px-3 py-1 bg-blue-50 border border-blue-100 rounded-md text-sm text-blue-800">
+                              En seguimiento: Verificando la implementación de las recomendaciones.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Paso 7: Cierre */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          report.status.includes('Cerrado')
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Cierre</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            El caso ha sido cerrado formalmente tras la implementación de todas las acciones requeridas.
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    // Proceso normal (no Ley Karin)
+                    <div className="space-y-8">
+                      {/* Paso 1: Recepción */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          report.status === 'Nuevo' ||
+                          ['Admitida', 'Asignada', 'En Investigación', 'Pendiente Información', 'En Evaluación', 'Resuelta', 'En Seguimiento', 'Cerrada'].includes(report.status)
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Recepción</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            La denuncia ha sido recibida en el sistema.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Paso 2: Evaluación Inicial */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          ['Admitida', 'Asignada', 'En Investigación', 'Pendiente Información', 'En Evaluación', 'Resuelta', 'En Seguimiento', 'Cerrada'].includes(report.status)
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Evaluación Inicial</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            La denuncia ha sido evaluada y admitida para investigación.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Paso 3: Asignación */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          ['Asignada', 'En Investigación', 'Pendiente Información', 'En Evaluación', 'Resuelta', 'En Seguimiento', 'Cerrada'].includes(report.status)
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Asignación</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Un investigador ha sido asignado al caso.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Paso 4: Investigación */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          ['En Investigación', 'Pendiente Información', 'En Evaluación', 'Resuelta', 'En Seguimiento', 'Cerrada'].includes(report.status)
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Investigación</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            La investigación está en curso. El investigador recopila evidencias y entrevista a las partes involucradas.
+                          </p>
+                          {(report.status === 'Pendiente Información') && (
+                            <div className="mt-2 px-3 py-1 bg-purple-50 border border-purple-100 rounded-md text-sm text-purple-800">
+                              Se requiere información adicional para continuar con la investigación.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Paso 5: Resolución y Seguimiento */}
+                      <div className="relative">
+                        <div className={`absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full ${
+                          ['Resuelta', 'En Seguimiento', 'Cerrada'].includes(report.status)
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="ml-14">
+                          <h4 className="text-base font-medium text-gray-900">Resolución</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            La investigación ha concluido y se han tomado decisiones sobre el caso.
+                          </p>
+                          {(report.status === 'En Seguimiento' || report.status === 'Resuelta') && (
+                            <div className="mt-2 px-3 py-1 bg-lime-50 border border-lime-100 rounded-md text-sm text-lime-800">
+                              {report.progress !== undefined ? (
+                                <span>Progreso de recomendaciones: {report.progress}% completado</span>
+                              ) : (
+                                <span>Se están implementando recomendaciones y medidas correctivas.</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Paso 6: Cierre (opcional) */}
+                      {report.status === 'Cerrada' && (
+                        <div className="relative">
+                          <div className="absolute top-0 left-0 h-10 w-10 flex items-center justify-center rounded-full bg-primary text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div className="ml-14">
+                            <h4 className="text-base font-medium text-gray-900">Cierre Definitivo</h4>
+                            <p className="text-sm text-gray-500 mt-1">
+                              El caso ha sido cerrado formalmente tras la implementación de todas las acciones requeridas.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

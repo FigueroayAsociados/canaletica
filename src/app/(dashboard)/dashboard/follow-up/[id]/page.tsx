@@ -1,3 +1,5 @@
+
+
 // src/app/(dashboard)/dashboard/follow-up/[id]/page.tsx
 
 'use client';
@@ -11,6 +13,9 @@ import { getReportById } from '@/lib/services/reportService';
 import RecommendationsList from '@/components/investigation/RecommendationsList';
 import { Alert } from '@/components/ui/alert';
 import { getUsersByRole } from '@/lib/services/userService';
+
+
+
 
 export default function FollowUpDetailPage() {
   // Usar useParams hook para acceder a los parámetros de manera segura
@@ -102,7 +107,15 @@ export default function FollowUpDetailPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Categoría</p>
-                <p>{report.category}</p>
+                <p>
+                  {report.category === 'modelo_prevencion' && 'Prev. de Delitos'}
+                  {report.category === 'ley_karin' && 'Ley Karin'}
+                  {report.category === 'ciberseguridad' && 'Ciberseguridad'}
+                  {report.category === 'reglamento_interno' && 'Regl. Interno'}
+                  {report.category === 'politicas_codigos' && 'Políticas'}
+                  {report.category === 'represalias' && 'Represalias'}
+                  {report.category === 'otros' && 'Otros'}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Estado</p>
@@ -114,6 +127,23 @@ export default function FollowUpDetailPage() {
                   {report.createdAt && new Date(report.createdAt.seconds * 1000).toLocaleDateString()}
                 </p>
               </div>
+              
+              {/* Información específica para Ley Karin */}
+              {report.isKarinLaw && (
+                <div className="col-span-2">
+                  <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-md">
+                    <h3 className="font-medium text-red-800 mb-2">Información Ley Karin</h3>
+                    <p className="text-sm text-red-700 mb-2">
+                      Las recomendaciones para denuncias bajo Ley Karin deben implementarse dentro de los plazos legales:
+                    </p>
+                    <ul className="list-disc pl-5 text-sm text-red-700">
+                      <li>Medidas y sanciones: 15 días corridos tras resolución de la Dirección del Trabajo</li>
+                      <li>Debe documentar la evidencia de cumplimiento para cada recomendación</li>
+                      <li>La implementación completa es obligatoria por normativa legal</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
