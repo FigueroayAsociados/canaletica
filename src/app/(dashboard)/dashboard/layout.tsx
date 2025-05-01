@@ -262,7 +262,7 @@ export default function DashboardLayout({
                   </>
                 )}
                 
-                {isSuperAdmin && (
+                {profile?.role === 'super_admin' && (
                   <>
                     <div className="mt-8 mb-2 px-3">
                       <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
