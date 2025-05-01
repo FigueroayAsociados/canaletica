@@ -15,6 +15,7 @@ import SummaryStatCard from '@/components/dashboard/SummaryStatCard';
 import CategoryDistributionCard from '@/components/dashboard/CategoryDistributionCard';
 import RecentActivityCard from '@/components/dashboard/RecentActivityCard';
 import MonthlyTrendCard from '@/components/dashboard/MonthlyTrendCard';
+import AssistantCard from '@/components/dashboard/AssistantCard';
 
 export default function DashboardPage() {
   const { profile, isAdmin } = useCurrentUser();
@@ -224,21 +225,28 @@ export default function DashboardPage() {
       </div>
 
       {/* Gráficos y datos detallados */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CategoryDistributionCard
-          title="Denuncias por Categoría"
-          categories={metrics?.reportsByCategory.map((item: any) => ({
-            category: item.category,
-            count: item.count
-          })) || []}
-          totalCount={metrics?.totalReports}
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CategoryDistributionCard
+            title="Denuncias por Categoría"
+            categories={metrics?.reportsByCategory.map((item: any) => ({
+              category: item.category,
+              count: item.count
+            })) || []}
+            totalCount={metrics?.totalReports}
+          />
+          
+          <RecentActivityCard
+            title="Actividad Reciente"
+            activities={formatActivities()}
+            viewAllUrl="/dashboard/reports"
+          />
+        </div>
         
-        <RecentActivityCard
-          title="Actividad Reciente"
-          activities={formatActivities()}
-          viewAllUrl="/dashboard/reports"
-        />
+        {/* Asistente Virtual */}
+        <div className="h-[500px]">
+          <AssistantCard />
+        </div>
       </div>
 
       {/* Gráfico de tendencias */}

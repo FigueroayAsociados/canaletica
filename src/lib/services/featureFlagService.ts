@@ -30,6 +30,7 @@ export interface FeatureFlags {
   // Características específicas
   emailNotificationsEnabled: boolean; // Notificaciones por correo
   riskAnalysisEnabled: boolean;      // Análisis de riesgo
+  conversationalAssistantEnabled: boolean; // Asistente virtual conversacional
   
   // Campos de metadatos
   updatedAt?: any;
@@ -55,7 +56,8 @@ const DEFAULT_FEATURE_FLAGS: Omit<FeatureFlags, 'updatedAt' | 'updatedBy'> = {
   
   // Características específicas
   emailNotificationsEnabled: true,
-  riskAnalysisEnabled: false
+  riskAnalysisEnabled: false,
+  conversationalAssistantEnabled: false
 };
 
 /**

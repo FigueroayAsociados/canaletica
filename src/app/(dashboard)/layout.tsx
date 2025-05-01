@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import FloatingAssistant from '@/components/ai/FloatingAssistant';
 import EnvironmentIndicatorClient from '@/components/ui/environment-indicator-client';
 
 export default function DashboardLayout({
@@ -400,6 +401,9 @@ export default function DashboardLayout({
         
         {/* Indicador de entorno */}
         <EnvironmentIndicatorClient />
+        
+        {/* Asistente Virtual IA Flotante */}
+        <FloatingAssistant />
       </div>
     </div>
   );
