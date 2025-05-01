@@ -9,7 +9,8 @@ import {
   TrendingDown, 
   Clock, 
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  ChevronRight
 } from 'lucide-react';
 
 interface SummaryStatCardProps {
@@ -147,9 +148,7 @@ export default function SummaryStatCard({
               className="text-sm font-medium text-primary hover:underline flex items-center"
             >
               {linkText}
-              <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
-              </svg>
+              <ChevronRight className="ml-1 w-4 h-4" />
             </Link>
           </div>
         )}
