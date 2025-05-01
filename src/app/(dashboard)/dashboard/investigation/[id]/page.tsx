@@ -1,5 +1,7 @@
 'use client';
 
+
+
 // src/app/(dashboard)/dashboard/investigation/[id]/page.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -19,8 +21,15 @@ import { FindingsList } from '@/components/investigation/FindingsList';
 import { TasksList } from '@/components/investigation/TasksList';
 import { FinalReport } from '@/components/investigation/FinalReport';
 import { KarinTimeline } from '@/components/investigation/KarinTimeline';
+import LegalDocumentGenerator from '@/components/ai/LegalDocumentGenerator';
+import LegalDocumentViewer from '@/components/ai/LegalDocumentViewer';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useAI } from '@/lib/hooks/useAI';
+import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { 
+
+
+
   getInvestigationDetails,
   completeInvestigation,
   updateKarinStage
@@ -30,13 +39,16 @@ export default function InvestigationDetailPage() {
   const params = useParams();
   const router = useRouter();
   const reportId = params.id as string;
-  const { uid, isAdmin, isInvestigator, isSuperAdmin } = useCurrentUser();
+  const { uid, isAdmin, isInvestigator, isSuperAdmin, profile } = useCurrentUser();
+  const { isEnabled } = useFeatureFlags();
+  const { generateLegalDocument, isGeneratingDocument, generatedDocument, error: aiError } = useAI();
   
   // Estados
   const [investigation, setInvestigation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [showAiTab, setShowAiTab] = useState(false);
   
   // Determinar la pestaña inicial para casos de Ley Karin
   useEffect(() => {
@@ -51,6 +63,12 @@ export default function InvestigationDetailPage() {
   // Verificar si el usuario es el investigador asignado, un administrador o un super administrador
   const isAssignedInvestigator = investigation?.assignedTo === uid;
   const canEdit = isAssignedInvestigator || isAdmin || isSuperAdmin;
+  
+  // Verificar si la funcionalidad de IA está habilitada
+  useEffect(() => {
+    const aiFeatureEnabled = isEnabled('aiEnabled');
+    setShowAiTab(aiFeatureEnabled);
+  }, [isEnabled]);
   
   // Cargar los datos de la investigación
   useEffect(() => {
@@ -379,7 +397,10 @@ export default function InvestigationDetailPage() {
       
       {/* Pestañas */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full ${investigation?.isKarinLaw ? 'grid-cols-7' : 'grid-cols-6'}`}>
+        <TabsList className={`grid w-full ${
+          (showAiTab && investigation?.isKarinLaw) ? 'grid-cols-8' : 
+          (showAiTab || investigation?.isKarinLaw) ? 'grid-cols-7' : 'grid-cols-6'
+        }`}>
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="plan">Plan</TabsTrigger>
           {investigation?.isKarinLaw && (
@@ -388,6 +409,9 @@ export default function InvestigationDetailPage() {
           <TabsTrigger value="interviews">Entrevistas</TabsTrigger>
           <TabsTrigger value="findings">Hallazgos</TabsTrigger>
           <TabsTrigger value="report">Informe Final</TabsTrigger>
+          {showAiTab && (
+            <TabsTrigger value="ai" className="bg-blue-50 text-blue-800 hover:bg-blue-100">Asistente IA</TabsTrigger>
+          )}
           {investigation?.isKarinLaw && (
             <TabsTrigger value="karin" className="bg-red-50 text-red-800 hover:bg-red-100">Ley Karin</TabsTrigger>
           )}
@@ -774,6 +798,33 @@ export default function InvestigationDetailPage() {
             <KarinTimeline
               report={investigation}
               onUpdateStage={handleUpdateKarinStage}
+            />
+          </TabsContent>
+        )}
+        
+        {/* Pestaña de Asistente IA */}
+        {showAiTab && (
+          <TabsContent value="ai" className="space-y-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+              <h3 className="text-lg font-semibold text-blue-800 mb-2">Asistente de Inteligencia Artificial</h3>
+              <p className="text-sm text-blue-600">
+                Este asistente utiliza inteligencia artificial para generar documentos legales 
+                y administrativos relacionados con la investigación. Los documentos generados 
+                son sugerencias y deben ser revisados antes de su uso oficial.
+              </p>
+            </div>
+            
+            <LegalDocumentGenerator
+              reportId={reportId}
+              reportData={{
+                ...investigation,
+                currentUserName: profile?.displayName || 'Investigador',
+                currentUserPosition: profile?.position || 'Investigador Asignado',
+                companyName: 'Empresa', // En un sistema real, obtener desde el contexto
+              }}
+              generateDocument={generateLegalDocument}
+              isLoading={isGeneratingDocument}
+              error={aiError}
             />
           </TabsContent>
         )}

@@ -6,7 +6,10 @@ import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import aiService, {
   RiskAnalysisParams,
   RiskAnalysisResult,
-  PredictedCategory
+  PredictedCategory,
+  LegalDocumentParams,
+  GeneratedLegalDocument,
+  LegalDocumentType
 } from '@/lib/services/aiService';
 
 /**
@@ -22,9 +25,11 @@ export function useAI() {
   // Estado para análisis de riesgo
   const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysisResult | null>(null);
   const [predictedCategories, setPredictedCategories] = useState<PredictedCategory[]>([]);
+  const [generatedDocument, setGeneratedDocument] = useState<GeneratedLegalDocument | null>(null);
   
   // Estado compartido
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingDocument, setIsGeneratingDocument] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   /**
@@ -110,16 +115,57 @@ export function useAI() {
     return isEnabled('aiEnabled');
   }, [isEnabled]);
   
+  /**
+   * Genera un documento legal basado en los parámetros proporcionados
+   */
+  const generateLegalDocument = useCallback(async (params: LegalDocumentParams) => {
+    if (!companyId) {
+      setError('ID de empresa no disponible');
+      return null;
+    }
+    
+    // Verificar si la funcionalidad está habilitada
+    const aiFeatureEnabled = isEnabled('aiEnabled');
+    if (!aiFeatureEnabled) {
+      setError('Funcionalidad de IA no habilitada');
+      return null;
+    }
+    
+    try {
+      setIsGeneratingDocument(true);
+      setError(null);
+      
+      const result = await aiService.generateLegalDocument(companyId, params);
+      
+      if (result.success && result.document) {
+        setGeneratedDocument(result.document);
+        return result.document;
+      } else {
+        setError(result.error || 'Error en generación de documento legal');
+        return null;
+      }
+    } catch (err) {
+      console.error('Error en generación de documento:', err);
+      setError('Error al procesar la generación del documento');
+      return null;
+    } finally {
+      setIsGeneratingDocument(false);
+    }
+  }, [companyId, isEnabled]);
+  
   return {
     // Estado
     riskAnalysis,
     predictedCategories,
+    generatedDocument,
     isLoading,
+    isGeneratingDocument,
     error,
     
     // Funcionalidades
     analyzeRisk,
     getPredictedCategories,
+    generateLegalDocument,
     isAIEnabled
   };
 }
