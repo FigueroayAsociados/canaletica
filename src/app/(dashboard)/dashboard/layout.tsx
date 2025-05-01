@@ -333,10 +333,10 @@ export default function DashboardLayout({
                     <div className="flex items-center">
                       <div className="ml-3">
                         <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                          {user?.displayName || user?.email}
+                          {currentUser?.displayName || currentUser?.email || profile?.displayName || profile?.email}
                         </p>
                         <button
-                          onClick={signOut}
+                          onClick={logout}
                           className="text-xs font-medium text-gray-500 group-hover:text-gray-700"
                         >
                           Cerrar sesión
