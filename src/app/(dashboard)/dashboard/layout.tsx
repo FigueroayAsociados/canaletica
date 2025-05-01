@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { FloatingAssistant } from '@/components/ai/FloatingAssistant';
 import { SmartAlertSystem } from '@/components/alerts/SmartAlertSystem';
@@ -14,20 +14,20 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user, loading, signOut } = useAuth();
-  const { isAdmin, isSuperAdmin } = useCurrentUser();
+  const { currentUser, loading: authLoading, logout } = useAuth();
+  const { isAdmin, isLoading, error, profile } = useCurrentUser();
   
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   
   // Redireccionar a login si no hay usuario
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !currentUser) {
       window.location.href = '/login';
     }
-  }, [user, loading]);
+  }, [currentUser, authLoading]);
   
   // Si está cargando, mostrar spinner
-  if (loading) {
+  if (authLoading || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -36,8 +36,25 @@ export default function DashboardLayout({
   }
   
   // Si no hay usuario autenticado, no mostrar nada
-  if (!user) {
+  if (!currentUser) {
     return null;
+  }
+  
+  // Si hay un error con el perfil
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen flex-col space-y-4">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          Error: {error}
+        </div>
+        <button 
+          onClick={logout} 
+          className="px-4 py-2 text-sm font-medium text-white bg-primary rounded hover:bg-primary/90"
+        >
+          Volver al inicio de sesión
+        </button>
+      </div>
+    );
   }
   
   const isActive = (path: string) => {
@@ -136,7 +153,7 @@ export default function DashboardLayout({
                 </>
               )}
               
-              {isSuperAdmin && (
+              {profile?.role === 'super_admin' && (
                 <>
                   <div className="mt-8 mb-2 px-3">
                     <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
