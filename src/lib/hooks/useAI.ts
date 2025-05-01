@@ -9,7 +9,9 @@ import aiService, {
   PredictedCategory,
   LegalDocumentParams,
   GeneratedLegalDocument,
-  LegalDocumentType
+  LegalDocumentType,
+  AssistantMessage,
+  ConversationalAssistantParams
 } from '@/lib/services/aiService';
 
 /**
@@ -26,6 +28,10 @@ export function useAI() {
   const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysisResult | null>(null);
   const [predictedCategories, setPredictedCategories] = useState<PredictedCategory[]>([]);
   const [generatedDocument, setGeneratedDocument] = useState<GeneratedLegalDocument | null>(null);
+  
+  // Estado para asistente conversacional
+  const [conversationHistory, setConversationHistory] = useState<AssistantMessage[]>([]);
+  const [isProcessingMessage, setIsProcessingMessage] = useState(false);
   
   // Estado compartido
   const [isLoading, setIsLoading] = useState(false);
@@ -153,19 +159,88 @@ export function useAI() {
     }
   }, [companyId, isEnabled]);
   
+  /**
+   * Envía un mensaje al asistente conversacional y obtiene una respuesta
+   */
+  const sendMessage = useCallback(async (params: ConversationalAssistantParams) => {
+    if (!companyId) {
+      setError('ID de empresa no disponible');
+      return null;
+    }
+    
+    // Verificar si la funcionalidad está habilitada
+    const aiFeatureEnabled = isEnabled('aiEnabled');
+    if (!aiFeatureEnabled) {
+      setError('Funcionalidad de IA no habilitada');
+      return null;
+    }
+    
+    try {
+      setIsProcessingMessage(true);
+      setError(null);
+      
+      // Añadir el mensaje del usuario al historial
+      const userMessage: AssistantMessage = {
+        role: 'user',
+        content: params.userMessage,
+        timestamp: new Date()
+      };
+      
+      // Actualizar el historial con el nuevo mensaje del usuario
+      const updatedHistory = [...conversationHistory, userMessage];
+      setConversationHistory(updatedHistory);
+      
+      // Preparar parámetros con historial actualizado
+      const messageParams: ConversationalAssistantParams = {
+        ...params,
+        previousMessages: updatedHistory
+      };
+      
+      // Obtener respuesta del asistente
+      const result = await aiService.getConversationalAssistance(companyId, messageParams);
+      
+      if (result.success && result.message) {
+        // Actualizar el historial con la respuesta del asistente
+        const newHistory = [...updatedHistory, result.message];
+        setConversationHistory(newHistory);
+        return result.message;
+      } else {
+        setError(result.error || 'Error al obtener respuesta del asistente');
+        return null;
+      }
+    } catch (err) {
+      console.error('Error en asistente conversacional:', err);
+      setError('Error al procesar mensaje');
+      return null;
+    } finally {
+      setIsProcessingMessage(false);
+    }
+  }, [companyId, isEnabled, conversationHistory]);
+  
+  /**
+   * Limpia el historial de conversación
+   */
+  const clearConversation = useCallback(() => {
+    setConversationHistory([]);
+  }, []);
+  
   return {
     // Estado
     riskAnalysis,
     predictedCategories,
     generatedDocument,
+    conversationHistory,
     isLoading,
     isGeneratingDocument,
+    isProcessingMessage,
     error,
     
     // Funcionalidades
     analyzeRisk,
     getPredictedCategories,
     generateLegalDocument,
+    sendMessage,
+    clearConversation,
     isAIEnabled
   };
 }

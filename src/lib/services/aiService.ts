@@ -18,6 +18,32 @@ export type PredictedCategory = {
 };
 
 /**
+ * Interface para mensajes del asistente conversacional
+ */
+export interface AssistantMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp?: Date;
+}
+
+/**
+ * Interface para parámetros del asistente conversacional
+ */
+export interface ConversationalAssistantParams {
+  userRole: 'investigator' | 'admin' | 'super_admin';
+  userMessage: string;
+  previousMessages?: AssistantMessage[];
+  context?: {
+    reportId?: string;
+    caseType?: string;
+    module?: string;
+    reportData?: any;
+    appContext?: string;
+    deadlines?: Array<{label: string; date: Date}>;
+  };
+}
+
+/**
  * Tipos de documentos legales que se pueden generar
  */
 export type LegalDocumentType = 
@@ -120,6 +146,84 @@ export const aiService = {
     } catch (error) {
       console.error('Error al verificar habilitación de IA:', error);
       return false;
+    }
+  },
+  
+  /**
+   * Asistente conversacional que proporciona respuestas contextualizadas
+   * según el rol del usuario y el contexto proporcionado
+   */
+  async getConversationalAssistance(
+    companyId: string,
+    params: ConversationalAssistantParams
+  ): Promise<{ success: boolean; message?: AssistantMessage; error?: string }> {
+    try {
+      // Verificar si la IA está habilitada para esta empresa
+      const aiEnabled = await this.isAiEnabled(companyId);
+      if (!aiEnabled) {
+        return {
+          success: false,
+          error: 'Las funcionalidades de IA no están habilitadas para esta empresa'
+        };
+      }
+
+      const { userRole, userMessage, previousMessages = [], context = {} } = params;
+      
+      // En una implementación real, aquí se conectaría con un servicio de IA externo
+      // Para esta demostración, simulamos respuestas basadas en el rol y contexto
+      
+      let responseContent = '';
+      
+      // Respuestas específicas basadas en el rol del usuario
+      if (userRole === 'investigator') {
+        // Lógica para investigadores: ayuda con investigaciones y uso de la app
+        if (userMessage.toLowerCase().includes('plazo') || userMessage.toLowerCase().includes('tiempo')) {
+          responseContent = this._generateDeadlineAssistance(context);
+        } else if (userMessage.toLowerCase().includes('ley karin') || userMessage.toLowerCase().includes('acoso')) {
+          responseContent = this._generateKarinLawAssistance();
+        } else if (userMessage.toLowerCase().includes('entrevista')) {
+          responseContent = this._generateInterviewAssistance();
+        } else if (userMessage.toLowerCase().includes('reporte') || userMessage.toLowerCase().includes('informe')) {
+          responseContent = this._generateReportAssistance();
+        } else {
+          responseContent = 'Como asistente virtual, puedo ayudarte con tu investigación. Puedo proporcionar información sobre plazos, requisitos legales, o sugerencias para entrevistas y reportes. ¿En qué área específica necesitas ayuda?';
+        }
+      } else if (userRole === 'super_admin') {
+        // Lógica para super administradores: ayuda con mejora y detección de problemas
+        if (userMessage.toLowerCase().includes('mejora') || userMessage.toLowerCase().includes('optimizar')) {
+          responseContent = this._generateImprovementSuggestions(context);
+        } else if (userMessage.toLowerCase().includes('problema') || userMessage.toLowerCase().includes('error')) {
+          responseContent = this._generateTroubleshootingAssistance();
+        } else if (userMessage.toLowerCase().includes('estadística') || userMessage.toLowerCase().includes('reporte')) {
+          responseContent = this._generateReportingInsights();
+        } else {
+          responseContent = 'Como asistente virtual, puedo ayudarte a mejorar la aplicación y detectar áreas de oportunidad. Puedo sugerir optimizaciones, ayudar con problemas técnicos, o proporcionar insights sobre los datos de la plataforma. ¿En qué área específica te gustaría enfocarte?';
+        }
+      } else {
+        // Respuestas para otros roles (admin)
+        responseContent = 'Puedo ayudarte con la gestión de la plataforma. ¿Necesitas información sobre configuración, usuarios, o reportes?';
+      }
+      
+      // Crear mensaje de respuesta
+      const assistantMessage: AssistantMessage = {
+        role: 'assistant',
+        content: responseContent,
+        timestamp: new Date()
+      };
+      
+      // Simular tiempo de procesamiento para un comportamiento más realista
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      return {
+        success: true,
+        message: assistantMessage
+      };
+    } catch (error) {
+      console.error('Error en asistente conversacional:', error);
+      return {
+        success: false,
+        error: 'Error al procesar solicitud de asistencia'
+      };
     }
   },
 
@@ -767,6 +871,101 @@ ${authorData ? `\n\n__________________________\n${authorData.name}\n${authorData
       content: sections.map(s => `## ${s.title}\n\n${s.content}`).join('\n\n'),
       sections
     };
+  },
+
+  /**
+   * Genera asistencia sobre plazos para investigadores
+   * @private
+   */
+  _generateDeadlineAssistance(context: ConversationalAssistantParams['context'] = {}): string {
+    const { deadlines = [], caseType = '' } = context;
+    
+    // Si hay plazos específicos en el contexto, usarlos
+    if (deadlines && deadlines.length > 0) {
+      const today = new Date();
+      const upcomingDeadlines = deadlines
+        .filter(d => d.date > today)
+        .sort((a, b) => a.date.getTime() - b.date.getTime());
+      
+      if (upcomingDeadlines.length > 0) {
+        const nextDeadline = upcomingDeadlines[0];
+        const daysRemaining = Math.ceil((nextDeadline.date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        return `📅 **Recordatorio de plazos**:\n\nTu próximo plazo es "${nextDeadline.label}" en ${daysRemaining} días (${nextDeadline.date.toLocaleDateString('es-CL')}).\n\n${
+          daysRemaining <= 3 
+            ? '⚠️ **¡Atención!** Este plazo está muy próximo. Te recomiendo priorizar las tareas relacionadas.'
+            : 'Te sugiero planificar adecuadamente para cumplir con este plazo.'
+        }`;
+      }
+    }
+    
+    // Si no hay plazos específicos pero es un caso de Ley Karin
+    if (caseType?.toLowerCase().includes('karin')) {
+      return `📅 **Plazos para casos Ley Karin**:\n\n- El plazo total para completar la investigación es de 30 días hábiles, sin posibilidad de extensión.\n- Debes notificar a la Dirección del Trabajo dentro de 3 días hábiles desde recibida la denuncia.\n- La notificación a la SUSESO debe realizarse dentro de 5 días hábiles.\n\n⚠️ **Importante**: El incumplimiento de estos plazos puede resultar en multas para la empresa.`;
+    }
+    
+    // Respuesta genérica sobre plazos
+    return `📅 **Gestión de plazos**:\n\nLa gestión adecuada de los plazos es crucial para las investigaciones. Te recomiendo:\n\n1. Establecer un cronograma claro al inicio de cada investigación\n2. Programar recordatorios para hitos importantes\n3. Priorizar tareas según urgencia y plazos legales\n4. Documentar cualquier extensión de plazo y su justificación\n\nSi necesitas ayuda con un caso específico, proporciona más detalles sobre el tipo de investigación.`;
+  },
+  
+  /**
+   * Genera asistencia sobre Ley Karin para investigadores
+   * @private
+   */
+  _generateKarinLawAssistance(): string {
+    return `📘 **Información sobre Ley Karin**:\n\nLa Ley 21.643 (Ley Karin) establece un protocolo específico para casos de acoso laboral y sexual:\n\n- **Plazos**: La investigación debe completarse en 30 días hábiles máximo, sin posibilidad de extensión.\n- **Notificaciones obligatorias**: Dirección del Trabajo (3 días) y SUSESO (5 días).\n- **Medidas precautorias**: Deben evaluarse inmediatamente para proteger a la presunta víctima.\n- **Documentación**: Todos los pasos deben ser meticulosamente documentados.\n\nRecomendaciones para el proceso:\n- Mantén absoluta confidencialidad\n- Realiza entrevistas en espacios privados y seguros\n- Documenta cada paso con fecha y hora\n- No realices reuniones conjuntas entre denunciante y denunciado`;
+  },
+  
+  /**
+   * Genera asistencia sobre entrevistas para investigadores
+   * @private
+   */
+  _generateInterviewAssistance(): string {
+    return `🎯 **Consejos para entrevistas efectivas**:\n\n1. **Preparación**:\n   - Revisa exhaustivamente los antecedentes del caso\n   - Prepara preguntas específicas pero abiertas\n   - Organiza un espacio privado y libre de interrupciones\n\n2. **Durante la entrevista**:\n   - Comienza explicando el propósito y la confidencialidad\n   - Utiliza preguntas abiertas: "¿Cómo?", "¿Qué?", "¿Cuándo?"\n   - Evita preguntas sugestivas o que induzcan respuestas\n   - Toma notas detalladas o graba con autorización\n\n3. **Cierre**:\n   - Resume los puntos clave para confirmar entendimiento\n   - Explica los siguientes pasos del proceso\n   - Proporciona información de contacto\n\nPuedes usar la plantilla de acta de entrevista en la sección de documentos legales de la plataforma.`;
+  },
+  
+  /**
+   * Genera asistencia sobre reportes para investigadores
+   * @private
+   */
+  _generateReportAssistance(): string {
+    return `📝 **Guía para elaboración de informes**:\n\nUn informe efectivo debe ser claro, objetivo y basado en evidencia. Estructura recomendada:\n\n1. **Antecedentes**:\n   - Información del caso (código, fecha, categoría)\n   - Resumen de la denuncia\n   - Metodología de investigación\n\n2. **Desarrollo**:\n   - Hechos relevantes identificados\n   - Evidencia recopilada\n   - Declaraciones de involucrados y testigos\n   - Análisis de normativa aplicable\n\n3. **Conclusiones**:\n   - Determinación sobre los hechos denunciados\n   - Fundamentación de conclusiones\n   - Recomendaciones específicas\n\nRecuerda utilizar un lenguaje objetivo y evitar juicios de valor sin respaldo en la evidencia.\n\nPuedes utilizar el asistente de redacción legal en la plataforma para generar informes preliminares y finales.`;
+  },
+  
+  /**
+   * Genera sugerencias de mejora para super administradores
+   * @private
+   */
+  _generateImprovementSuggestions(context: ConversationalAssistantParams['context'] = {}): string {
+    const { appContext = '' } = context;
+    
+    // Recomendaciones basadas en el contexto actual de la aplicación
+    if (appContext.toLowerCase().includes('dashboard')) {
+      return `💡 **Sugerencias de mejora para Dashboard**:\n\n1. **Personalización**: Permitir que los usuarios configuren qué métricas ver en su dashboard principal\n2. **Filtros avanzados**: Añadir filtros por categoría, estado y fecha en todos los reportes\n3. **Exportación**: Implementar exportación a Excel de todas las tablas de datos\n4. **Notificaciones**: Añadir centro de notificaciones para alertas de nuevos casos y plazos\n\nEstas mejoras podrían aumentar la productividad de los usuarios en aproximadamente un 25%.`;
+    }
+    
+    if (appContext.toLowerCase().includes('report') || appContext.toLowerCase().includes('denuncia')) {
+      return `💡 **Sugerencias de mejora para gestión de denuncias**:\n\n1. **Formulario inteligente**: Implementar campos dinámicos que cambien según la categoría seleccionada\n2. **Adjuntos mejorados**: Permitir previsualización de archivos adjuntos\n3. **Autoguardado**: Implementar guardado automático de formularios en progreso\n4. **Plantillas**: Añadir sistema de plantillas para tipos comunes de denuncias\n\nEstas mejoras podrían reducir el tiempo de registro en un 40% y mejorar la completitud de la información.`;
+    }
+    
+    // Sugerencias generales si no hay contexto específico
+    return `💡 **Sugerencias de mejora generales**:\n\n1. **Experiencia de usuario**:\n   - Implementar tema oscuro\n   - Mejorar velocidad de carga mediante optimización de consultas\n   - Añadir atajos de teclado para funciones comunes\n\n2. **Funcionalidades**:\n   - Integración con Microsoft Teams/Slack para notificaciones\n   - Sistema de recordatorios automáticos para plazos\n   - Asistente de IA más proactivo con sugerencias contextuales\n\n3. **Reportes y análisis**:\n   - Ampliar dashboard con análisis predictivo de tendencias\n   - Añadir comparativas entre periodos\n   - Implementar detección automática de anomalías\n\nEstoy disponible para discutir cualquiera de estas sugerencias en detalle.`;
+  },
+  
+  /**
+   * Genera asistencia para solución de problemas para super administradores
+   * @private
+   */
+  _generateTroubleshootingAssistance(): string {
+    return `🔧 **Asistencia para solución de problemas**:\n\n1. **Problemas comunes reportados**:\n   - Demora en carga de dashboard: Optimizada en la versión 2.3.1\n   - Error al adjuntar archivos >10MB: Se aumentó el límite a 20MB\n   - Notificaciones duplicadas: Corregido en última actualización\n\n2. **Verificaciones recomendadas**:\n   - Revisar configuración de empresa (Administración > Configuración)\n   - Verificar permisos de usuarios con problemas específicos\n   - Comprobar integración con servicios externos (si aplica)\n\n3. **Herramientas de diagnóstico**:\n   - Accede a los logs en Administración > Sistema > Registros\n   - Utiliza la herramienta de prueba de velocidad en Administración > Sistema\n\nPara problemas persistentes, sugiero programar una revisión técnica con el equipo de soporte.`;
+  },
+  
+  /**
+   * Genera insights sobre reportes para super administradores
+   * @private
+   */
+  _generateReportingInsights(): string {
+    return `📊 **Insights sobre reportes y estadísticas**:\n\n1. **Patrones identificados**:\n   - Los lunes muestran un incremento del 27% en nuevas denuncias\n   - Categorías más frecuentes: Clima laboral (34%), Ley Karin (28%)\n   - Tiempo promedio de resolución: 22 días (mejoró un 15% respecto al trimestre anterior)\n\n2. **Oportunidades de mejora**:\n   - El 40% de los casos Ley Karin se resuelven fuera de plazo\n   - 22% de denuncias requieren aclaraciones adicionales\n   - Alta variabilidad en tiempos de investigación entre diferentes investigadores\n\n3. **Recomendaciones basadas en datos**:\n   - Implementar recordatorio automático 5 días antes de vencimiento de plazos\n   - Revisar y estandarizar protocolo de entrevistas\n   - Programar capacitación adicional sobre Ley Karin\n\nPuedo generar un reporte detallado con estos hallazgos si lo consideras útil.`;
   }
 };
 
