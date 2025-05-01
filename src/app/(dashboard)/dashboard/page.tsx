@@ -7,15 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import Link from 'next/link';
 import { getDashboardMetrics } from '@/lib/services/dashboardService';
-import { 
-  TrendingUp, 
-  TrendingDown,
-  BarChart3,
-  Clock,
-  CheckCircle2,
-  FileText,
-  AlertTriangle
-} from 'lucide-react';
+// Removida importación de iconos no utilizados
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 // Componentes de dashboard
 import SummaryStatCard from '@/components/dashboard/SummaryStatCard';

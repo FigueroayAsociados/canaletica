@@ -9,7 +9,12 @@
     "lint": "next lint",
     "add-admin": "node scripts/add-super-admin.js",
     "setup-admin": "node scripts/setup-admin.js",
-    "setup-firebase": "node scripts/setup-firebase-admin.js"
+    "setup-firebase": "node scripts/setup-firebase-admin.js",
+    "deploy": "next build && firebase deploy",
+    "deploy:hosting": "next build && firebase deploy --only hosting",
+    "deploy:script": "scripts/deploy.sh",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:full": "next build && firebase deploy --only hosting,functions"
   },
   "dependencies": {
     "@babel/plugin-transform-modules-commonjs": "^7.26.3",
@@ -31,6 +36,7 @@
     "formik": "^2.4.3",
     "fs-extra": "^11.3.0",
     "i18next": "^23.4.6",
+    "lucide-react": "^0.503.0",
     "marked": "^15.0.8",
     "next": "^15.0.0",
     "next-transpile-modules": "^10.0.1",
