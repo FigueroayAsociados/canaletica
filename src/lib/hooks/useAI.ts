@@ -11,7 +11,9 @@ import aiService, {
   GeneratedLegalDocument,
   LegalDocumentType,
   AssistantMessage,
-  ConversationalAssistantParams
+  ConversationalAssistantParams,
+  AIInsight,
+  InsightGenerationParams
 } from '@/lib/services/aiService';
 
 /**
@@ -32,6 +34,10 @@ export function useAI() {
   // Estado para asistente conversacional
   const [conversationHistory, setConversationHistory] = useState<AssistantMessage[]>([]);
   const [isProcessingMessage, setIsProcessingMessage] = useState(false);
+  
+  // Estado para insights
+  const [insights, setInsights] = useState<AIInsight[]>([]);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   
   // Estado compartido
   const [isLoading, setIsLoading] = useState(false);
@@ -224,15 +230,64 @@ export function useAI() {
     setConversationHistory([]);
   }, []);
   
+  /**
+   * Genera insights a partir de los datos de la plataforma
+   */
+  const generateInsights = useCallback(async (params: Partial<InsightGenerationParams> = {}) => {
+    if (!companyId) {
+      setError('ID de empresa no disponible');
+      return { success: false, error: 'ID de empresa no disponible' };
+    }
+    
+    // Verificar si la funcionalidad está habilitada
+    const aiFeatureEnabled = isEnabled('aiEnabled');
+    if (!aiFeatureEnabled) {
+      setError('Funcionalidad de IA no habilitada');
+      return { success: false, error: 'Funcionalidad de IA no habilitada' };
+    }
+    
+    try {
+      setIsGeneratingInsights(true);
+      setError(null);
+      
+      const result = await aiService.generateInsights(companyId, params);
+      
+      if (result.success && result.insights) {
+        setInsights(result.insights);
+        return { 
+          success: true, 
+          insights: result.insights 
+        };
+      } else {
+        setError(result.error || 'Error al generar insights');
+        return { 
+          success: false, 
+          error: result.error || 'Error al generar insights' 
+        };
+      }
+    } catch (err) {
+      console.error('Error al generar insights:', err);
+      setError('Error al procesar análisis de insights');
+      return { 
+        success: false, 
+        error: 'Error al procesar análisis de insights' 
+      };
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  }, [companyId, isEnabled]);
+  
   return {
     // Estado
     riskAnalysis,
     predictedCategories,
     generatedDocument,
     conversationHistory,
+    insights,
     isLoading,
     isGeneratingDocument,
     isProcessingMessage,
+    isGeneratingInsights,
     error,
     
     // Funcionalidades
@@ -241,6 +296,7 @@ export function useAI() {
     generateLegalDocument,
     sendMessage,
     clearConversation,
+    generateInsights,
     isAIEnabled
   };
 }

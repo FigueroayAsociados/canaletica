@@ -52,6 +52,7 @@ async function enableAIAssistant(companyId) {
         dashboardV2Enabled: false,
         emailNotificationsEnabled: true,
         riskAnalysisEnabled: true,
+        aiInsightsEnabled: true,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: 'system'
       });
@@ -63,6 +64,7 @@ async function enableAIAssistant(companyId) {
         aiEnabled: true,
         conversationalAssistantEnabled: true,
         riskAnalysisEnabled: true,
+        aiInsightsEnabled: true,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: 'system'
       });
@@ -107,6 +109,7 @@ Funcionalidades activadas:
 - IA general (aiEnabled)
 - Asistente conversacional (conversationalAssistantEnabled)
 - Análisis de riesgo (riskAnalysisEnabled)
+- Dashboard de Insights IA (aiInsightsEnabled)
 `);
   } else {
     console.log('La operación no pudo completarse. Revise los logs para más detalles.');

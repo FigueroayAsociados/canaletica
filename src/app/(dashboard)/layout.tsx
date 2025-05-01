@@ -230,6 +230,16 @@ export default function DashboardLayout({
               </Link>
               
               <Link 
+                href="/dashboard/admin/ai-dashboard" 
+                className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ai-dashboard') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+              >
+                <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/admin/ai-dashboard') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Dashboard IA
+              </Link>
+
+              <Link 
                 href="/dashboard/admin/ley-karin" 
                 className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
               >
@@ -365,6 +375,12 @@ export default function DashboardLayout({
                     className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/users') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
                   >
                     Usuarios
+                  </Link>
+                  <Link 
+                    href="/dashboard/admin/ai-dashboard" 
+                    className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/admin/ai-dashboard') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                  >
+                    Dashboard IA
                   </Link>
                   <Link 
                     href="/dashboard/admin/delete-reports" 

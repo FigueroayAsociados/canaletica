@@ -44,6 +44,32 @@ export interface ConversationalAssistantParams {
 }
 
 /**
+ * Interface para insights
+ */
+export interface AIInsight {
+  id: string;
+  category: 'trend' | 'risk' | 'recommendation' | 'efficiency';
+  title: string;
+  description: string;
+  severity?: 'high' | 'medium' | 'low';
+  confidence: number;
+  data?: any;
+  relatedReports?: string[];
+  createdAt: Date;
+}
+
+/**
+ * Interface para parámetros de generación de insights
+ */
+export interface InsightGenerationParams {
+  companyId: string;
+  timeRange?: 'week' | 'month' | 'quarter' | 'year' | 'all';
+  focusAreas?: ('trends' | 'risks' | 'recommendations' | 'efficiency')[];
+  maxResults?: number;
+  minConfidence?: number;
+}
+
+/**
  * Tipos de documentos legales que se pueden generar
  */
 export type LegalDocumentType = 
@@ -966,6 +992,205 @@ ${authorData ? `\n\n__________________________\n${authorData.name}\n${authorData
    */
   _generateReportingInsights(): string {
     return `📊 **Insights sobre reportes y estadísticas**:\n\n1. **Patrones identificados**:\n   - Los lunes muestran un incremento del 27% en nuevas denuncias\n   - Categorías más frecuentes: Clima laboral (34%), Ley Karin (28%)\n   - Tiempo promedio de resolución: 22 días (mejoró un 15% respecto al trimestre anterior)\n\n2. **Oportunidades de mejora**:\n   - El 40% de los casos Ley Karin se resuelven fuera de plazo\n   - 22% de denuncias requieren aclaraciones adicionales\n   - Alta variabilidad en tiempos de investigación entre diferentes investigadores\n\n3. **Recomendaciones basadas en datos**:\n   - Implementar recordatorio automático 5 días antes de vencimiento de plazos\n   - Revisar y estandarizar protocolo de entrevistas\n   - Programar capacitación adicional sobre Ley Karin\n\nPuedo generar un reporte detallado con estos hallazgos si lo consideras útil.`;
+  },
+  
+  /**
+   * Genera insights basados en IA a partir de los datos de la plataforma
+   */
+  async generateInsights(
+    companyId: string,
+    params: Partial<InsightGenerationParams> = {}
+  ): Promise<{ success: boolean; insights?: AIInsight[]; error?: string }> {
+    try {
+      // Verificar si la IA está habilitada para esta empresa
+      const aiEnabled = await this.isAiEnabled(companyId);
+      if (!aiEnabled) {
+        return {
+          success: false,
+          error: 'Las funcionalidades de IA no están habilitadas para esta empresa'
+        };
+      }
+
+      // Configurar parámetros por defecto
+      const {
+        timeRange = 'month',
+        focusAreas = ['trends', 'risks', 'recommendations', 'efficiency'],
+        maxResults = 20,
+        minConfidence = 0.7
+      } = params;
+      
+      // En una implementación real, aquí se conectaría con un servicio de IA externo
+      // Para esta simulación, generamos insights de ejemplo
+      
+      // Generar insights simulados
+      const insights: AIInsight[] = [];
+      
+      // 1. Tendencias
+      if (focusAreas.includes('trends')) {
+        insights.push(
+          {
+            id: 'trend-1',
+            category: 'trend',
+            title: 'Aumento en denuncias de acoso laboral',
+            description: 'Se ha detectado un incremento del 32% en denuncias relacionadas con acoso laboral en los últimos 30 días comparado con el mismo período del año anterior.',
+            confidence: 0.92,
+            severity: 'high',
+            data: {
+              previousCount: 12,
+              currentCount: 16,
+              percentageChange: 32
+            },
+            createdAt: new Date()
+          },
+          {
+            id: 'trend-2',
+            category: 'trend',
+            title: 'Distribución geográfica de denuncias',
+            description: 'El 65% de las denuncias provienen de la oficina central, mientras que solo el 35% proviene de sucursales, a pesar de tener una distribución de personal de 50/50.',
+            confidence: 0.85,
+            data: {
+              central: 65,
+              branches: 35
+            },
+            createdAt: new Date()
+          },
+          {
+            id: 'trend-3',
+            category: 'trend',
+            title: 'Correlación entre antigüedad y denuncias',
+            description: 'Los empleados con menos de 1 año en la empresa representan el 40% de las denuncias, sugiriendo posibles problemas de integración o onboarding.',
+            confidence: 0.78,
+            severity: 'medium',
+            createdAt: new Date()
+          }
+        );
+      }
+      
+      // 2. Riesgos
+      if (focusAreas.includes('risks')) {
+        insights.push(
+          {
+            id: 'risk-1',
+            category: 'risk',
+            title: 'Riesgo de incumplimiento en plazos Ley Karin',
+            description: 'El 28% de los casos activos de Ley Karin están en riesgo de exceder el plazo legal de 30 días. Se identificaron 5 casos que vencen en los próximos 3 días.',
+            confidence: 0.95,
+            severity: 'high',
+            relatedReports: ['REP-329', 'REP-342', 'REP-350', 'REP-358', 'REP-361'],
+            createdAt: new Date()
+          },
+          {
+            id: 'risk-2',
+            category: 'risk',
+            title: 'Posible conflicto de interés en investigaciones',
+            description: 'Se detectaron 3 casos donde el investigador asignado tiene relación directa con el departamento involucrado, lo que podría comprometer la imparcialidad.',
+            confidence: 0.82,
+            severity: 'high',
+            relatedReports: ['REP-301', 'REP-315', 'REP-347'],
+            createdAt: new Date()
+          },
+          {
+            id: 'risk-3',
+            category: 'risk',
+            title: 'Incremento en casos recurrentes',
+            description: 'El 15% de las denuncias nuevas involucran a personas que ya han sido denunciadas anteriormente, sugiriendo posibles fallas en las medidas correctivas previas.',
+            confidence: 0.75,
+            severity: 'medium',
+            createdAt: new Date()
+          }
+        );
+      }
+      
+      // 3. Recomendaciones
+      if (focusAreas.includes('recommendations')) {
+        insights.push(
+          {
+            id: 'rec-1',
+            category: 'recommendation',
+            title: 'Implementar recordatorios automáticos de plazos',
+            description: 'Configurar notificaciones automáticas 5, 3 y 1 días antes del vencimiento de plazos legales podría reducir en un 45% los casos de incumplimiento de tiempos.',
+            confidence: 0.88,
+            data: {
+              estimatedImpact: 'Alto',
+              implementationEffort: 'Medio',
+              timeToImplement: '2 semanas'
+            },
+            createdAt: new Date()
+          },
+          {
+            id: 'rec-2',
+            category: 'recommendation',
+            title: 'Crear programa de capacitación para investigadores',
+            description: 'Un programa estructurado de capacitación para investigadores podría reducir la variabilidad en tiempos de resolución y mejorar la calidad de las investigaciones.',
+            confidence: 0.86,
+            createdAt: new Date()
+          },
+          {
+            id: 'rec-3',
+            category: 'recommendation',
+            title: 'Revisar política de asignación de investigadores',
+            description: 'Implementar un sistema automatizado de detección de conflictos de interés para la asignación de investigadores reduciría los sesgos potenciales.',
+            confidence: 0.82,
+            createdAt: new Date()
+          }
+        );
+      }
+      
+      // 4. Eficiencia
+      if (focusAreas.includes('efficiency')) {
+        insights.push(
+          {
+            id: 'eff-1',
+            category: 'efficiency',
+            title: 'Optimización de entrevistas',
+            description: 'Las entrevistas consumen el 40% del tiempo de investigación. Implementar plantillas estructuradas podría reducir este tiempo en un 25%.',
+            confidence: 0.91,
+            data: {
+              currentTimePercentage: 40,
+              potentialReduction: 25,
+              estimatedSavings: '10 horas por caso'
+            },
+            createdAt: new Date()
+          },
+          {
+            id: 'eff-2',
+            category: 'efficiency',
+            title: 'Automatización de informes preliminares',
+            description: 'El uso del Asistente de Redacción Legal para informes preliminares podría reducir el tiempo de preparación de 3 horas a 45 minutos por caso.',
+            confidence: 0.89,
+            createdAt: new Date()
+          },
+          {
+            id: 'eff-3',
+            category: 'efficiency',
+            title: 'Distribución de carga de investigadores',
+            description: 'Existe un desequilibrio en la asignación de casos: 20% de los investigadores manejan el 60% de los casos. Una redistribución mejoraría los tiempos de respuesta.',
+            confidence: 0.84,
+            severity: 'medium',
+            createdAt: new Date()
+          }
+        );
+      }
+      
+      // Filtrar por confianza mínima y limitar resultados
+      const filteredInsights = insights
+        .filter(insight => insight.confidence >= minConfidence)
+        .slice(0, maxResults);
+      
+      // Simular tiempo de procesamiento para un comportamiento más realista
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      return {
+        success: true,
+        insights: filteredInsights
+      };
+    } catch (error) {
+      console.error('Error al generar insights:', error);
+      return {
+        success: false,
+        error: 'Error al procesar análisis de insights'
+      };
+    }
   }
 };
 
