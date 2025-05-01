@@ -354,8 +354,7 @@ export const alertService = {
         {
           type: 'pattern',
           title: 'Patrón detectado: Incremento en categoría Ley Karin',
-          description: 'Se ha detectado un incremento del
-           35% en denuncias de la categoría Ley Karin en los últimos 30 días. Recomendamos revisar los protocolos de prevención.',
+          description: 'Se ha detectado un incremento del 35% en denuncias de la categoría Ley Karin en los últimos 30 días. Recomendamos revisar los protocolos de prevención.',
           urgency: 'medium',
           actionRequired: false,
           userId: 'user-admin-001',
