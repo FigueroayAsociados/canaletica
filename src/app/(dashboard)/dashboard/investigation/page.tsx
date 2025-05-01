@@ -441,8 +441,8 @@ export default function InvestigationPage() {
             <div className="space-y-2">
               <h3 className="font-medium text-gray-900">Plazos de Investigación</h3>
               <ul className="list-disc pl-5 text-sm text-gray-600">
-                <li>Casos regulares: <span className="font-medium">30 días hábiles</span> para completar la investigación</li>
-                <li className="text-red-600 font-medium">Casos Ley Karin: <span className="underline">30 días hábiles</span> máximo (prorrogable hasta 60 días en casos especiales)</li>
+                <li>Casos regulares: <span className="font-medium">30 días hábiles</span> para completar la investigación (prorrogable hasta 60 días en casos especiales)</li>
+                <li className="text-red-600 font-medium">Casos Ley Karin: <span className="underline">30 días hábiles máximo</span> (plazo improrrogable)</li>
                 <li>Informe preliminar Ley Karin: Dentro de los <span className="font-medium">3 días hábiles</span> administrativos</li>
                 <li>Implementación de medidas precautorias Ley Karin: <span className="font-medium">3 días hábiles</span> desde recepción</li>
                 <li>Notificación a Dirección del Trabajo: <span className="font-medium">3 días hábiles</span> desde recepción</li>
