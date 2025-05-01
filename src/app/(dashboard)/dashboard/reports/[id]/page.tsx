@@ -1,7 +1,9 @@
 'use client';
 
+
+
 // src/app/(dashboard)/dashboard/reports/[id]/page.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -13,7 +15,10 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import ExportReportPDF from '@/components/reports/ExportReportPDF';
+import RiskAnalysisCard from '@/components/ai/RiskAnalysisCard';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useAI } from '@/lib/hooks/useAI';
+import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { Spinner } from '@/components/ui/spinner';
 import { 
   useReport, 
@@ -24,11 +29,16 @@ import {
 } from '@/lib/hooks/useReports';
 import { updateReportStats } from '@/lib/services/reportService';
 
+
+
+
 export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
   const reportId = params.id as string;
   const { uid, isAdmin, isInvestigator } = useCurrentUser();
+  const { isEnabled } = useFeatureFlags();
+  const { analyzeRisk, riskAnalysis, isLoading: isAiLoading } = useAI();
   
   // Estados para las acciones
   const [newStatus, setNewStatus] = useState<string>('');
@@ -38,6 +48,7 @@ export default function ReportDetailPage() {
   const [newMessage, setNewMessage] = useState<string>('');
   const [isInternalMessage, setIsInternalMessage] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('details');
+  const [showRiskAnalysis, setShowRiskAnalysis] = useState<boolean>(false);
   
   // Usar React Query para cargar los datos
   const companyId = 'default'; // En una implementación multi-tenant real, esto vendría de un contexto o URL
@@ -59,12 +70,32 @@ export default function ReportDetailPage() {
   const addCommunicationMutation = useAddCommunication();
   
   // Inicializar estados cuando los datos están disponibles
-  React.useEffect(() => {
+  useEffect(() => {
     if (reportResult?.success && reportResult.report) {
       setNewStatus(reportResult.report.status);
       setSelectedInvestigator(reportResult.report.assignedTo || '');
+      
+      // Verificar si la IA está habilitada
+      const aiFeatureEnabled = isEnabled('aiEnabled');
+      setShowRiskAnalysis(aiFeatureEnabled);
+      
+      // Si la IA está habilitada, realizar análisis de riesgo
+      if (aiFeatureEnabled && !riskAnalysis) {
+        const report = reportResult.report;
+        
+        // Preparar parámetros para análisis de riesgo
+        analyzeRisk({
+          reportContent: report.detailedDescription,
+          category: report.category,
+          subcategory: report.subcategory,
+          isAnonymous: report.isAnonymous,
+          hasEvidence: report.hasEvidence,
+          isKarinLaw: report.isKarinLaw,
+          involvedPositions: report.involvedPersons?.map((person: any) => person.position) || []
+        });
+      }
     }
-  }, [reportResult]);
+  }, [reportResult, isEnabled, analyzeRisk, riskAnalysis]);
 
   // Obtener el reporte de los datos cargados
   const report = reportResult?.success ? reportResult.report : null;
@@ -253,6 +284,40 @@ export default function ReportDetailPage() {
         
         {/* Pestaña de Detalles */}
         <TabsContent value="details" className="space-y-6">
+          {/* Análisis de IA - Solo visible si está habilitado */}
+          {showRiskAnalysis && (
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+              {/* Panel de Análisis de Riesgo */}
+              <div className="col-span-1">
+                {riskAnalysis ? (
+                  <RiskAnalysisCard analysis={riskAnalysis} />
+                ) : (
+                  <Card className="w-full">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        Análisis de Riesgo (IA)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-4">
+                      {isAiLoading ? (
+                        <div className="flex flex-col items-center justify-center space-y-3">
+                          <Spinner />
+                          <p className="text-sm text-gray-600">Analizando reporte...</p>
+                        </div>
+                      ) : (
+                        <div className="text-center space-y-3">
+                          <p className="text-sm text-gray-500">
+                            El análisis de riesgo no está disponible para este reporte.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Información principal */}
           <Card>
             <CardHeader>
