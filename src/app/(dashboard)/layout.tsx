@@ -161,12 +161,32 @@ export default function DashboardLayout({
 
           <Link 
             href="/dashboard/reports" 
-            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/reports') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
           >
-            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/reports') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Denuncias
+          </Link>
+
+          <Link 
+            href="/dashboard/reports/intelligence" 
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.includes('/reports/intelligence') ? 'bg-blue-500 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+          >
+            <svg className={`mr-3 h-5 w-5 ${pathname.includes('/reports/intelligence') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Reportes Inteligentes
+          </Link>
+
+          <Link 
+            href="/dashboard/ai" 
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/ai') ? 'bg-purple-500 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+          >
+            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/ai') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            IA Dashboard
           </Link>
 
           <Link 
@@ -330,9 +350,21 @@ export default function DashboardLayout({
               </Link>
               <Link 
                 href="/dashboard/reports" 
-                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/reports') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
               >
                 Denuncias
+              </Link>
+              <Link 
+                href="/dashboard/reports/intelligence" 
+                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.includes('/reports/intelligence') ? 'bg-blue-500 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+              >
+                Reportes Inteligentes
+              </Link>
+              <Link 
+                href="/dashboard/ai" 
+                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/ai') ? 'bg-purple-500 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+              >
+                IA Dashboard
               </Link>
               <Link 
                 href="/dashboard/investigation" 
