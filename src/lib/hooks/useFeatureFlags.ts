@@ -81,10 +81,16 @@ export function useFeatureFlags() {
   // Función auxiliar para verificar si un feature está habilitado
   const isEnabled = useCallback(
     (featureName: keyof FeatureFlags): boolean => {
+      // Super admin siempre tiene acceso a todas las características
+      if (isSuperAdmin && isSuperAdmin()) {
+        return true;
+      }
+      
+      // Para usuarios normales, verificar el feature flag
       if (!features) return false;
       return features[featureName] === true;
     },
-    [features]
+    [features, isSuperAdmin]
   );
 
   return {
