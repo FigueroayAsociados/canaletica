@@ -13,7 +13,8 @@ import InsightsDashboard from '@/components/ai/InsightsDashboard';
 import Link from 'next/link';
 
 export default function AIDashboardPage() {
-  const { isAdmin, isSuperAdmin, profile } = useCurrentUser();
+  const { isAdmin, profile } = useCurrentUser();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const { companyId } = useCompany();
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year' | 'all'>('month');
   

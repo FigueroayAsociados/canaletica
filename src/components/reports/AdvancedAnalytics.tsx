@@ -44,9 +44,14 @@ export function AdvancedAnalytics({
       updateOptions(initialOptions);
     }
     
-    loadSummary();
-    loadTrends();
-    loadTimeSeriesData();
+    // Usar un timeout para evitar bloqueos en la UI
+    const timer = setTimeout(() => {
+      loadSummary();
+      loadTrends();
+      loadTimeSeriesData();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [initialOptions, loadSummary, loadTimeSeriesData, loadTrends, updateOptions]);
 
   // Manejar cambio de filtros
