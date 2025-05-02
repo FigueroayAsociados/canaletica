@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { FloatingAssistant } from '@/components/ai/FloatingAssistant';
-import { SmartAlertSystem } from '@/components/alerts/SmartAlertSystem';
+// Importar sin llaves (export default)
+import FloatingAssistant from '@/components/ai/FloatingAssistant';
+import SmartAlertSystem from '@/components/alerts/SmartAlertSystem';
 
 export default function DashboardLayout({
   children,
