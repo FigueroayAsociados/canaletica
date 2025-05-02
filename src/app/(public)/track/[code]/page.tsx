@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SafeRender } from '@/components/ui/safe-render';
 import { getReportByCode, getReportByCodeAndAccessCode, addCommunicationByCode } from '@/lib/services/reportService';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -175,9 +176,15 @@ export default function ReportDetailsPage() {
   }
 
   // Formatear fecha de creación
-  const createdAt = report.createdAt?.toDate ? 
-    new Date(report.createdAt.toDate()).toLocaleDateString('es-CL') : 
-    'Fecha no disponible';
+  const createdAt = report.createdAt 
+    ? (typeof report.createdAt.toDate === 'function' 
+        ? new Date(report.createdAt.toDate()).toLocaleDateString('es-CL')
+        : report.createdAt.seconds 
+          ? new Date(report.createdAt.seconds * 1000).toLocaleDateString('es-CL')
+          : report.createdAt instanceof Date 
+            ? report.createdAt.toLocaleDateString('es-CL')
+            : 'Fecha no disponible')
+    : 'Fecha no disponible';
 
   return (
     <div className="p-6 space-y-8">
@@ -390,11 +397,15 @@ export default function ReportDetailsPage() {
                           {message.isFromReporter ? 'Usted' : 'Investigador'}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {message.timestamp?.toDate 
-                            ? new Date(message.timestamp.toDate()).toLocaleString('es-CL')
-                            : message.timestamp instanceof Date
-                              ? message.timestamp.toLocaleString('es-CL')
-                              : 'Fecha desconocida'
+                          {message.timestamp 
+                            ? (typeof message.timestamp.toDate === 'function'
+                                ? new Date(message.timestamp.toDate()).toLocaleString('es-CL')
+                                : message.timestamp.seconds
+                                  ? new Date(message.timestamp.seconds * 1000).toLocaleString('es-CL')
+                                  : message.timestamp instanceof Date
+                                    ? message.timestamp.toLocaleString('es-CL')
+                                    : 'Fecha desconocida')
+                            : 'Fecha desconocida'
                           }
                         </span>
                       </div>

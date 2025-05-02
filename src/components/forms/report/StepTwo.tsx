@@ -280,8 +280,8 @@ const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
               // Filtrar categorías según si es Ley Karin o no
               .filter(category => {
                 const isKarinCategory = 
-                  category.isKarinLaw || 
-                  category.name?.includes('Karin') || 
+                  category.isKarinLaw === true || 
+                  (category.name && typeof category.name === 'string' && category.name.includes('Karin')) || 
                   category.id === 'ley_karin';
                 
                 // Si values.isKarinLaw es true, mostrar solo categorías Ley Karin

@@ -15,6 +15,9 @@ import { DEFAULT_COMPANY_ID } from './constants/index';
  * @param companyId ID de la compañía proporcionado o detectado
  * @returns ID de compañía normalizado para entorno de desarrollo
  */
+// Caché para reducir mensajes de log repetitivos
+const normalizedIdCache = new Map<string, boolean>();
+
 export function normalizeCompanyId(companyId: string | null | undefined): string {
   // FASE ACTUAL: Desarrollo/Consolidación - Siempre usar default para todas las operaciones
   // NOTA IMPORTANTE: Esta configuración es temporal y está diseñada para consolidar 
@@ -24,7 +27,13 @@ export function normalizeCompanyId(companyId: string | null | undefined): string
   if (!companyId || 
       companyId.startsWith('canaletica-') || 
       companyId.includes('-ricardo-figueroas-projects-')) {
-    console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`);
+    
+    // Solo mostrar el mensaje de log si es la primera vez que vemos este ID
+    if (!normalizedIdCache.has(companyId || '')) {
+      console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`);
+      normalizedIdCache.set(companyId || '', true);
+    }
+    
     return DEFAULT_COMPANY_ID;
   }
   
@@ -37,7 +46,12 @@ export function normalizeCompanyId(companyId: string | null | undefined): string
   
   // Forzar el uso de 'default' para todas las operaciones
   if (companyId !== DEFAULT_COMPANY_ID) {
-    console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`);
+    // Solo mostrar el mensaje de log si es la primera vez que vemos este ID
+    if (!normalizedIdCache.has(companyId)) {
+      console.log(`ID original "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}"`);
+      normalizedIdCache.set(companyId, true);
+    }
+    
     return DEFAULT_COMPANY_ID;
   }
   

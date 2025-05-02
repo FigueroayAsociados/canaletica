@@ -10,6 +10,7 @@ import { useCompany } from '@/lib/contexts/CompanyContext';
 import { getReportById } from '@/lib/services/reportService';
 import RecommendationsList from '@/components/investigation/RecommendationsList';
 import { Alert } from '@/components/ui/alert';
+import { SafeRender } from '@/components/ui/safe-render';
 import { getUsersByRole } from '@/lib/services/userService';
 
 export default function FollowUpDetailPage() {
@@ -111,7 +112,15 @@ export default function FollowUpDetailPage() {
               <div>
                 <p className="text-sm font-medium text-gray-500">Fecha</p>
                 <p>
-                  {report.createdAt && new Date(report.createdAt.seconds * 1000).toLocaleDateString()}
+                  {report.createdAt ? (
+                    report.createdAt.seconds 
+                      ? new Date(report.createdAt.seconds * 1000).toLocaleDateString()
+                      : report.createdAt.toDate
+                        ? new Date(report.createdAt.toDate()).toLocaleDateString()
+                        : report.createdAt instanceof Date
+                          ? report.createdAt.toLocaleDateString()
+                          : 'Fecha no disponible'
+                  ) : 'Fecha no disponible'}
                 </p>
               </div>
             </div>
