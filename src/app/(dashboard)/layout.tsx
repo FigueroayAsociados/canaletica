@@ -216,6 +216,31 @@ export default function DashboardLayout({
            </svg>
            Seguimiento
          </Link>
+         
+         <Link
+            href="/dashboard/reports/analytics"
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${
+            pathname.startsWith('/dashboard/reports/analytics') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+            }`}
+          >
+           <svg 
+            className={`mr-3 h-5 w-5 ${
+            pathname.startsWith('/dashboard/reports/analytics') ? 'text-white' : 'text-neutral-500'
+            }`} 
+            xmlns="http://www.w3.org/2000/svg" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+           <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth="2" 
+            d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" 
+          />
+           </svg>
+           Reportes Avanzados
+         </Link>
 
           {(isAdmin || profile?.role === 'super_admin') && (
             <>
@@ -384,6 +409,15 @@ export default function DashboardLayout({
                 }`}
               >
                 Seguimiento
+              </Link>
+
+              <Link
+                href="/dashboard/reports/analytics"
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname.startsWith('/dashboard/reports/analytics') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+                }`}
+              >
+                Reportes Avanzados
               </Link>
               
                   <Link 
