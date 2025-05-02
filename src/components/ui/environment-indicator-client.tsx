@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useCompany } from '@/lib/contexts/CompanyContext';
 import { getEnvironmentConfig } from '@/lib/services/environmentService';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { SafeRender } from './safe-render';
 
 export default function EnvironmentIndicatorClient() {
   const { companyId } = useCompany();
@@ -34,7 +35,9 @@ export default function EnvironmentIndicatorClient() {
   }, [companyId]);
   
   // Si es producción y no es super admin, no mostrar nada
-  if ((environment === 'production' && !isSuperAdmin()) || loading || !environment) {
+  const isSuperAdminUser = isSuperAdmin && typeof isSuperAdmin === 'function' ? isSuperAdmin() : false;
+  
+  if ((environment === 'production' && !isSuperAdminUser) || loading || !environment) {
     return null;
   }
   
@@ -72,11 +75,11 @@ export default function EnvironmentIndicatorClient() {
       title={`Entorno: ${environment} - Empresa: ${companyId}`}
     >
       {getEnvironmentText()}
-      {isSuperAdmin() && (
+      <SafeRender condition={!!isSuperAdminUser}>
         <span className="ml-2 px-1 py-0.5 bg-white bg-opacity-30 rounded text-[10px]">
           SUPERADMIN
         </span>
-      )}
+      </SafeRender>
     </div>
   );
 }

@@ -57,8 +57,14 @@ export function AdvancedAnalytics({
   // Manejar cambio de filtros
   const handleTimeframeChange = (timeframe: AdvancedReportingOptions['timeframe']) => {
     updateOptions({ timeframe });
-    loadSummary({ timeframe });
-    loadTimeSeriesData({ timeframe });
+    
+    // Usar un timeout para evitar bloqueos en la UI
+    setTimeout(() => {
+      loadSummary({ timeframe });
+      setTimeout(() => {
+        loadTimeSeriesData({ timeframe });
+      }, 50);
+    }, 50);
   };
 
   if (isLoading && !reportingSummary) {

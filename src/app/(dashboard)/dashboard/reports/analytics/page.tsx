@@ -18,15 +18,18 @@ interface DateRangeFilter {
 }
 
 export default function AdvancedReportsPage() {
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin, profile } = useCurrentUser();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [filter, setFilter] = useState<Partial<AdvancedReportingOptions>>({
     timeframe: 'month'
   });
   const [dateRange, setDateRange] = useState<DateRangeFilter>({});
   
+  // Para evitar problemas de rendering
+  const isSuperAdmin = profile?.role === 'super_admin';
+  
   // Verificar permisos
-  if (!isAdmin) {
+  if (!isAdmin && !isSuperAdmin) {
     return (
       <div className="space-y-6">
         <Alert variant="error">
