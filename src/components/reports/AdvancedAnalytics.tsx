@@ -67,6 +67,7 @@ export function AdvancedAnalytics({
     }, 50);
   };
 
+  // Componente de carga mejorado
   if (isLoading && !reportingSummary) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -83,11 +84,62 @@ export function AdvancedAnalytics({
     );
   }
 
+  // Manejo mejorado de errores
   if (error) {
     return (
-      <Alert variant="error">
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <div className="space-y-4">
+        <Alert variant="error">
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
+        <div className="flex justify-end">
+          <Button 
+            onClick={() => {
+              resetOptions();
+              loadSummary();
+              loadTrends();
+              loadTimeSeriesData();
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Validar que tengamos datos básicos
+  const hasValidSummary = reportingSummary && 
+                         typeof reportingSummary === 'object' && 
+                         typeof reportingSummary.totalReports === 'number';
+  
+  if (!hasValidSummary && !isLoading) {
+    return (
+      <div className="space-y-4">
+        <Alert variant="warning">
+          <AlertDescription>
+            No se pudieron cargar los datos del análisis avanzado. Esto puede deberse a que no hay suficientes datos 
+            para generar estadísticas o a un problema temporal con el servicio.
+          </AlertDescription>
+        </Alert>
+        <div className="flex justify-end">
+          <Button 
+            onClick={() => {
+              resetOptions();
+              loadSummary();
+              loadTrends();
+              loadTimeSeriesData();
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Reintentar
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -180,10 +232,22 @@ export function AdvancedAnalytics({
               <CardTitle>Estado de Denuncias</CardTitle>
             </CardHeader>
             <CardContent>
-              <PieChartComponent 
-                data={reportingSummary?.statusDistribution || []} 
-                height={300}
-              />
+              <SafeRender
+                condition={reportingSummary && 
+                          reportingSummary.statusDistribution && 
+                          Array.isArray(reportingSummary.statusDistribution) &&
+                          reportingSummary.statusDistribution.length > 0}
+                fallback={
+                  <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md border border-gray-200">
+                    <p className="text-gray-500 text-sm">No hay datos de estados disponibles</p>
+                  </div>
+                }
+              >
+                <PieChartComponent 
+                  data={reportingSummary?.statusDistribution || []} 
+                  height={300}
+                />
+              </SafeRender>
             </CardContent>
           </Card>
 
@@ -193,42 +257,82 @@ export function AdvancedAnalytics({
               <CardTitle>Distribución por Categoría</CardTitle>
             </CardHeader>
             <CardContent>
-              <BarChartComponent 
-                data={reportingSummary?.categoryDistribution || []} 
-                height={300}
-                layout="horizontal"
-              />
+              <SafeRender
+                condition={reportingSummary && 
+                          reportingSummary.categoryDistribution && 
+                          Array.isArray(reportingSummary.categoryDistribution) &&
+                          reportingSummary.categoryDistribution.length > 0}
+                fallback={
+                  <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md border border-gray-200">
+                    <p className="text-gray-500 text-sm">No hay datos de categorías disponibles</p>
+                  </div>
+                }
+              >
+                <BarChartComponent 
+                  data={reportingSummary?.categoryDistribution || []} 
+                  height={300}
+                  layout="horizontal"
+                />
+              </SafeRender>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-6">
           {/* Tendencias */}
-          <div className="space-y-6">
-            {trendAnalysis.map(trend => (
-              <Card key={trend.id}>
-                <CardHeader>
-                  <CardTitle>
-                    <div className="flex items-center">
-                      {trend.title}
-                      <span className={`ml-2 px-2 py-1 rounded text-xs ${trend.isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {trend.isPositive ? '+' : '-'}{trend.changePercentage}%
-                      </span>
+          <SafeRender
+            condition={Array.isArray(trendAnalysis) && trendAnalysis.length > 0}
+            fallback={
+              <Card>
+                <CardContent className="py-10">
+                  <div className="text-center max-w-md mx-auto">
+                    <div className="text-primary/40 mb-4">
+                      <TrendingUp className="h-10 w-10 mx-auto" />
                     </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="mb-4 text-gray-600">{trend.description}</p>
-                  {trend.data && (
-                    <LineChartComponent 
-                      data={{ series: trend.data }} 
-                      height={250}
-                    />
-                  )}
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No hay tendencias disponibles</h3>
+                    <p className="text-gray-500">
+                      No se han detectado tendencias significativas para el período seleccionado. 
+                      Intente ampliar el rango de fechas o actualizar los datos más tarde.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            }
+          >
+            <div className="space-y-6">
+              {trendAnalysis.map(trend => (
+                <Card key={trend.id}>
+                  <CardHeader>
+                    <CardTitle>
+                      <div className="flex items-center">
+                        {trend.title}
+                        <span className={`ml-2 px-2 py-1 rounded text-xs ${trend.isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {trend.isPositive ? '+' : '-'}{trend.changePercentage}%
+                        </span>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="mb-4 text-gray-600">{trend.description}</p>
+                    <SafeRender
+                      condition={trend.data && Array.isArray(trend.data) && trend.data.length > 0 && 
+                                trend.data[0] && Array.isArray(trend.data[0].data) && trend.data[0].data.length > 0}
+                      fallback={
+                        <div className="flex items-center justify-center h-[250px] bg-gray-50 rounded-md border border-gray-200">
+                          <p className="text-gray-500 text-sm">No hay datos de tendencia disponibles</p>
+                        </div>
+                      }
+                    >
+                      <LineChartComponent 
+                        data={{ series: trend.data }} 
+                        height={250}
+                      />
+                    </SafeRender>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </SafeRender>
         </TabsContent>
 
         <TabsContent value="categories" className="space-y-6">

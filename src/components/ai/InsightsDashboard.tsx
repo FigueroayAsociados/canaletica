@@ -68,8 +68,15 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
         
         // Verificar explícitamente todas las propiedades esperadas
         if (result && typeof result === 'object' && result.success === true && 
-            Array.isArray(result.insights) && result.insights.length > 0) {
+            Array.isArray(result.insights)) {
           organizeInsights(result.insights);
+          
+          // Registrar información básica para depuración
+          if (result.insights.length === 0) {
+            console.log('No se encontraron insights para el período seleccionado');
+          } else {
+            console.log(`Se cargaron ${result.insights.length} insights del servicio`);
+          }
         } else {
           // Proporcionar mensajes de error más específicos
           if (!result || typeof result !== 'object') {
@@ -103,17 +110,61 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
         return;
       }
       
-      // Filtrar insights válidos
-      const validInsights = allInsights.filter(insight => 
-        insight && typeof insight === 'object' && typeof insight.category === 'string'
-      );
+      // Filtrar insights válidos con validación más robusta
+      const validInsights = allInsights.filter(insight => {
+        // Verificar estructura básica
+        if (!insight || typeof insight !== 'object') {
+          console.warn('Insight inválido: no es un objeto', insight);
+          return false;
+        }
+        
+        // Verificar que tiene una categoría válida
+        if (typeof insight.category !== 'string' || 
+            !['trend', 'risk', 'recommendation', 'efficiency'].includes(insight.category)) {
+          console.warn('Insight con categoría inválida:', insight);
+          return false;
+        }
+        
+        // Verificar campos obligatorios
+        if (typeof insight.title !== 'string' || insight.title.trim() === '') {
+          console.warn('Insight sin título válido:', insight);
+          return false;
+        }
+        
+        if (typeof insight.description !== 'string' || insight.description.trim() === '') {
+          console.warn('Insight sin descripción válida:', insight);
+          return false;
+        }
+        
+        // Verificar confianza
+        if (typeof insight.confidence !== 'number' || insight.confidence < 0 || insight.confidence > 1) {
+          console.warn('Insight con confianza inválida:', insight);
+          return false;
+        }
+        
+        // Si todo es válido, incluir el insight
+        return true;
+      });
       
+      // Registrar validación
+      if (validInsights.length !== allInsights.length) {
+        console.warn(`Se filtraron ${allInsights.length - validInsights.length} insights inválidos`);
+      }
+      
+      // Organizar por categoría
       const organized = {
         trends: validInsights.filter(i => i.category === 'trend'),
         risks: validInsights.filter(i => i.category === 'risk'),
         recommendations: validInsights.filter(i => i.category === 'recommendation'),
         efficiency: validInsights.filter(i => i.category === 'efficiency')
       };
+      
+      // Mostrar advertencia si alguna categoría está vacía
+      Object.entries(organized).forEach(([category, items]) => {
+        if (items.length === 0) {
+          console.log(`No hay insights en la categoría "${category}"`);
+        }
+      });
       
       setInsights(organized);
     }
@@ -135,17 +186,71 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
         return;
       }
       
-      const result = await generateInsights({ timeRange, maxResults: 30 });
+      // Indicar que estamos generando insights nuevos
+      // Esto mostrará el spinner durante la operación
       
-      // Usar la misma lógica de validación que en useEffect
+      const result = await generateInsights({ 
+        timeRange, 
+        maxResults: 30,
+        // Forzar recarga de datos completos (no usar caché)
+        forceRefresh: true
+      });
+      
+      // Usar la misma función de organización que en useEffect para mantener consistencia
       if (result && typeof result === 'object' && result.success === true && 
           Array.isArray(result.insights)) {
         
-        // Filtrar insights válidos
-        const validInsights = result.insights.filter(insight => 
-          insight && typeof insight === 'object' && typeof insight.category === 'string'
-        );
+        // Reutilizar la función organizeInsights para mantener la misma lógica de validación
+        // Extraemos la función para hacer esto más seguro
         
+        // Asegurarse de que result.insights es un array
+        if (!Array.isArray(result.insights)) {
+          setError('Los insights generados no tienen el formato esperado');
+          return;
+        }
+        
+        // Filtrar insights válidos con validación más robusta
+        const validInsights = result.insights.filter(insight => {
+          // Verificar estructura básica
+          if (!insight || typeof insight !== 'object') {
+            console.warn('Insight inválido: no es un objeto', insight);
+            return false;
+          }
+          
+          // Verificar que tiene una categoría válida
+          if (typeof insight.category !== 'string' || 
+              !['trend', 'risk', 'recommendation', 'efficiency'].includes(insight.category)) {
+            console.warn('Insight con categoría inválida:', insight);
+            return false;
+          }
+          
+          // Verificar campos obligatorios
+          if (typeof insight.title !== 'string' || insight.title.trim() === '') {
+            console.warn('Insight sin título válido:', insight);
+            return false;
+          }
+          
+          if (typeof insight.description !== 'string' || insight.description.trim() === '') {
+            console.warn('Insight sin descripción válida:', insight);
+            return false;
+          }
+          
+          // Verificar confianza
+          if (typeof insight.confidence !== 'number' || insight.confidence < 0 || insight.confidence > 1) {
+            console.warn('Insight con confianza inválida:', insight);
+            return false;
+          }
+          
+          // Si todo es válido, incluir el insight
+          return true;
+        });
+        
+        // Mostrar advertencia si hay insights inválidos
+        if (validInsights.length !== result.insights.length) {
+          console.warn(`Se filtraron ${result.insights.length - validInsights.length} insights inválidos`);
+        }
+        
+        // Organizar por categoría
         const organized = {
           trends: validInsights.filter(i => i.category === 'trend'),
           risks: validInsights.filter(i => i.category === 'risk'),
@@ -153,7 +258,15 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
           efficiency: validInsights.filter(i => i.category === 'efficiency')
         };
         
+        // Actualizar estado
         setInsights(organized);
+        
+        // Mostrar mensaje cuando no hay insights
+        if (validInsights.length === 0) {
+          console.log('No se encontraron insights para mostrar');
+        } else {
+          console.log(`Se actualizaron ${validInsights.length} insights`);
+        }
       } else {
         // Proporcionar mensajes de error más específicos
         if (!result || typeof result !== 'object') {
@@ -436,6 +549,74 @@ function InsightCard({
   const confidence = typeof insight.confidence === 'number' ? insight.confidence : 0;
   const confidencePercentage = Math.round(Math.min(Math.max(confidence, 0), 1) * 100);
   
+  // Determinar el nivel de severidad y su color correspondiente
+  const severityBadge = (() => {
+    if (!insight.severity) return null;
+    
+    let badgeStyle = "";
+    let badgeLabel = "";
+    
+    switch(insight.severity) {
+      case 'high':
+        badgeStyle = "bg-red-100 text-red-800 border-red-200";
+        badgeLabel = "Alta";
+        break;
+      case 'medium':
+        badgeStyle = "bg-amber-100 text-amber-800 border-amber-200";
+        badgeLabel = "Media";
+        break;
+      case 'low':
+        badgeStyle = "bg-green-100 text-green-800 border-green-200";
+        badgeLabel = "Baja";
+        break;
+      default:
+        return null;
+    }
+    
+    return (
+      <Badge className={`mr-2 ${badgeStyle}`}>
+        {badgeLabel}
+      </Badge>
+    );
+  })();
+  
+  // Determinar si hay datos adicionales para mostrar
+  const hasAdditionalData = insight.data && typeof insight.data === 'object';
+  
+  // Formatear algunos tipos comunes de datos para mostrarlos en el estado expandido
+  const renderAdditionalData = () => {
+    if (!hasAdditionalData || !expanded) return null;
+    
+    return (
+      <div className="mt-3 pt-2 border-t border-gray-200 text-xs text-gray-600">
+        <h4 className="font-medium mb-1">Datos adicionales:</h4>
+        <ul className="space-y-1">
+          {Object.entries(insight.data).map(([key, value]) => {
+            // Omitir arrays y objetos complejos
+            if (typeof value === 'object') return null;
+            
+            // Formatear valores numéricos con 1 decimal
+            const formattedValue = typeof value === 'number' 
+              ? value % 1 === 0 ? value : value.toFixed(1)
+              : value;
+            
+            // Formatear nombres de clave para mejor legibilidad
+            const formattedKey = key
+              .replace(/([A-Z])/g, ' $1')
+              .replace(/([a-z])([A-Z])/g, '$1 $2')
+              .replace(/^./, str => str.toUpperCase());
+            
+            return (
+              <li key={key}>
+                <span className="font-medium">{formattedKey}:</span> {formattedValue}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  };
+  
   return (
     <div className={`p-4 rounded-lg border ${colorClass} overflow-hidden`}>
       <div className="flex items-start gap-3">
@@ -445,12 +626,17 @@ function InsightCard({
         
         <div className="flex-grow">
           <div className="flex justify-between items-start">
-            <h3 className="font-medium">
-              {insight.title}
-            </h3>
-            <Badge variant="outline" className="ml-2 whitespace-nowrap text-xs">
-              {confidencePercentage}% confianza
-            </Badge>
+            <div className="flex items-center">
+              <h3 className="font-medium">
+                {insight.title}
+              </h3>
+            </div>
+            <div className="flex items-center">
+              {severityBadge}
+              <Badge variant="outline" className="whitespace-nowrap text-xs">
+                {confidencePercentage}% confianza
+              </Badge>
+            </div>
           </div>
           
           <p className={`mt-1 text-sm text-gray-600 ${expanded ? '' : 'line-clamp-2'}`}>
@@ -472,6 +658,9 @@ function InsightCard({
               )}
             </div>
           )}
+          
+          {/* Renderizar datos adicionales si están disponibles */}
+          {renderAdditionalData()}
           
           <Button 
             variant="ghost" 
