@@ -44,18 +44,44 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
       try {
         setError(null);
         
+        // Validar que tenemos acceso a la función isAIEnabled
+        if (typeof isAIEnabled !== 'function') {
+          console.error('isAIEnabled no es una función válida');
+          setError('Error de configuración: No se pueden validar permisos');
+          return;
+        }
+        
+        // Validar que tenemos acceso a la función generateInsights
+        if (typeof generateInsights !== 'function') {
+          console.error('generateInsights no es una función válida');
+          setError('Error de configuración: No se pueden generar insights');
+          return;
+        }
+        
         // Si ya tenemos insights en caché y no estamos generando nuevos, usarlos
-        if (cachedInsights && cachedInsights.length > 0 && !isGeneratingInsights) {
+        if (cachedInsights && Array.isArray(cachedInsights) && cachedInsights.length > 0 && !isGeneratingInsights) {
           organizeInsights(cachedInsights);
           return;
         }
         
         const result = await generateInsights({ timeRange });
         
-        if (result.success && result.insights) {
+        // Verificar explícitamente todas las propiedades esperadas
+        if (result && typeof result === 'object' && result.success === true && 
+            Array.isArray(result.insights) && result.insights.length > 0) {
           organizeInsights(result.insights);
         } else {
-          setError(result.error || 'No se pudieron generar insights');
+          // Proporcionar mensajes de error más específicos
+          if (!result || typeof result !== 'object') {
+            setError('Error al generar insights: Respuesta inválida');
+          } else if (!result.success) {
+            setError(result.error || 'No se pudieron generar insights');
+          } else if (!Array.isArray(result.insights)) {
+            setError('Los insights generados no tienen el formato esperado');
+          } else if (result.insights.length === 0) {
+            // No es realmente un error, solo no hay datos
+            organizeInsights([]);
+          }
         }
       } catch (err) {
         console.error('Error al cargar insights:', err);
@@ -63,19 +89,37 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
       }
     }
     
-    // Organizar insights por categoría
+    // Organizar insights por categoría con validación adicional
     function organizeInsights(allInsights: AIInsight[]) {
+      // Asegurarse de que allInsights es un array
+      if (!Array.isArray(allInsights)) {
+        console.error('organizeInsights recibió datos no válidos:', allInsights);
+        setInsights({
+          trends: [],
+          risks: [],
+          recommendations: [],
+          efficiency: []
+        });
+        return;
+      }
+      
+      // Filtrar insights válidos
+      const validInsights = allInsights.filter(insight => 
+        insight && typeof insight === 'object' && typeof insight.category === 'string'
+      );
+      
       const organized = {
-        trends: allInsights.filter(i => i.category === 'trend'),
-        risks: allInsights.filter(i => i.category === 'risk'),
-        recommendations: allInsights.filter(i => i.category === 'recommendation'),
-        efficiency: allInsights.filter(i => i.category === 'efficiency')
+        trends: validInsights.filter(i => i.category === 'trend'),
+        risks: validInsights.filter(i => i.category === 'risk'),
+        recommendations: validInsights.filter(i => i.category === 'recommendation'),
+        efficiency: validInsights.filter(i => i.category === 'efficiency')
       };
       
       setInsights(organized);
     }
     
-    if (isAIEnabled()) {
+    // Validar que la función isAIEnabled existe y es una función
+    if (typeof isAIEnabled === 'function' && isAIEnabled()) {
       loadInsights();
     }
   }, [generateInsights, cachedInsights, isGeneratingInsights, timeRange, isAIEnabled]);
@@ -83,19 +127,44 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
   const handleRefresh = async () => {
     try {
       setError(null);
+      
+      // Validar que tenemos acceso a la función generateInsights
+      if (typeof generateInsights !== 'function') {
+        console.error('generateInsights no es una función válida');
+        setError('Error de configuración: No se pueden generar insights');
+        return;
+      }
+      
       const result = await generateInsights({ timeRange, maxResults: 30 });
       
-      if (result.success && result.insights) {
+      // Usar la misma lógica de validación que en useEffect
+      if (result && typeof result === 'object' && result.success === true && 
+          Array.isArray(result.insights)) {
+        
+        // Filtrar insights válidos
+        const validInsights = result.insights.filter(insight => 
+          insight && typeof insight === 'object' && typeof insight.category === 'string'
+        );
+        
         const organized = {
-          trends: result.insights.filter(i => i.category === 'trend'),
-          risks: result.insights.filter(i => i.category === 'risk'),
-          recommendations: result.insights.filter(i => i.category === 'recommendation'),
-          efficiency: result.insights.filter(i => i.category === 'efficiency')
+          trends: validInsights.filter(i => i.category === 'trend'),
+          risks: validInsights.filter(i => i.category === 'risk'),
+          recommendations: validInsights.filter(i => i.category === 'recommendation'),
+          efficiency: validInsights.filter(i => i.category === 'efficiency')
         };
         
         setInsights(organized);
       } else {
-        setError(result.error || 'No se pudieron generar insights');
+        // Proporcionar mensajes de error más específicos
+        if (!result || typeof result !== 'object') {
+          setError('Error al generar insights: Respuesta inválida');
+        } else if (!result.success) {
+          setError(result.error || 'No se pudieron generar insights');
+        } else if (!Array.isArray(result.insights)) {
+          setError('Los insights generados no tienen el formato esperado');
+        } else if (result.insights.length === 0) {
+          setError('No se encontraron insights para mostrar');
+        }
       }
     } catch (err) {
       console.error('Error al refrescar insights:', err);
@@ -104,7 +173,8 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
   };
   
   // Si la IA no está habilitada, mostrar mensaje
-  if (!isAIEnabled()) {
+  // Validar explícitamente que isAIEnabled es una función
+  if (typeof isAIEnabled !== 'function' || !isAIEnabled()) {
     return (
       <Card className={className}>
         <CardHeader>
@@ -118,8 +188,9 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
             <Info className="h-10 w-10 text-primary/40 mx-auto mb-3" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Funcionalidad no disponible</h3>
             <p className="text-gray-500">
-              Las funcionalidades de IA no están habilitadas para esta empresa. 
-              Contacta con el administrador para activar esta característica.
+              {typeof isAIEnabled !== 'function' 
+                ? 'Error de configuración: No se pueden validar permisos.'
+                : 'Las funcionalidades de IA no están habilitadas para esta empresa. Contacta con el administrador para activar esta característica.'}
             </p>
           </div>
         </CardContent>
@@ -340,8 +411,30 @@ function InsightCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   
-  // Formatear confianza
-  const confidencePercentage = Math.round(insight.confidence * 100);
+  // Verificar que insight sea un objeto válido
+  if (!insight || typeof insight !== 'object') {
+    return (
+      <div className={`p-4 rounded-lg border border-red-200 bg-red-50 text-red-600 overflow-hidden`}>
+        <p className="text-sm">Error: Formato de insight inválido</p>
+      </div>
+    );
+  }
+  
+  // Verificar propiedades requeridas
+  const hasRequiredProps = insight.title && insight.description && 
+                           typeof insight.confidence === 'number';
+                           
+  if (!hasRequiredProps) {
+    return (
+      <div className={`p-4 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-700 overflow-hidden`}>
+        <p className="text-sm">Error: Datos de insight incompletos</p>
+      </div>
+    );
+  }
+  
+  // Formatear confianza con validación
+  const confidence = typeof insight.confidence === 'number' ? insight.confidence : 0;
+  const confidencePercentage = Math.round(Math.min(Math.max(confidence, 0), 1) * 100);
   
   return (
     <div className={`p-4 rounded-lg border ${colorClass} overflow-hidden`}>
@@ -364,11 +457,12 @@ function InsightCard({
             {insight.description}
           </p>
           
-          {insight.relatedReports && insight.relatedReports.length > 0 && (
+          {/* Validar la existencia y tipo de relatedReports */}
+          {insight.relatedReports && Array.isArray(insight.relatedReports) && insight.relatedReports.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
-              {expanded && insight.relatedReports.map(reportId => (
-                <Badge key={reportId} variant="secondary" className="text-xs">
-                  {reportId}
+              {expanded && insight.relatedReports.map((reportId, index) => (
+                <Badge key={`${reportId || 'unknown'}-${index}`} variant="secondary" className="text-xs">
+                  {reportId || 'ID Desconocido'}
                 </Badge>
               ))}
               {!expanded && (

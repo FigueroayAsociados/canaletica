@@ -8,18 +8,41 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useCompany } from '@/lib/contexts/CompanyContext';
-import { Lightbulb, TrendingUp, AlertTriangle, Zap, Calendar } from 'lucide-react';
+import { Lightbulb, TrendingUp, AlertTriangle, Zap, Calendar, Info } from 'lucide-react';
 import InsightsDashboard from '@/components/ai/InsightsDashboard';
 import Link from 'next/link';
+import { SafeRender } from '@/components/ui/safe-render';
+import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 
 export default function AIDashboardPage() {
-  const { isAdmin, profile } = useCurrentUser();
-  const isSuperAdmin = profile?.role === 'super_admin';
+  const { profile, loading } = useCurrentUser();
   const { companyId } = useCompany();
+  const { isEnabled } = useFeatureFlags();
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year' | 'all'>('month');
   
+  // Usar SafeRender para evitar problemas con acceso a propiedades undefined
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  const isSuperAdmin = profile?.role === 'super_admin';
+  
+  // Si todavía está cargando, mostrar un indicador de carga
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="inline-block animate-spin text-primary mb-4">
+            <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+  
   // Solo permitir acceso a administradores
-  if (!isAdmin && !isSuperAdmin) {
+  if (!isAdmin) {
     return (
       <div className="space-y-6">
         <Alert variant="error">
@@ -36,6 +59,41 @@ export default function AIDashboardPage() {
     );
   }
   
+  // Verificar si la característica de IA está habilitada
+  const isAIEnabled = isEnabled('ai_dashboard');
+  
+  // Si la IA no está habilitada, mostrar un mensaje informativo
+  if (!isAIEnabled) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard Avanzado de IA</h1>
+        
+        <Card>
+          <CardContent className="flex items-center justify-center py-10">
+            <div className="text-center max-w-md">
+              <Info className="h-10 w-10 text-primary/40 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Funcionalidad no disponible</h3>
+              <p className="text-gray-500">
+                Las funcionalidades de IA no están habilitadas para esta empresa. 
+                {isSuperAdmin && " Como super administrador, puede habilitar esta característica en la sección de configuración."}
+                {!isSuperAdmin && " Contacte con el administrador para activar esta característica."}
+              </p>
+              
+              {isSuperAdmin && (
+                <div className="mt-4">
+                  <Link href="/dashboard/settings">
+                    <Button>Ir a Configuración</Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  // Versión simplificada del dashboard para evitar errores
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -61,6 +119,7 @@ export default function AIDashboardPage() {
         </div>
       </div>
       
+      {/* Tarjetas de resumen con datos estáticos para evitar errores */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -131,10 +190,26 @@ export default function AIDashboardPage() {
         </Card>
       </div>
       
-      <InsightsDashboard 
-        timeRange={timeRange}
-        className="h-full"
-      />
+      {/* Envolver el componente InsightsDashboard en SafeRender para protegerlo de errores */}
+      <SafeRender
+        condition={Boolean(companyId) && isAIEnabled}
+        fallback={
+          <Card>
+            <CardContent className="p-6">
+              <Alert>
+                <AlertDescription>
+                  No se puede cargar el dashboard en este momento. Verifique su conexión e inténtelo de nuevo.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        }
+      >
+        <InsightsDashboard 
+          timeRange={timeRange}
+          className="h-full"
+        />
+      </SafeRender>
       
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h2 className="text-lg font-medium text-gray-900 mb-3">

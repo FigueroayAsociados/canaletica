@@ -81,8 +81,11 @@ export function useFeatureFlags() {
   // Función auxiliar para verificar si un feature está habilitado
   const isEnabled = useCallback(
     (featureName: keyof FeatureFlags): boolean => {
+      // Verificar primero si isSuperAdmin es una función antes de intentar llamarla
+      const isSuperAdminUser = typeof isSuperAdmin === 'function' ? isSuperAdmin() : isSuperAdmin === true;
+      
       // Super admin siempre tiene acceso a todas las características
-      if (isSuperAdmin && isSuperAdmin()) {
+      if (isSuperAdminUser) {
         return true;
       }
       
@@ -93,13 +96,16 @@ export function useFeatureFlags() {
     [features, isSuperAdmin]
   );
 
+  // Verificar si el usuario puede gestionar características (es superadmin)
+  const canManageFeatures = typeof isSuperAdmin === 'function' ? isSuperAdmin() : isSuperAdmin === true;
+  
   return {
     features,
     loading,
     error,
     updateFlag,
     isEnabled,
-    canManageFeatures: isSuperAdmin && isSuperAdmin()
+    canManageFeatures
   };
 }
 
