@@ -9,9 +9,10 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import FloatingAssistant from '@/components/ai/FloatingAssistant';
-import SmartAlertSystem from '@/components/alerts/SmartAlertSystem';
-import EnvironmentIndicatorClient from '@/components/ui/environment-indicator-client';
+// Componentes desactivados temporalmente para resolver error React #130
+// import FloatingAssistant from '@/components/ai/FloatingAssistant';
+// import SmartAlertSystem from '@/components/alerts/SmartAlertSystem';
+// import EnvironmentIndicatorClient from '@/components/ui/environment-indicator-client';
 
 export default function DashboardLayout({
   children,
@@ -365,8 +366,9 @@ export default function DashboardLayout({
                 </Link>
               </div>
               <div className="flex items-center space-x-1">
-                {/* Componente de alertas compacto */}
+                {/* Componente de alertas compacto - Desactivado temporalmente para resolver error React #130 
                 <SmartAlertSystem compact />
+                */}
 
                 <button
                   onClick={handleLogout}
@@ -488,11 +490,13 @@ export default function DashboardLayout({
           </div>
         </main>
         
-        {/* Indicador de entorno */}
+        {/* Indicador de entorno - Desactivado temporalmente para resolver error React #130 
         <EnvironmentIndicatorClient />
+        */}
         
-        {/* Asistente Virtual IA Flotante */}
+        {/* Asistente Virtual IA Flotante - Desactivado temporalmente para resolver error React #130 
         <FloatingAssistant />
+        */}
       </div>
     </div>
   );
