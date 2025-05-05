@@ -51,7 +51,7 @@ export function useFeatureFlags() {
       }
 
       // Verificar si es super admin o tiene permisos
-      if (!isSuperAdmin()) {
+      if (typeof isSuperAdmin !== 'function' || !isSuperAdmin()) {
         return { success: false, error: 'No tiene permisos para actualizar features' };
       }
 

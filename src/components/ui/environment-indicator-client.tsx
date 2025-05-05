@@ -35,7 +35,8 @@ export default function EnvironmentIndicatorClient() {
   }, [companyId]);
   
   // Si es producción y no es super admin, no mostrar nada
-  const isSuperAdminUser = isSuperAdmin && typeof isSuperAdmin === 'function' ? isSuperAdmin() : false;
+  // Verificar si isSuperAdmin es una función antes de llamarla
+  const isSuperAdminUser = typeof isSuperAdmin === 'function' ? isSuperAdmin() : false;
   
   if ((environment === 'production' && !isSuperAdminUser) || loading || !environment) {
     return null;

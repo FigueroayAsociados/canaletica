@@ -130,6 +130,12 @@ export function useAI() {
    * independientemente de si los feature flags están habilitados o no
    */
   const isAIEnabled = useCallback(() => {
+    // Verificar que isEnabled es una función antes de llamarla
+    if (typeof isEnabled !== 'function') {
+      console.error('isEnabled no es una función válida');
+      return false;
+    }
+    
     // Si el usuario es superadministrador, siempre darle acceso a IA
     if (isEnabled('superadmin_access')) {
       return true;
