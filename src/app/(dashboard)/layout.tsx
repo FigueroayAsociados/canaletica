@@ -164,9 +164,9 @@ export default function DashboardLayout({
 
           <Link 
             href="/dashboard/reports" 
-            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') && !pathname.includes('/reports/analytics') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
           >
-            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') && !pathname.includes('/reports/analytics') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Denuncias
@@ -285,15 +285,6 @@ export default function DashboardLayout({
                 Usuarios
               </Link>
               
-              <Link 
-                href="/dashboard/admin/ai-dashboard" 
-                className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ai-dashboard') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
-              >
-                <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/admin/ai-dashboard') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Dashboard IA
-              </Link>
 
               <Link 
                 href="/dashboard/admin/ley-karin" 
@@ -403,7 +394,7 @@ export default function DashboardLayout({
               </Link>
               <Link 
                 href="/dashboard/reports" 
-                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') && !pathname.includes('/reports/analytics') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
               >
                 Denuncias
               </Link>
@@ -463,12 +454,6 @@ export default function DashboardLayout({
                     className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/users') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
                   >
                     Usuarios
-                  </Link>
-                  <Link 
-                    href="/dashboard/admin/ai-dashboard" 
-                    className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/admin/ai-dashboard') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
-                  >
-                    Dashboard IA
                   </Link>
                   <Link 
                     href="/dashboard/admin/delete-reports" 
