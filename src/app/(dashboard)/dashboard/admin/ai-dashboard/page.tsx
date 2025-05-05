@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useCompany } from '@/lib/contexts/CompanyContext';
 import { Lightbulb, TrendingUp, AlertTriangle, Zap, Calendar, Info } from 'lucide-react';
-import InsightsDashboard from '@/components/ai/InsightsDashboard';
+import SimpleInsightsDashboard from '@/components/ai/SimpleInsightsDashboard';
 import Link from 'next/link';
 import { SafeRender } from '@/components/ui/safe-render';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
@@ -190,22 +190,28 @@ export default function AIDashboardPage() {
         </Card>
       </div>
       
-      {/* Versión simplificada del panel de insights */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Panel de Insights IA</CardTitle>
-          <CardDescription>Análisis automatizado de denuncias</CardDescription>
-        </CardHeader>
-        <CardContent className="py-10">
-          <div className="text-center max-w-md mx-auto">
-            <Info className="h-10 w-10 text-primary/40 mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Configurando Dashboard IA</h3>
-            <p className="text-gray-500">
-              Esta funcionalidad está siendo actualizada. Por favor, intente de nuevo más tarde.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Panel de Insights con implementación simplificada */}
+      <SafeRender
+        condition={Boolean(companyId)}
+        fallback={
+          <Card>
+            <CardContent className="p-6">
+              <Alert>
+                <AlertDescription>
+                  No se puede cargar el dashboard en este momento. Verifique su conexión e inténtelo de nuevo.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        }
+      >
+        {timeRange && (
+          <SimpleInsightsDashboard 
+            timeRange={timeRange}
+            className="h-full"
+          />
+        )}
+      </SafeRender>
       
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h2 className="text-lg font-medium text-gray-900 mb-3">

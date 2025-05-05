@@ -15,7 +15,7 @@ import { useReports } from '@/lib/hooks/useReports';
 import { useReporting } from '@/lib/hooks/useReporting';
 import { SafeRender } from '@/components/ui/safe-render';
 import { Info, Lightbulb, AlertTriangle, TrendingUp, Zap, Calendar, RefreshCw } from 'lucide-react';
-import InsightsDashboard from '@/components/ai/InsightsDashboard';
+import SimpleInsightsDashboard from '@/components/ai/SimpleInsightsDashboard';
 import Link from 'next/link';
 
 export default function IntelligentReportsPage() {
@@ -379,21 +379,29 @@ export default function IntelligentReportsPage() {
         </TabsContent>
         
         <TabsContent value="insights">
-          <Card>
-            <CardHeader>
-              <CardTitle>Insights IA</CardTitle>
-              <CardDescription>Análisis automatizado de sus datos</CardDescription>
-            </CardHeader>
-            <CardContent className="py-10">
-              <div className="text-center max-w-md mx-auto">
-                <Info className="h-10 w-10 text-primary/40 mx-auto mb-3" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Configurando Insights IA</h3>
-                <p className="text-gray-500">
-                  Esta funcionalidad está siendo actualizada. Por favor, intente de nuevo más tarde.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <SafeRender
+            condition={Boolean(companyId)}
+            fallback={
+              <Card>
+                <CardContent className="py-10">
+                  <div className="text-center max-w-md mx-auto">
+                    <Info className="h-10 w-10 text-primary/40 mx-auto mb-3" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No se puede cargar</h3>
+                    <p className="text-gray-500">
+                      No hay información de la empresa para cargar los insights.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            }
+          >
+            {timeRange && (
+              <SimpleInsightsDashboard 
+                timeRange={timeRange}
+                className="h-full"
+              />
+            )}
+          </SafeRender>
         </TabsContent>
 
         <TabsContent value="categories">
