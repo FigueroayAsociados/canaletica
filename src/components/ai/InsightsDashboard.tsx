@@ -16,7 +16,7 @@ interface InsightsDashboardProps {
   timeRange?: 'week' | 'month' | 'quarter' | 'year' | 'all';
 }
 
-export default function InsightsDashboard({ className, timeRange = 'month' }: InsightsDashboardProps) {
+export default function InsightsDashboard({ className = '', timeRange = 'month' }: InsightsDashboardProps) {
   const { 
     generateInsights, 
     insights: cachedInsights,
@@ -170,7 +170,8 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
     }
     
     // Validar que la función isAIEnabled existe y es una función
-    if (typeof isAIEnabled === 'function' && isAIEnabled()) {
+    const aiEnabled = typeof isAIEnabled === 'function' && isAIEnabled();
+    if (aiEnabled) {
       loadInsights();
     }
   }, [generateInsights, cachedInsights, isGeneratingInsights, timeRange, isAIEnabled]);
@@ -287,7 +288,8 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
   
   // Si la IA no está habilitada, mostrar mensaje
   // Validar explícitamente que isAIEnabled es una función
-  if (typeof isAIEnabled !== 'function' || !isAIEnabled()) {
+  const aiIsEnabled = typeof isAIEnabled === 'function' && isAIEnabled();
+  if (!aiIsEnabled) {
     return (
       <Card className={className}>
         <CardHeader>
@@ -312,8 +314,11 @@ export default function InsightsDashboard({ className, timeRange = 'month' }: In
   }
   
   // Mostrar spinner mientras se cargan los insights
-  if (isGeneratingInsights && (!insights.trends.length && !insights.risks.length && 
-      !insights.recommendations.length && !insights.efficiency.length)) {
+  const noInsightsAvailable = !insights?.trends?.length && 
+                             !insights?.risks?.length && 
+                             !insights?.recommendations?.length && 
+                             !insights?.efficiency?.length;
+  if (isGeneratingInsights && noInsightsAvailable) {
     return (
       <Card className={className}>
         <CardHeader>
@@ -533,9 +538,11 @@ function InsightCard({
     );
   }
   
-  // Verificar propiedades requeridas
-  const hasRequiredProps = insight.title && insight.description && 
-                           typeof insight.confidence === 'number';
+  // Verificar propiedades requeridas de manera segura
+  const hasTitle = insight.title && typeof insight.title === 'string';
+  const hasDescription = insight.description && typeof insight.description === 'string';
+  const hasConfidence = typeof insight.confidence === 'number';
+  const hasRequiredProps = hasTitle && hasDescription && hasConfidence;
                            
   if (!hasRequiredProps) {
     return (
@@ -585,20 +592,26 @@ function InsightCard({
   
   // Formatear algunos tipos comunes de datos para mostrarlos en el estado expandido
   const renderAdditionalData = () => {
-    if (!hasAdditionalData || !expanded) return null;
+    if (!hasAdditionalData || !expanded || !insight?.data) return null;
     
     return (
       <div className="mt-3 pt-2 border-t border-gray-200 text-xs text-gray-600">
         <h4 className="font-medium mb-1">Datos adicionales:</h4>
         <ul className="space-y-1">
           {Object.entries(insight.data).map(([key, value]) => {
+            // Validar la clave
+            if (!key) return null;
+            
             // Omitir arrays y objetos complejos
             if (typeof value === 'object') return null;
+            
+            // Validar que el valor es un tipo primitivo
+            if (value === undefined || value === null) return null;
             
             // Formatear valores numéricos con 1 decimal
             const formattedValue = typeof value === 'number' 
               ? value % 1 === 0 ? value : value.toFixed(1)
-              : value;
+              : String(value);
             
             // Formatear nombres de clave para mejor legibilidad
             const formattedKey = key
@@ -643,8 +656,8 @@ function InsightCard({
             {insight.description}
           </p>
           
-          {/* Validar la existencia y tipo de relatedReports */}
-          {insight.relatedReports && Array.isArray(insight.relatedReports) && insight.relatedReports.length > 0 && (
+          {/* Validar la existencia y tipo de relatedReports de manera segura */}
+          {insight?.relatedReports && Array.isArray(insight.relatedReports) && insight.relatedReports.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {expanded && insight.relatedReports.map((reportId, index) => (
                 <Badge key={`${reportId || 'unknown'}-${index}`} variant="secondary" className="text-xs">

@@ -205,10 +205,12 @@ export default function AIDashboardPage() {
           </Card>
         }
       >
-        <InsightsDashboard 
-          timeRange={timeRange}
-          className="h-full"
-        />
+        {timeRange && (
+          <InsightsDashboard 
+            timeRange={timeRange}
+            className="h-full"
+          />
+        )}
       </SafeRender>
       
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">

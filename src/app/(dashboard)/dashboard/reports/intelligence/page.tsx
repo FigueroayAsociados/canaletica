@@ -396,10 +396,12 @@ export default function IntelligentReportsPage() {
               </Card>
             }
           >
-            <InsightsDashboard 
-              timeRange={timeRange}
-              className="h-full"
-            />
+            {timeRange && (
+              <InsightsDashboard 
+                timeRange={timeRange}
+                className="h-full"
+              />
+            )}
           </SafeRender>
         </TabsContent>
 
