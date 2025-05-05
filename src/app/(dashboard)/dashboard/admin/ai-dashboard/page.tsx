@@ -190,28 +190,22 @@ export default function AIDashboardPage() {
         </Card>
       </div>
       
-      {/* Envolver el componente InsightsDashboard en SafeRender para protegerlo de errores */}
-      <SafeRender
-        condition={Boolean(companyId) && aiDashboardEnabled}
-        fallback={
-          <Card>
-            <CardContent className="p-6">
-              <Alert>
-                <AlertDescription>
-                  No se puede cargar el dashboard en este momento. Verifique su conexión e inténtelo de nuevo.
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-        }
-      >
-        {timeRange && (
-          <InsightsDashboard 
-            timeRange={timeRange}
-            className="h-full"
-          />
-        )}
-      </SafeRender>
+      {/* Versión simplificada del panel de insights */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Panel de Insights IA</CardTitle>
+          <CardDescription>Análisis automatizado de denuncias</CardDescription>
+        </CardHeader>
+        <CardContent className="py-10">
+          <div className="text-center max-w-md mx-auto">
+            <Info className="h-10 w-10 text-primary/40 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Configurando Dashboard IA</h3>
+            <p className="text-gray-500">
+              Esta funcionalidad está siendo actualizada. Por favor, intente de nuevo más tarde.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
       
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h2 className="text-lg font-medium text-gray-900 mb-3">

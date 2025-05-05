@@ -379,30 +379,21 @@ export default function IntelligentReportsPage() {
         </TabsContent>
         
         <TabsContent value="insights">
-          <SafeRender
-            condition={Boolean(companyId) && typeof isAIEnabled === 'function' ? isAIEnabled() : false}
-            fallback={
-              <Card>
-                <CardContent className="py-10">
-                  <div className="text-center max-w-md mx-auto">
-                    <Info className="h-10 w-10 text-primary/40 mx-auto mb-3" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Insights IA no disponibles</h3>
-                    <p className="text-gray-500">
-                      Para acceder a los insights de inteligencia artificial, es necesario tener habilitada esta funcionalidad. 
-                      {isSuperAdmin ? " Como super administrador, puede activarla en la sección de configuración." : " Contacte con el administrador para activar esta característica."}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            }
-          >
-            {timeRange && (
-              <InsightsDashboard 
-                timeRange={timeRange}
-                className="h-full"
-              />
-            )}
-          </SafeRender>
+          <Card>
+            <CardHeader>
+              <CardTitle>Insights IA</CardTitle>
+              <CardDescription>Análisis automatizado de sus datos</CardDescription>
+            </CardHeader>
+            <CardContent className="py-10">
+              <div className="text-center max-w-md mx-auto">
+                <Info className="h-10 w-10 text-primary/40 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Configurando Insights IA</h3>
+                <p className="text-gray-500">
+                  Esta funcionalidad está siendo actualizada. Por favor, intente de nuevo más tarde.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="categories">
