@@ -192,7 +192,7 @@ export default function AIDashboardPage() {
       
       {/* Envolver el componente InsightsDashboard en SafeRender para protegerlo de errores */}
       <SafeRender
-        condition={Boolean(companyId) && isAIEnabled}
+        condition={Boolean(companyId) && Boolean(isAIEnabled)}
         fallback={
           <Card>
             <CardContent className="p-6">

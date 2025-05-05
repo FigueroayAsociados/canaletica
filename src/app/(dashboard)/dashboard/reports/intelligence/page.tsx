@@ -380,7 +380,7 @@ export default function IntelligentReportsPage() {
         
         <TabsContent value="insights">
           <SafeRender
-            condition={Boolean(companyId) && isAIEnabled && isAIEnabled()}
+            condition={Boolean(companyId) && typeof isAIEnabled === 'function' ? isAIEnabled() : false}
             fallback={
               <Card>
                 <CardContent className="py-10">
