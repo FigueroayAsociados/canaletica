@@ -31,6 +31,11 @@ export function useAlerts() {
    * Verifica si las alertas inteligentes están habilitadas
    */
   const areAlertsEnabled = useCallback(() => {
+    // Verificar que isEnabled es una función antes de llamarla
+    if (typeof isEnabled !== 'function') {
+      console.error('isEnabled no es una función válida en useAlerts');
+      return false;
+    }
     return isEnabled('aiEnabled') && isEnabled('smartAlertsEnabled');
   }, [isEnabled]);
   

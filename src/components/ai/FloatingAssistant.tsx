@@ -62,6 +62,11 @@ export default function FloatingAssistant() {
 
   // Verificar si el asistente conversacional está habilitado
   const isAssistantEnabled = () => {
+    // Verificar que isEnabled es una función antes de llamarla
+    if (typeof isEnabled !== 'function') {
+      console.error('isEnabled no es una función válida en FloatingAssistant');
+      return false;
+    }
     return isEnabled('aiEnabled') && isEnabled('conversationalAssistantEnabled');
   };
 
