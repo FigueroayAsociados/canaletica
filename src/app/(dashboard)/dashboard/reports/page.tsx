@@ -70,13 +70,24 @@ export default function ReportsPage() {
   
   // Aplicar filtros cuando cambien los datos o los filtros
   useEffect(() => {
-    if (!data?.success || !data?.reports?.length) return;
+    if (!data?.success || !data?.reports?.length) {
+      console.log("No hay datos de reportes disponibles:", data);
+      return;
+    }
+    
+    console.log(`Total de denuncias cargadas: ${data.reports.length}`);
+    console.log("Filtros actuales:", filters);
+    
+    // Verificar los estados disponibles en las denuncias
+    const availableStatuses = [...new Set(data.reports.map(report => report.status))];
+    console.log("Estados disponibles en las denuncias:", availableStatuses);
     
     let result = [...data.reports];
     
-    // Filtrar por estado
+    // Filtrar por estado - hacerlo case insensitive para evitar problemas con mayúsculas/minúsculas
     if (filters.status) {
-      result = result.filter(report => report.status === filters.status);
+      result = result.filter(report => report.status.toLowerCase() === filters.status.toLowerCase());
+      console.log(`Filtrando por estado: ${filters.status}, encontradas: ${result.length} denuncias`);
     }
     
     // Filtrar por categoría
@@ -212,16 +223,16 @@ export default function ReportsPage() {
                 className="w-full"
               >
                 <option value="">Todos los estados</option>
-                <option value="Nuevo">Nuevo</option>
-                <option value="Admitida">Admitida</option>
-                <option value="Asignada">Asignada</option>
-                <option value="En Investigación">En Investigación</option>
-                <option value="Pendiente Información">Pendiente Información</option>
-                <option value="En Evaluación">En Evaluación</option>
-                <option value="Resuelta">Resuelta</option>
-                <option value="En Seguimiento">En Seguimiento</option>
-                <option value="Cerrada">Cerrada</option>
-                <option value="Rechazada">Rechazada</option>
+                <option value="nuevo">Nuevo</option>
+                <option value="admitida">Admitida</option>
+                <option value="asignada">Asignada</option>
+                <option value="en investigación">En Investigación</option>
+                <option value="pendiente información">Pendiente Información</option>
+                <option value="en evaluación">En Evaluación</option>
+                <option value="resuelta">Resuelta</option>
+                <option value="en seguimiento">En Seguimiento</option>
+                <option value="cerrada">Cerrada</option>
+                <option value="rechazada">Rechazada</option>
               </Select>
             </div>
             
