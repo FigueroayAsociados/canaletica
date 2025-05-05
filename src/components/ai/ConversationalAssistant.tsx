@@ -315,7 +315,7 @@ export default function ConversationalAssistant({
           </Alert>
         )}
         
-        {!isAIEnabled() && (
+        {typeof isAIEnabled === 'function' && !isAIEnabled() && (
           <Alert className="mb-3 bg-amber-50 border-amber-200">
             <AlertDescription className="text-amber-700">
               Las funcionalidades de IA no están habilitadas para esta empresa. Contacta con el administrador.
@@ -341,12 +341,12 @@ export default function ConversationalAssistant({
                 handleSendMessage();
               }
             }}
-            disabled={isProcessingMessage || !isAIEnabled()}
+            disabled={isProcessingMessage || (typeof isAIEnabled === 'function' ? !isAIEnabled() : true)}
             rows={2}
           />
           <Button 
             onClick={handleSendMessage}
-            disabled={isProcessingMessage || !input.trim() || !isAIEnabled()}
+            disabled={isProcessingMessage || !input.trim() || (typeof isAIEnabled === 'function' ? !isAIEnabled() : true)}
             className="self-end"
           >
             {isProcessingMessage ? (
