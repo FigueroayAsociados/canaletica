@@ -54,7 +54,9 @@ export function useAI() {
     }
     
     // Verificar si la funcionalidad está habilitada
-    const aiFeatureEnabled = isEnabled('aiEnabled');
+    // Los superadministradores siempre tienen acceso a IA
+    const isSuperAdmin = isEnabled('superadmin_access');
+    const aiFeatureEnabled = isSuperAdmin || isEnabled('aiEnabled');
     if (!aiFeatureEnabled) {
       setError('Funcionalidad de IA no habilitada');
       return [];
@@ -92,7 +94,9 @@ export function useAI() {
     }
     
     // Verificar si la funcionalidad está habilitada
-    const aiFeatureEnabled = isEnabled('aiEnabled');
+    // Los superadministradores siempre tienen acceso a IA
+    const isSuperAdmin = isEnabled('superadmin_access');
+    const aiFeatureEnabled = isSuperAdmin || isEnabled('aiEnabled');
     if (!aiFeatureEnabled) {
       setError('Funcionalidad de IA no habilitada');
       return null;
@@ -122,8 +126,15 @@ export function useAI() {
   
   /**
    * Verifica si la IA está habilitada para esta empresa
+   * Los superadministradores siempre tienen acceso a todas las funcionalidades de IA
+   * independientemente de si los feature flags están habilitados o no
    */
   const isAIEnabled = useCallback(() => {
+    // Si el usuario es superadministrador, siempre darle acceso a IA
+    if (isEnabled('superadmin_access')) {
+      return true;
+    }
+    // Para otros usuarios, verificar el feature flag
     return isEnabled('aiEnabled');
   }, [isEnabled]);
   
@@ -137,7 +148,9 @@ export function useAI() {
     }
     
     // Verificar si la funcionalidad está habilitada
-    const aiFeatureEnabled = isEnabled('aiEnabled');
+    // Los superadministradores siempre tienen acceso a IA
+    const isSuperAdmin = isEnabled('superadmin_access');
+    const aiFeatureEnabled = isSuperAdmin || isEnabled('aiEnabled');
     if (!aiFeatureEnabled) {
       setError('Funcionalidad de IA no habilitada');
       return null;
@@ -175,7 +188,9 @@ export function useAI() {
     }
     
     // Verificar si la funcionalidad está habilitada
-    const aiFeatureEnabled = isEnabled('aiEnabled');
+    // Los superadministradores siempre tienen acceso a IA
+    const isSuperAdmin = isEnabled('superadmin_access');
+    const aiFeatureEnabled = isSuperAdmin || isEnabled('aiEnabled');
     if (!aiFeatureEnabled) {
       setError('Funcionalidad de IA no habilitada');
       return null;
@@ -240,7 +255,9 @@ export function useAI() {
     }
     
     // Verificar si la funcionalidad está habilitada
-    const aiFeatureEnabled = isEnabled('aiEnabled');
+    // Los superadministradores siempre tienen acceso a IA
+    const isSuperAdmin = isEnabled('superadmin_access');
+    const aiFeatureEnabled = isSuperAdmin || isEnabled('aiEnabled');
     if (!aiFeatureEnabled) {
       setError('Funcionalidad de IA no habilitada');
       return { success: false, error: 'Funcionalidad de IA no habilitada' };
