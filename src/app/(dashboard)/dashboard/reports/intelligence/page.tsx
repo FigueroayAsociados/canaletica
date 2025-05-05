@@ -28,7 +28,7 @@ export default function IntelligentReportsPage() {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [statsLoading, setStatsLoading] = useState<boolean>(true);
   const [statsData, setStatsData] = useState(null);
-  const { getSummary } = useReporting();
+  const { loadSummary } = useReporting();
 
   // Determinar si el usuario es admin o superadmin
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
@@ -44,7 +44,7 @@ export default function IntelligentReportsPage() {
       
       setStatsLoading(true);
       try {
-        const summary = await getSummary({ 
+        const summary = await loadSummary({ 
           timeframe: timeRange,
           showAIInsights: true
         });
@@ -58,7 +58,7 @@ export default function IntelligentReportsPage() {
     };
     
     loadStats();
-  }, [companyId, timeRange, getSummary]);
+  }, [companyId, timeRange, loadSummary]);
 
   // Si está cargando información del usuario, mostrar un mensaje de carga
   if (userLoading) {
