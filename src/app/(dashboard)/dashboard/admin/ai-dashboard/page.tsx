@@ -60,10 +60,10 @@ export default function AIDashboardPage() {
   }
   
   // Verificar si la característica de IA está habilitada
-  const isAIEnabled = isEnabled('ai_dashboard');
+  const aiDashboardEnabled = isEnabled('ai_dashboard');
   
   // Si la IA no está habilitada, mostrar un mensaje informativo
-  if (!isAIEnabled) {
+  if (!aiDashboardEnabled) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard Avanzado de IA</h1>
@@ -192,7 +192,7 @@ export default function AIDashboardPage() {
       
       {/* Envolver el componente InsightsDashboard en SafeRender para protegerlo de errores */}
       <SafeRender
-        condition={Boolean(companyId) && Boolean(isAIEnabled)}
+        condition={Boolean(companyId) && aiDashboardEnabled}
         fallback={
           <Card>
             <CardContent className="p-6">
