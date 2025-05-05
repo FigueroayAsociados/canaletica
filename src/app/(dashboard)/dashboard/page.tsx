@@ -8,7 +8,9 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import Link from 'next/link';
 import { getDashboardMetrics } from '@/lib/services/dashboardService';
 // Removida importación de iconos no utilizados
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, RefreshCcw } from 'lucide-react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 // Componentes de dashboard
 import SummaryStatCard from '@/components/dashboard/SummaryStatCard';
@@ -25,29 +27,49 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  useEffect(() => {
-    async function fetchMetrics() {
-      try {
-        setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        
-        const result = await getDashboardMetrics(companyId);
-        
-        if (result.success) {
-          setMetrics(result.metrics);
-          setLastUpdated(new Date());
-        } else {
-          setError('No se pudieron cargar las métricas');
-        }
-      } catch (error) {
-        console.error('Error al cargar métricas:', error);
-        setError('Error al cargar las métricas del dashboard');
-      } finally {
-        setLoading(false);
+  const fetchMetrics = async (companyId = 'default') => {
+    try {
+      setLoading(true);
+      
+      const result = await getDashboardMetrics(companyId);
+      
+      if (result.success) {
+        setMetrics(result.metrics);
+        setLastUpdated(new Date());
+      } else {
+        setError('No se pudieron cargar las métricas');
       }
+    } catch (error) {
+      console.error('Error al cargar métricas:', error);
+      setError('Error al cargar las métricas del dashboard');
+    } finally {
+      setLoading(false);
     }
+  };
 
+  // Cargar métricas iniciales
+  useEffect(() => {
     fetchMetrics();
+  }, []);
+  
+  // Configurar un listener para actualizaciones en tiempo real de la colección de denuncias
+  useEffect(() => {
+    const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
+    
+    // Crear referencia a la colección de denuncias
+    const reportsRef = collection(db, `companies/${companyId}/reports`);
+    
+    // Establecer el listener
+    const unsubscribe = onSnapshot(reportsRef, (snapshot) => {
+      // Cuando hay cambios en la colección de denuncias, actualizar las métricas
+      console.log("Detectado cambio en las denuncias. Actualizando dashboard...");
+      fetchMetrics(companyId);
+    }, (error) => {
+      console.error("Error en el listener de denuncias:", error);
+    });
+    
+    // Limpiar el listener cuando el componente se desmonte
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
@@ -157,8 +179,19 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Panel de Control</h1>
-        <div className="text-sm text-gray-500">
-          Última actualización: {lastUpdated.toLocaleString()}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => fetchMetrics()} 
+            className="text-primary hover:text-primary-dark focus:outline-none flex items-center"
+            disabled={loading}
+            title="Actualizar métricas del dashboard"
+          >
+            <RefreshCcw className={`h-5 w-5 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            <span className="text-sm">Actualizar</span>
+          </button>
+          <div className="text-sm text-gray-500">
+            Última actualización: {lastUpdated.toLocaleString()}
+          </div>
         </div>
       </div>
 
