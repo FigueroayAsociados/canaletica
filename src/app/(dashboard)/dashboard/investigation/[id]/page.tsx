@@ -21,6 +21,9 @@ import { FindingsList } from '@/components/investigation/FindingsList';
 import { TasksList } from '@/components/investigation/TasksList';
 import { FinalReport } from '@/components/investigation/FinalReport';
 import { KarinTimeline } from '@/components/investigation/KarinTimeline';
+import { KarinDeadlinesTimeline } from '@/components/investigation/KarinDeadlinesTimeline';
+import SubsanationForm from '@/components/investigation/SubsanationForm';
+import AuthorityNotificationForm from '@/components/investigation/AuthorityNotificationForm';
 import LegalDocumentGenerator from '@/components/ai/LegalDocumentGenerator';
 import LegalDocumentViewer from '@/components/ai/LegalDocumentViewer';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
@@ -32,7 +35,9 @@ import {
 
   getInvestigationDetails,
   completeInvestigation,
-  updateKarinStage
+  updateKarinStage,
+  initializeKarinDeadlines,
+  updateKarinDeadlines
 } from '@/lib/services/investigationService';
 
 export default function InvestigationDetailPage() {
@@ -220,6 +225,67 @@ export default function InvestigationDetailPage() {
     } catch (error) {
       console.error('Error al actualizar etapa Ley Karin:', error);
       setError('Ha ocurrido un error al actualizar la etapa del proceso Ley Karin');
+      return Promise.reject(error);
+    }
+  };
+  
+  // Inicializar plazos Ley Karin si no existen
+  const handleInitializeDeadlines = async () => {
+    try {
+      const companyId = 'default';
+      
+      const result = await initializeKarinDeadlines(
+        companyId,
+        reportId,
+        uid!
+      );
+      
+      if (result.success) {
+        // Recargar los datos de la investigación para reflejar los cambios
+        const updatedResult = await getInvestigationDetails(companyId, reportId);
+        if (updatedResult.success) {
+          setInvestigation(updatedResult.investigation);
+        }
+        
+        return Promise.resolve();
+      } else {
+        setError(result.error || 'Error al inicializar plazos Ley Karin');
+        return Promise.reject(new Error(result.error));
+      }
+    } catch (error) {
+      console.error('Error al inicializar plazos Ley Karin:', error);
+      setError('Ha ocurrido un error al inicializar los plazos del proceso Ley Karin');
+      return Promise.reject(error);
+    }
+  };
+  
+  // Actualizar plazos Ley Karin
+  const handleUpdateDeadlines = async (deadlines: any[]) => {
+    try {
+      const companyId = 'default';
+      
+      const result = await updateKarinDeadlines(
+        companyId,
+        reportId,
+        uid!,
+        deadlines
+      );
+      
+      if (result.success) {
+        // Recargar los datos de la investigación para reflejar los cambios
+        const updatedResult = await getInvestigationDetails(companyId, reportId);
+        if (updatedResult.success) {
+          setInvestigation(updatedResult.investigation);
+        }
+        
+        return Promise.resolve();
+      } else {
+        setError(result.error || 'Error al actualizar plazos Ley Karin');
+        return Promise.reject(new Error(result.error));
+      }
+    } catch (error) {
+      console.error('Error al actualizar plazos Ley Karin:', error);
+      setError('Ha ocurrido un error al actualizar los plazos del proceso Ley Karin');
       return Promise.reject(error);
     }
   };
@@ -794,11 +860,74 @@ export default function InvestigationDetailPage() {
         
         {/* Pestaña de Ley Karin */}
         {investigation?.isKarinLaw && (
-          <TabsContent value="karin">
+          <TabsContent value="karin" className="space-y-6">
             <KarinTimeline
               report={investigation}
               onUpdateStage={handleUpdateKarinStage}
             />
+            
+            {/* Plazos y Visualización - nueva sección para gestión centralizada de plazos */}
+            <KarinDeadlinesTimeline
+              report={investigation}
+              onUpdateDeadlines={handleUpdateDeadlines}
+            />
+            
+            {/* Inicializar plazos si no existen */}
+            {(!investigation?.karinProcess?.deadlines || investigation.karinProcess.deadlines.length === 0) && canEdit && (
+              <Card className="mt-4">
+                <CardContent className="pt-6">
+                  <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+                    <AlertDescription className="text-yellow-800">
+                      Este caso Ley Karin no tiene plazos inicializados. Para cumplir con los 
+                      plazos legales, inicialice el sistema de seguimiento de plazos.
+                    </AlertDescription>
+                  </Alert>
+                  <div className="flex justify-end">
+                    <Button onClick={handleInitializeDeadlines}>
+                      Inicializar Plazos Ley Karin
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Subsanación de Denuncias - mostrado cuando estamos en etapa de subsanación */}
+            {investigation?.karinProcess?.stage === 'subsanation' && (
+              <SubsanationForm
+                report={investigation}
+                companyId="default"
+                onUpdate={() => {
+                  const fetchUpdatedData = async () => {
+                    const companyId = 'default';
+                    const result = await getInvestigationDetails(companyId, reportId);
+                    if (result.success) {
+                      setInvestigation(result.investigation);
+                    }
+                  };
+                  fetchUpdatedData();
+                }}
+                readOnly={!canEdit}
+              />
+            )}
+            
+            {/* Notificaciones a Autoridades - mostrado para etapas relevantes */}
+            {(['reception', 'subsanation', 'dt_notification', 'suseso_notification', 'dt_submission'].includes(investigation?.karinProcess?.stage || '')) && (
+              <AuthorityNotificationForm 
+                report={investigation}
+                companyId="default"
+                onUpdate={() => {
+                  const fetchUpdatedData = async () => {
+                    const companyId = 'default';
+                    const result = await getInvestigationDetails(companyId, reportId);
+                    if (result.success) {
+                      setInvestigation(result.investigation);
+                    }
+                  };
+                  fetchUpdatedData();
+                }}
+                readOnly={!canEdit}
+              />
+            )}
           </TabsContent>
         )}
         
