@@ -316,8 +316,8 @@ export default function AdminLeyKarinPage() {
             <div className="flex flex-nowrap min-w-max gap-2">
               {/* Etapas del proceso como diagrama de flujo */}
               {['complaint_filed', 'reception', 'subsanation', 'precautionary_measures', 'decision_to_investigate', 
-                'investigation', 'report_creation', 'dt_notification', 'suseso_notification', 'report_approval', 
-                'labor_department', 'final_report', 'dt_submission', 'dt_resolution', 'measures_adoption', 'sanctions', 'closed']
+                'investigation', 'report_creation', 'report_approval', 'dt_notification', 'suseso_notification', 
+                'investigation_complete', 'final_report', 'dt_submission', 'dt_resolution', 'measures_adoption', 'sanctions', 'closed']
                 .map((stage, index, stages) => {
                   // Determinar si la etapa está completa o activa basado en el reporte seleccionado
                   let isActive = false;
@@ -529,10 +529,11 @@ export default function AdminLeyKarinPage() {
               <div className="border-t pt-4">
                 <h4 className="font-medium mb-2">Actualizar etapa del proceso</h4>
                 <div className="grid grid-cols-1 gap-4">
-                  {['complaint_filed', 'reception', 'subsanation', 'dt_notification', 'suseso_notification',
-                   'precautionary_measures', 'decision_to_investigate', 'investigation', 
-                   'report_creation', 'report_approval', 'labor_department', 'dt_resolution',
-                   'measures_adoption', 'sanctions', 'third_party', 'subcontracting', 'closed'].map((stage) => (
+                  {['complaint_filed', 'reception', 'subsanation', 'precautionary_measures', 
+                   'decision_to_investigate', 'investigation', 'report_creation', 'report_approval',
+                   'dt_notification', 'suseso_notification', 'investigation_complete', 'final_report',
+                   'dt_submission', 'dt_resolution', 'measures_adoption', 'sanctions', 
+                   'third_party', 'subcontracting', 'closed'].map((stage) => (
                     <Button 
                       key={stage}
                       variant={selectedReport.karinProcess?.stage === stage ? "default" : "outline"} 

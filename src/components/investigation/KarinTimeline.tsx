@@ -164,16 +164,16 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       'complaint_filed': 'Interposición de Denuncia',
       'reception': 'Recepción de Denuncia',
       'subsanation': 'Subsanación de Denuncia',
-      'dt_notification': 'Notificación Inicial a DT (3 días)',
-      'suseso_notification': 'Notificación a Mutualidad (5 días)',
+      'dt_notification': 'Notificación a DT',
+      'suseso_notification': 'Notificación a SUSESO/Mutualidad',
       'precautionary_measures': 'Medidas Precautorias',
       'decision_to_investigate': 'Decisión de Investigar',
       'investigation': 'Investigación',
-      'report_creation': 'Informe Preliminar', 
-      'report_approval': 'Revisión de Informe Preliminar',
-      'labor_department': 'Investigación Completa',
-      'final_report': 'Informe Final',
-      'dt_submission': 'Envío a DT (2 días)',
+      'report_creation': 'Creación Informe Preliminar', 
+      'report_approval': 'Revisión Interna del Informe',
+      'investigation_complete': 'Investigación Completa',
+      'final_report': 'Creación Informe Final',
+      'dt_submission': 'Envío Formal a DT (2 días)',
       'dt_resolution': 'Resolución de la DT (30 días)',
       'measures_adoption': 'Adopción de Medidas (15 días)',
       'sanctions': 'Sanciones',
@@ -184,7 +184,8 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       'closed': 'Caso Cerrado',
       // Mapear valores antiguos por compatibilidad
       'orientation': 'Interposición de Denuncia', // Valor antiguo mapeado a etapa actual
-      'preliminaryReport': 'Informe Preliminar' // Valor antiguo mapeado a etapa actual
+      'preliminaryReport': 'Creación Informe Preliminar', // Valor antiguo mapeado a etapa actual
+      'labor_department': 'Investigación Completa' // Para compatibilidad con casos existentes
     };
     
     return stages[stage] || stage;
@@ -204,14 +205,14 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
     const mainFlow: {[key: string]: string} = {
       'complaint_filed': 'reception',                 // Etapa 1: Interposición de Denuncia
       'reception': 'precautionary_measures',          // Etapa 2: Recepción -> Etapa 3: Medidas Precautorias
-      'precautionary_measures': 'decision_to_investigate', // Etapa 3: Medidas -> Etapa 7: Decisión de Investigar
-      'decision_to_investigate': 'investigation',     // Etapa 7: Decisión -> Etapa 6: Investigación
-      'investigation': 'report_creation',             // Etapa 6: Investigación -> Etapa 8: Informe preliminar
-      'report_creation': 'dt_notification',           // Etapa 8: Informe -> Etapa 4: Notificación a DT
-      'dt_notification': 'suseso_notification',       // Etapa 4: Notificación DT -> Etapa 5: Notificación SUSESO
-      'suseso_notification': 'report_approval',       // Etapa 5: Notificación SUSESO -> Etapa 9: Revisión Informe
-      'report_approval': 'labor_department',          // Etapa 9: Revisión -> Etapa 10: Investigación Completa
-      'labor_department': 'final_report',             // Etapa 10: Investigación Completa -> Etapa 11: Informe Final
+      'precautionary_measures': 'decision_to_investigate', // Etapa 3: Medidas -> Etapa 4: Decisión de Investigar
+      'decision_to_investigate': 'investigation',     // Etapa 4: Decisión -> Etapa 5: Investigación
+      'investigation': 'report_creation',             // Etapa 5: Investigación -> Etapa 6: Informe preliminar
+      'report_creation': 'report_approval',           // Etapa 6: Creación Informe -> Etapa 7: Revisión Interna
+      'report_approval': 'dt_notification',           // Etapa 7: Revisión Interna -> Etapa 8: Notificación a DT
+      'dt_notification': 'suseso_notification',       // Etapa 8: Notificación DT -> Etapa 9: Notificación SUSESO
+      'suseso_notification': 'investigation_complete', // Etapa 9: Notificación SUSESO -> Etapa 10: Investigación Completa
+      'investigation_complete': 'final_report',       // Etapa 10: Investigación Completa -> Etapa 11: Informe Final
       'final_report': 'dt_submission',                // Etapa 11: Informe Final -> Etapa 12: Envío a DT
       'dt_submission': 'dt_resolution',               // Etapa 12: Envío a DT -> Etapa 13: Resolución DT
       'dt_resolution': 'measures_adoption',           // Etapa 13: Resolución DT -> Etapa 14: Adopción Medidas
@@ -332,7 +333,8 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
     }
     
     // Investigación completa - Verificar que se completó la investigación
-    if (currentStage === 'labor_department' && !report.karinProcess?.investigationCompleted) {
+    if ((currentStage === 'investigation_complete' || currentStage === 'labor_department') && 
+        !report.karinProcess?.investigationCompleted) {
       return false;
     }
     
@@ -595,11 +597,18 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                     
                     {currentStage === 'report_approval' && (
                       <p className="text-xs text-orange-600 mt-1">
-                        <strong>Requisito:</strong> Se debe revisar el informe preliminar antes de que sea enviado como 
-                        parte de la notificación a la DT.
+                        <strong>Requisito:</strong> Se debe revisar y aprobar internamente el informe preliminar 
+                        antes de notificar a la DT y SUSESO.
                       </p>
                     )}
                     
+                    {currentStage === 'investigation_complete' && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        <strong>Plazo legal:</strong> La investigación debe completarse en un máximo de 30 días hábiles.
+                      </p>
+                    )}
+                    
+                    {/* Para compatibilidad con registros antiguos */}
                     {currentStage === 'labor_department' && (
                       <p className="text-xs text-orange-600 mt-1">
                         <strong>Plazo legal:</strong> La investigación debe completarse en un máximo de 30 días hábiles.

@@ -113,13 +113,13 @@ export type KarinProcessStage =
   | 'reception'             // Etapa 2: Recepción de Denuncia
   | 'subsanation'           // Etapa 2.1: Subsanación de la Denuncia (si es necesario)
   | 'precautionary_measures'// Etapa 3: Medidas Precautorias o de Resguardo
-  | 'decision_to_investigate'// Etapa 7: Decisión de Investigar
-  | 'investigation'         // Etapa 6: Investigación
-  | 'report_creation'       // Etapa 8: Creación del Informe Preliminar
-  | 'dt_notification'       // Etapa 4: Notificación a DT con informe preliminar
-  | 'suseso_notification'   // Etapa 5: Notificación a mutualidades/SUSESO
-  | 'report_approval'       // Etapa 9: Revisión y Aprobación del Informe
-  | 'labor_department'      // Etapa 10: Investigación completa (30 días máximo)
+  | 'decision_to_investigate'// Etapa 4: Decisión de Investigar
+  | 'investigation'         // Etapa 5: Investigación
+  | 'report_creation'       // Etapa 6: Creación del Informe Preliminar
+  | 'report_approval'       // Etapa 7: Revisión Interna del Informe
+  | 'dt_notification'       // Etapa 8: Notificación a DT con informe preliminar
+  | 'suseso_notification'   // Etapa 9: Notificación a mutualidades/SUSESO
+  | 'investigation_complete'// Etapa 10: Investigación completa (30 días máximo)
   | 'final_report'          // Etapa 11: Creación del Informe Final
   | 'dt_submission'         // Etapa 12: Envío a DT (2 días desde finalización)
   | 'dt_resolution'         // Etapa 13: Resolución de la DT (30 días hábiles)
@@ -130,6 +130,7 @@ export type KarinProcessStage =
   | 'third_party'           // Caso especial: Conductas por terceros
   | 'subcontracting'        // Caso especial: Régimen de Subcontratación
   | 'closed'                // Finalizado
+  | 'labor_department'      // Valor antiguo (para compatibilidad, equivalente a investigation_complete)
   | 'orientation';          // Valor antiguo (mantenido para compatibilidad)
 
 // Ahora CategoryType puede ser cualquier string (ID de la categoría)
