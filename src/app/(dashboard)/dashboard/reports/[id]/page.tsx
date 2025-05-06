@@ -22,7 +22,8 @@ import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { Spinner } from '@/components/ui/spinner';
 import { 
   useReport, 
-  useUpdateReportStatus, 
+  useUpdateReportStatus,
+  useUpdateKarinStage, 
   useUsersByRole,
   useAssignInvestigator,
   useAddCommunication
@@ -66,13 +67,19 @@ export default function ReportDetailPage() {
 
   // Preparar las mutaciones
   const updateStatusMutation = useUpdateReportStatus();
+  const updateKarinStage = useUpdateKarinStage();
   const assignInvestigatorMutation = useAssignInvestigator();
   const addCommunicationMutation = useAddCommunication();
   
   // Inicializar estados cuando los datos están disponibles
   useEffect(() => {
     if (reportResult?.success && reportResult.report) {
-      setNewStatus(reportResult.report.status);
+      // Para casos de Ley Karin, usar la etapa del proceso como estado inicial
+      if (reportResult.report.isKarinLaw) {
+        setNewStatus(reportResult.report.karinProcess?.stage || 'complaint_filed');
+      } else {
+        setNewStatus(reportResult.report.status);
+      }
       setSelectedInvestigator(reportResult.report.assignedTo || '');
       
       // Verificar si la IA está habilitada
@@ -105,19 +112,35 @@ export default function ReportDetailPage() {
   
   // Manejar cambio de estado
   const handleStatusChange = async () => {
-    if (!report || newStatus === report.status || !uid) return;
+    if (!report || (report.isKarinLaw ? (report.karinProcess?.stage === newStatus) : (newStatus === report.status)) || !uid) return;
     
     try {
-      // Ejecutar la mutación
-      await updateStatusMutation.mutateAsync({
-        companyId,
-        reportId,
-        status: newStatus,
-        additionalData: { actorId: uid, comment: statusComment }
-      });
-      
-      // Actualizar estadísticas
-      await updateReportStats(companyId, report.status, newStatus);
+      if (report.isKarinLaw) {
+        // Para casos de Ley Karin, usamos la actualización de etapa de proceso
+        await updateKarinStage({
+          companyId,
+          reportId,
+          newStage: newStatus,
+          additionalData: { 
+            actorId: uid, 
+            notes: statusComment 
+          }
+        });
+      } else {
+        // Para casos normales, usamos la actualización de estado estándar
+        await updateStatusMutation.mutateAsync({
+          companyId,
+          reportId,
+          status: newStatus,
+          additionalData: { 
+            actorId: uid, 
+            comment: statusComment 
+          }
+        });
+        
+        // Actualizar estadísticas
+        await updateReportStats(companyId, report.status, newStatus);
+      }
       
       // Limpiar comentario
       setStatusComment('');
@@ -226,6 +249,7 @@ export default function ReportDetailPage() {
   // Comprobaciones pendientes mientras se cargan las mutaciones
   const isSubmitting = 
     updateStatusMutation.isPending || 
+    updateKarinStage.isPending ||
     assignInvestigatorMutation.isPending || 
     addCommunicationMutation.isPending;
   
@@ -259,16 +283,18 @@ export default function ReportDetailPage() {
       </div>
       
       {/* Mostrar errores de mutaciones si existen */}
-      {(updateStatusMutation.isError || assignInvestigatorMutation.isError || addCommunicationMutation.isError) && (
+      {(updateStatusMutation.isError || updateKarinStage.isError || assignInvestigatorMutation.isError || addCommunicationMutation.isError) && (
         <Alert variant="error">
           <AlertDescription>
             {updateStatusMutation.error instanceof Error 
               ? updateStatusMutation.error.message 
-              : assignInvestigatorMutation.error instanceof Error 
-                ? assignInvestigatorMutation.error.message
-                : addCommunicationMutation.error instanceof Error
-                  ? addCommunicationMutation.error.message
-                  : 'Error al realizar la acción'}
+              : updateKarinStage.error instanceof Error
+                ? updateKarinStage.error.message
+                : assignInvestigatorMutation.error instanceof Error 
+                  ? assignInvestigatorMutation.error.message
+                  : addCommunicationMutation.error instanceof Error
+                    ? addCommunicationMutation.error.message
+                    : 'Error al realizar la acción'}
           </AlertDescription>
         </Alert>
       )}
@@ -520,16 +546,41 @@ export default function ReportDetailPage() {
                     onChange={(e) => setNewStatus(e.target.value)}
                     className="mt-1"
                   >
-                    <option value="Nuevo">Nuevo</option>
-                    <option value="Admitida">Admitida</option>
-                    <option value="Asignada">Asignada</option>
-                    <option value="En Investigación">En Investigación</option>
-                    <option value="Pendiente Información">Pendiente Información</option>
-                    <option value="En Evaluación">En Evaluación</option>
-                    <option value="Resuelta">Resuelta</option>
-                    <option value="En Seguimiento">En Seguimiento</option>
-                    <option value="Cerrada">Cerrada</option>
-                    <option value="Rechazada">Rechazada</option>
+                    {/* Mostrar estados específicos para casos de Ley Karin */}
+                    {report.isKarinLaw ? (
+                      <>
+                        <option value="complaint_filed">Etapa 1: Interposición de la Denuncia</option>
+                        <option value="reception">Etapa 2: Recepción de Denuncia</option>
+                        <option value="subsanation">Etapa 2.1: Subsanación de la Denuncia</option>
+                        <option value="precautionary_measures">Etapa 3: Medidas Precautorias</option>
+                        <option value="decision_to_investigate">Etapa 4: Decisión de Investigar</option>
+                        <option value="investigation">Etapa 5: Investigación</option>
+                        <option value="report_creation">Etapa 6: Creación del Informe Preliminar</option>
+                        <option value="report_approval">Etapa 7: Revisión Interna del Informe</option>
+                        <option value="dt_notification">Etapa 8: Notificación a DT</option>
+                        <option value="suseso_notification">Etapa 9: Notificación a SUSESO</option>
+                        <option value="investigation_complete">Etapa 10: Investigación completa</option>
+                        <option value="final_report">Etapa 11: Creación del Informe Final</option>
+                        <option value="dt_submission">Etapa 12: Envío a DT</option>
+                        <option value="dt_resolution">Etapa 13: Resolución de la DT</option>
+                        <option value="measures_adoption">Etapa 14: Adopción de Medidas</option>
+                        <option value="sanctions">Etapa 15: Sanciones</option>
+                        <option value="closed">Finalizado</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Nuevo">Nuevo</option>
+                        <option value="Admitida">Admitida</option>
+                        <option value="Asignada">Asignada</option>
+                        <option value="En Investigación">En Investigación</option>
+                        <option value="Pendiente Información">Pendiente Información</option>
+                        <option value="En Evaluación">En Evaluación</option>
+                        <option value="Resuelta">Resuelta</option>
+                        <option value="En Seguimiento">En Seguimiento</option>
+                        <option value="Cerrada">Cerrada</option>
+                        <option value="Rechazada">Rechazada</option>
+                      </>
+                    )}
                   </Select>
                 </div>
                 
