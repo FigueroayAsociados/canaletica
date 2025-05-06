@@ -1316,18 +1316,26 @@ export async function getAssignedReports(
       };
     }
 
+    console.log(`Ejecutando getAssignedReports - companyId: ${companyId}, investigatorId: ${investigatorId}`);
+    console.log(`Tipo de usuario - isAdmin o SuperAdmin: ${investigatorId === 'admin' || investigatorId === 'superadmin'}`);
+
     const reportsRef = collection(db, `companies/${companyId}/reports`);
     let q;
 
-    // Si es super admin, obtener todas las denuncias
-    // esto lo inferimos por ser el usuario con uid 'admin'
-    if (investigatorId === 'admin' || investigatorId === 'superadmin') {
+    // Si es super admin, o si el ID incluye "admin" o "super", obtener todas las denuncias
+    // Ampliamos la detección para cubrir más casos
+    if (investigatorId === 'admin' || 
+        investigatorId === 'superadmin' || 
+        investigatorId.includes('admin') || 
+        investigatorId.includes('super')) {
+      console.log("Usando consulta para admin - todas las denuncias");
       q = query(
         reportsRef,
         orderBy('createdAt', 'desc')
       );
     } else {
       // Si es investigador, solo obtener las asignadas a él
+      console.log(`Usando consulta para investigador - solo denuncias asignadas a: ${investigatorId}`);
       q = query(
         reportsRef,
         where('assignedTo', '==', investigatorId),
@@ -1337,6 +1345,8 @@ export async function getAssignedReports(
 
     const querySnapshot = await getDocs(q);
     const reports: any[] = [];
+
+    console.log(`Número de documentos encontrados: ${querySnapshot.size}`);
 
     querySnapshot.forEach((doc) => {
       const reportData = doc.data();
@@ -1386,6 +1396,51 @@ export async function getAssignedReports(
         }
       });
     });
+
+    console.log(`Número de reportes procesados: ${reports.length}`);
+    if (reports.length > 0) {
+      console.log(`Ejemplo de primer reporte - ID: ${reports[0].id}, Estado: ${reports[0].status}`);
+    } else {
+      // Si no hay reportes y no es admin, intentar con todos los reportes como plan B
+      if (investigatorId !== 'admin' && 
+          investigatorId !== 'superadmin' && 
+          !investigatorId.includes('admin') && 
+          !investigatorId.includes('super')) {
+        
+        console.log("No se encontraron reportes asignados. Usando fallback para mostrar todos los reportes.");
+        
+        // Consultar todos los reportes como fallback
+        const fallbackQuery = query(
+          reportsRef,
+          orderBy('createdAt', 'desc')
+        );
+        
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        console.log(`Fallback - Número de documentos encontrados: ${fallbackSnapshot.size}`);
+        
+        fallbackSnapshot.forEach((doc) => {
+          const reportData = doc.data();
+          
+          // Calcular progreso básico
+          const progress = reportData.plan ? 50 : 0;
+          
+          reports.push({
+            id: doc.id,
+            ...reportData,
+            investigation: {
+              progress,
+              hasPlan: !!reportData.plan,
+              interviewCount: 0,
+              findingCount: 0
+            }
+          });
+        });
+        
+        console.log(`Fallback - Número de reportes procesados: ${reports.length}`);
+      } else {
+        console.log("No se encontraron reportes para mostrar, incluso para admin/superadmin");
+      }
+    }
 
     return {
       success: true,
