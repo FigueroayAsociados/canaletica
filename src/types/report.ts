@@ -47,7 +47,7 @@ export type DeadlineStatus =
   | 'completed';        // Tarea completada dentro del plazo
 
 // Modelo para preguntas de evaluación de riesgo Ley Karin
-export interface KarinRiskQuestion {
+export type KarinRiskQuestion = {
   id: KarinRiskFactorType;
   question: string;
   description?: string;
@@ -165,14 +165,14 @@ export type CiberseguridadSubcategory =
   | 'interceptacion_datos'
   | 'otro';
 
-export interface EvidenceType {
+export type EvidenceType = {
   id?: string;
   file?: File;
   description: string;
   url?: string;
 }
 
-export interface AccusedPersonType {
+export type AccusedPersonType = {
   id: string;
   name: string;
   position: string;
@@ -180,14 +180,14 @@ export interface AccusedPersonType {
   relationship: string;
 }
 
-export interface WitnessType {
+export type WitnessType = {
   id: string;
   name: string;
   contact?: string;
 }
 
 // Medidas precautorias para Ley Karin
-export interface PrecautionaryMeasure {
+export type PrecautionaryMeasure = {
   id: string;
   name: string;
   description: string;
@@ -243,7 +243,7 @@ export const DEFAULT_PRECAUTIONARY_MEASURES: PrecautionaryMeasure[] = [
 ];
 
 // Interfaz para el formulario completo
-export interface ReportFormValues {
+export type ReportFormValues = {
   // Paso 1: Identificación del Denunciante
   relationship: RelationshipType;
   isAnonymous: boolean;
@@ -303,7 +303,7 @@ export interface ReportFormValues {
   
   // Campos para el procedimiento específico de Ley Karin
 // Interfaz para deadlines de Ley Karin
-export interface KarinDeadline {
+export type KarinDeadline = {
   id: string;
   name: string;                     // Nombre descriptivo del plazo
   description: string;              // Descripción del plazo
