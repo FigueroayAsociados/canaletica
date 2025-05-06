@@ -200,23 +200,23 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       mappedStage = 'report_creation';
     }
     
-    // Flujo principal actualizado según plazos de Ley Karin
+    // Flujo principal actualizado según plazos de Ley Karin y requisitos legales
     const mainFlow: {[key: string]: string} = {
-      'complaint_filed': 'reception',
-      'reception': 'dt_notification', // Notificar a DT (3 días desde recepción)
-      'dt_notification': 'suseso_notification', // Notificar a SUSESO (5 días desde recepción)
-      'suseso_notification': 'precautionary_measures', // Implementar medidas precautorias
-      'precautionary_measures': 'decision_to_investigate',
-      'decision_to_investigate': 'investigation',
-      'investigation': 'report_creation', // Informe preliminar
-      'report_creation': 'report_approval', // Revisión del informe preliminar
-      'report_approval': 'labor_department', // Investigación completa (30 días máximo)
-      'labor_department': 'final_report', // Crear informe final
-      'final_report': 'dt_submission', // Enviar a DT (2 días desde finalización)
-      'dt_submission': 'dt_resolution', // Esperar resolución DT (30 días)
-      'dt_resolution': 'measures_adoption', // Adoptar medidas (15 días corridos)
-      'measures_adoption': 'sanctions',
-      'sanctions': 'closed'
+      'complaint_filed': 'reception',                 // Etapa 1: Interposición de Denuncia
+      'reception': 'precautionary_measures',          // Etapa 2: Recepción -> Etapa 3: Medidas Precautorias
+      'precautionary_measures': 'decision_to_investigate', // Etapa 3: Medidas -> Etapa 7: Decisión de Investigar
+      'decision_to_investigate': 'investigation',     // Etapa 7: Decisión -> Etapa 6: Investigación
+      'investigation': 'report_creation',             // Etapa 6: Investigación -> Etapa 8: Informe preliminar
+      'report_creation': 'dt_notification',           // Etapa 8: Informe -> Etapa 4: Notificación a DT
+      'dt_notification': 'suseso_notification',       // Etapa 4: Notificación DT -> Etapa 5: Notificación SUSESO
+      'suseso_notification': 'report_approval',       // Etapa 5: Notificación SUSESO -> Etapa 9: Revisión Informe
+      'report_approval': 'labor_department',          // Etapa 9: Revisión -> Etapa 10: Investigación Completa
+      'labor_department': 'final_report',             // Etapa 10: Investigación Completa -> Etapa 11: Informe Final
+      'final_report': 'dt_submission',                // Etapa 11: Informe Final -> Etapa 12: Envío a DT
+      'dt_submission': 'dt_resolution',               // Etapa 12: Envío a DT -> Etapa 13: Resolución DT
+      'dt_resolution': 'measures_adoption',           // Etapa 13: Resolución DT -> Etapa 14: Adopción Medidas
+      'measures_adoption': 'sanctions',               // Etapa 14: Adopción Medidas -> Etapa 15: Sanciones
+      'sanctions': 'closed'                           // Etapa 15: Sanciones -> Cierre
     };
     
     // Flujos alternativos según condiciones del caso
@@ -227,7 +227,7 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
       ],
       'subsanation': [
         // Volver al flujo principal después de subsanación
-        { condition: true, nextStage: 'dt_notification' },
+        { condition: true, nextStage: 'precautionary_measures' },
       ],
     };
     
@@ -538,7 +538,7 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                     {/* Información específica según la etapa */}
                     {currentStage === 'reception' && (
                       <p className="text-xs text-orange-600 mt-1">
-                        <strong>Plazo legal:</strong> 3 días hábiles para notificar a DT y adoptar medidas de resguardo.
+                        <strong>Plazo legal:</strong> Proceso inmediato para adoptar medidas precautorias.
                         {report.karinProcess?.requiresSubsanation && 
                           " Se requiere subsanación de la denuncia (plazo de 5 días hábiles)."}
                       </p>
@@ -552,13 +552,15 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                     
                     {currentStage === 'dt_notification' && (
                       <p className="text-xs text-orange-600 mt-1">
-                        <strong>Obligación legal:</strong> Se debe notificar a la DT del inicio de la investigación dentro de 3 días hábiles desde la recepción.
+                        <strong>Obligación legal:</strong> Se debe notificar a la DT con el informe preliminar preparado después de 
+                        tomar la decisión de investigar e iniciar la investigación.
                       </p>
                     )}
                     
                     {currentStage === 'suseso_notification' && (
                       <p className="text-xs text-orange-600 mt-1">
-                        <strong>Obligación legal:</strong> Se debe notificar a las mutualidades (SUSESO) dentro de 5 días hábiles desde el conocimiento.
+                        <strong>Obligación legal:</strong> Después de notificar a la DT, se debe notificar a las mutualidades (SUSESO) 
+                        adjuntando el informe preliminar creado durante la investigación.
                       </p>
                     )}
                     
@@ -586,8 +588,8 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                     
                     {currentStage === 'report_creation' && (
                       <p className="text-xs text-orange-600 mt-1">
-                        <strong>Requisito:</strong> El informe preliminar es parte de la notificación a la DT que debe realizarse 
-                        dentro de los 3 días hábiles de recibida la denuncia.
+                        <strong>Requisito:</strong> El informe preliminar debe crearse después de la investigación y antes 
+                        de notificar a la DT y SUSESO.
                       </p>
                     )}
                     

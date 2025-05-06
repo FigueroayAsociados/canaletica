@@ -112,19 +112,19 @@ export type KarinProcessStage =
   | 'complaint_filed'       // Etapa 1: Interposición de la Denuncia
   | 'reception'             // Etapa 2: Recepción de Denuncia
   | 'subsanation'           // Etapa 2.1: Subsanación de la Denuncia (si es necesario)
-  | 'dt_notification'       // Etapa 2.2: Notificación inicial a DT (3 días desde recepción)
-  | 'suseso_notification'   // Etapa 2.3: Notificación a mutualidades/SUSESO (5 días)
   | 'precautionary_measures'// Etapa 3: Medidas Precautorias o de Resguardo
-  | 'decision_to_investigate'// Etapa 4: Decisión de Investigar
-  | 'investigation'         // Etapa 5: Investigación
-  | 'report_creation'       // Etapa 6a: Creación del Informe Preliminar
-  | 'report_approval'       // Etapa 6b: Aprobación del Informe Preliminar
-  | 'labor_department'      // Etapa 7: Investigación completa (30 días máximo)
-  | 'final_report'          // Etapa 8a: Creación del Informe Final
-  | 'dt_submission'         // Etapa 8b: Envío a DT (2 días desde finalización)
-  | 'dt_resolution'         // Etapa 9: Resolución de la DT (30 días hábiles)
-  | 'measures_adoption'     // Etapa 10: Adopción de Medidas (15 días corridos)
-  | 'sanctions'             // Etapa 11: Sanciones y su Impugnación
+  | 'decision_to_investigate'// Etapa 7: Decisión de Investigar
+  | 'investigation'         // Etapa 6: Investigación
+  | 'report_creation'       // Etapa 8: Creación del Informe Preliminar
+  | 'dt_notification'       // Etapa 4: Notificación a DT con informe preliminar
+  | 'suseso_notification'   // Etapa 5: Notificación a mutualidades/SUSESO
+  | 'report_approval'       // Etapa 9: Revisión y Aprobación del Informe
+  | 'labor_department'      // Etapa 10: Investigación completa (30 días máximo)
+  | 'final_report'          // Etapa 11: Creación del Informe Final
+  | 'dt_submission'         // Etapa 12: Envío a DT (2 días desde finalización)
+  | 'dt_resolution'         // Etapa 13: Resolución de la DT (30 días hábiles)
+  | 'measures_adoption'     // Etapa 14: Adopción de Medidas (15 días corridos)
+  | 'sanctions'             // Etapa 15: Sanciones y su Impugnación
   | 'false_claim'           // Caso especial: Denuncias Falsas
   | 'retaliation_review'    // Caso especial: Prohibición de Represalias
   | 'third_party'           // Caso especial: Conductas por terceros

@@ -315,9 +315,9 @@ export default function AdminLeyKarinPage() {
           <div className="p-4 bg-gray-50 rounded-lg overflow-x-auto">
             <div className="flex flex-nowrap min-w-max gap-2">
               {/* Etapas del proceso como diagrama de flujo */}
-              {['complaint_filed', 'reception', 'subsanation', 'dt_notification', 'suseso_notification', 'precautionary_measures', 
-                'decision_to_investigate', 'investigation', 'report_creation', 'report_approval', 
-                'labor_department', 'dt_resolution', 'measures_adoption', 'sanctions', 'closed']
+              {['complaint_filed', 'reception', 'subsanation', 'precautionary_measures', 'decision_to_investigate', 
+                'investigation', 'report_creation', 'dt_notification', 'suseso_notification', 'report_approval', 
+                'labor_department', 'final_report', 'dt_submission', 'dt_resolution', 'measures_adoption', 'sanctions', 'closed']
                 .map((stage, index, stages) => {
                   // Determinar si la etapa está completa o activa basado en el reporte seleccionado
                   let isActive = false;
