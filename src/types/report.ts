@@ -1,5 +1,6 @@
 // src/types/report.ts
 
+// Tipos básicos
 export type RelationshipType = 
   | 'empleado' 
   | 'proveedor' 
@@ -52,7 +53,7 @@ export type KarinRiskQuestion = {
   question: string;
   description?: string;
   riskLevel: 'high' | 'medium' | 'low';
-}
+};
 
 // Lista predefinida de preguntas para evaluación de riesgo Ley Karin
 export const KARIN_RISK_QUESTIONS: KarinRiskQuestion[] = [
@@ -142,7 +143,7 @@ export type KarinProcessStage =
   | 'labor_department'      // Valor antiguo (para compatibilidad, equivalente a investigation_complete)
   | 'orientation';          // Valor antiguo (mantenido para compatibilidad)
 
-// Ahora CategoryType puede ser cualquier string (ID de la categoría)
+// CategoryType puede ser cualquier string (ID de la categoría)
 export type CategoryType = string;
 
 export type ModeloPrevSubcategory =
@@ -170,7 +171,7 @@ export type EvidenceType = {
   file?: File;
   description: string;
   url?: string;
-}
+};
 
 export type AccusedPersonType = {
   id: string;
@@ -178,20 +179,20 @@ export type AccusedPersonType = {
   position: string;
   department: string;
   relationship: string;
-}
+};
 
 export type WitnessType = {
   id: string;
   name: string;
   contact?: string;
-}
+};
 
 // Medidas precautorias para Ley Karin
 export type PrecautionaryMeasure = {
   id: string;
   name: string;
   description: string;
-}
+};
 
 // Lista predefinida de medidas precautorias para Ley Karin
 export const DEFAULT_PRECAUTIONARY_MEASURES: PrecautionaryMeasure[] = [
@@ -242,7 +243,132 @@ export const DEFAULT_PRECAUTIONARY_MEASURES: PrecautionaryMeasure[] = [
   }
 ];
 
-// Interfaz para el formulario completo
+// Interfaz para deadlines de Ley Karin
+export type KarinDeadline = {
+  id: string;
+  name: string;                     // Nombre descriptivo del plazo
+  description: string;              // Descripción del plazo
+  startDate: string;                // Fecha de inicio del plazo
+  endDate: string;                  // Fecha de vencimiento
+  businessDays: number;             // Días hábiles de plazo
+  status: DeadlineStatus;           // Estado actual del plazo
+  daysRemaining?: number;           // Días hábiles restantes (calculados)
+  completedDate?: string;           // Fecha en que se completó la tarea
+  completedBy?: string;             // Usuario que completó la tarea
+  isLegalRequirement: boolean;      // Si es un plazo legal obligatorio
+  legalReference?: string;          // Referencia legal (artículo)
+  associatedStage: KarinProcessStage; // Etapa del proceso asociada
+  notes?: string;                   // Notas adicionales
+  notificationsEnabled?: boolean;   // Si se envían notificaciones de este plazo
+  notificationsSent?: Array<{       // Registro de notificaciones enviadas
+    date: string;                   // Fecha de envío
+    recipient: string;              // Destinatario
+    type: 'email' | 'system' | 'sms'; // Tipo de notificación
+  }>;
+  isExtended?: boolean;             // Si el plazo ha sido prorrogado
+  originalEndDate?: string;         // Fecha original antes de prórroga
+  extensionReason?: string;         // Razón de la prórroga
+  extensionApprovedBy?: string;     // Quién aprobó la prórroga
+  priority: 'high' | 'medium' | 'low'; // Prioridad del plazo
+  dependencies?: string[];          // IDs de plazos que deben cumplirse antes
+  progressPercentage?: number;      // Porcentaje de avance (0-100)
+};
+
+// Lista de plazos legales para Ley Karin
+export const DEFAULT_KARIN_DEADLINES: Partial<KarinDeadline>[] = [
+  {
+    name: 'Notificación inicial a DT',
+    description: 'Plazo para notificar a la Dirección del Trabajo sobre la denuncia',
+    businessDays: 3,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
+    associatedStage: 'reception',
+    priority: 'high'
+  },
+  {
+    name: 'Adopción de medidas precautorias',
+    description: 'Plazo para implementar medidas de resguardo o precautorias',
+    businessDays: 3,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
+    associatedStage: 'reception',
+    priority: 'high'
+  },
+  {
+    name: 'Subsanación de denuncia',
+    description: 'Plazo para que el denunciante subsane información faltante o incompleta',
+    businessDays: 5,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-A del Código del Trabajo',
+    associatedStage: 'subsanation',
+    priority: 'high'
+  },
+  {
+    name: 'Notificación a SUSESO/Mutualidad',
+    description: 'Plazo para notificar a la mutualidad correspondiente',
+    businessDays: 5,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
+    associatedStage: 'dt_notification',
+    priority: 'medium'
+  },
+  {
+    name: 'Investigación interna',
+    description: 'Plazo para completar la investigación interna',
+    businessDays: 30,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-C del Código del Trabajo',
+    associatedStage: 'investigation',
+    priority: 'high'
+  },
+  {
+    name: 'Prórroga investigación',
+    description: 'Extensión del plazo de investigación (si se solicita)',
+    businessDays: 30,
+    isLegalRequirement: false,
+    legalReference: 'Ley Karin, artículo 211-C del Código del Trabajo',
+    associatedStage: 'investigation',
+    priority: 'medium'
+  },
+  {
+    name: 'Remisión a DT',
+    description: 'Plazo para enviar el informe final y expediente a la DT',
+    businessDays: 2,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-D del Código del Trabajo',
+    associatedStage: 'investigation_complete',
+    priority: 'high'
+  },
+  {
+    name: 'Respuesta DT',
+    description: 'Plazo para que la DT revise y responda sobre el caso',
+    businessDays: 30,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-E del Código del Trabajo',
+    associatedStage: 'dt_submission',
+    priority: 'medium'
+  },
+  {
+    name: 'Adopción de medidas',
+    description: 'Plazo para implementar medidas dispuestas (días corridos, no hábiles)',
+    businessDays: 0, // Se maneja diferente por ser días corridos
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-F del Código del Trabajo',
+    associatedStage: 'measures_adoption',
+    priority: 'high'
+  },
+  {
+    name: 'Reclamación de multas',
+    description: 'Plazo para reclamar las multas aplicadas',
+    businessDays: 15,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-G del Código del Trabajo',
+    associatedStage: 'sanctions',
+    priority: 'medium'
+  }
+];
+
+// Formulario completo
 export type ReportFormValues = {
   // Paso 1: Identificación del Denunciante
   relationship: RelationshipType;
@@ -302,37 +428,6 @@ export type ReportFormValues = {
   karinRiskLevel?: 'high' | 'medium' | 'low'; // Nivel de riesgo calculado
   
   // Campos para el procedimiento específico de Ley Karin
-// Interfaz para deadlines de Ley Karin
-export type KarinDeadline = {
-  id: string;
-  name: string;                     // Nombre descriptivo del plazo
-  description: string;              // Descripción del plazo
-  startDate: string;                // Fecha de inicio del plazo
-  endDate: string;                  // Fecha de vencimiento
-  businessDays: number;             // Días hábiles de plazo
-  status: DeadlineStatus;           // Estado actual del plazo
-  daysRemaining?: number;           // Días hábiles restantes (calculados)
-  completedDate?: string;           // Fecha en que se completó la tarea
-  completedBy?: string;             // Usuario que completó la tarea
-  isLegalRequirement: boolean;      // Si es un plazo legal obligatorio
-  legalReference?: string;          // Referencia legal (artículo)
-  associatedStage: KarinProcessStage; // Etapa del proceso asociada
-  notes?: string;                   // Notas adicionales
-  notificationsEnabled?: boolean;   // Si se envían notificaciones de este plazo
-  notificationsSent?: Array<{       // Registro de notificaciones enviadas
-    date: string;                   // Fecha de envío
-    recipient: string;              // Destinatario
-    type: 'email' | 'system' | 'sms'; // Tipo de notificación
-  }>;
-  isExtended?: boolean;             // Si el plazo ha sido prorrogado
-  originalEndDate?: string;         // Fecha original antes de prórroga
-  extensionReason?: string;         // Razón de la prórroga
-  extensionApprovedBy?: string;     // Quién aprobó la prórroga
-  priority: 'high' | 'medium' | 'low'; // Prioridad del plazo
-  dependencies?: string[];          // IDs de plazos que deben cumplirse antes
-  progressPercentage?: number;      // Porcentaje de avance (0-100)
-}
-
   karinProcess?: {
     stage: KarinProcessStage;
     stageHistory?: Array<{
@@ -659,101 +754,7 @@ export type KarinDeadline = {
     allPartiesNotified?: boolean; // Se notificó a todas las partes involucradas
     partyNotificationDate?: string; // Fecha de notificación a partes (5 días hábiles);
   };
-}
-
-// Lista de plazos legales para Ley Karin
-export const DEFAULT_KARIN_DEADLINES: Partial<KarinDeadline>[] = [
-  {
-    name: 'Notificación inicial a DT',
-    description: 'Plazo para notificar a la Dirección del Trabajo sobre la denuncia',
-    businessDays: 3,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
-    associatedStage: 'reception',
-    priority: 'high'
-  },
-  {
-    name: 'Adopción de medidas precautorias',
-    description: 'Plazo para implementar medidas de resguardo o precautorias',
-    businessDays: 3,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
-    associatedStage: 'reception',
-    priority: 'high'
-  },
-  {
-    name: 'Subsanación de denuncia',
-    description: 'Plazo para que el denunciante subsane información faltante o incompleta',
-    businessDays: 5,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-A del Código del Trabajo',
-    associatedStage: 'subsanation',
-    priority: 'high'
-  },
-  {
-    name: 'Notificación a SUSESO/Mutualidad',
-    description: 'Plazo para notificar a la mutualidad correspondiente',
-    businessDays: 5,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
-    associatedStage: 'dt_notification',
-    priority: 'medium'
-  },
-  {
-    name: 'Investigación interna',
-    description: 'Plazo para completar la investigación interna',
-    businessDays: 30,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-C del Código del Trabajo',
-    associatedStage: 'investigation',
-    priority: 'high'
-  },
-  {
-    name: 'Prórroga investigación',
-    description: 'Extensión del plazo de investigación (si se solicita)',
-    businessDays: 30,
-    isLegalRequirement: false,
-    legalReference: 'Ley Karin, artículo 211-C del Código del Trabajo',
-    associatedStage: 'investigation',
-    priority: 'medium'
-  },
-  {
-    name: 'Remisión a DT',
-    description: 'Plazo para enviar el informe final y expediente a la DT',
-    businessDays: 2,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-D del Código del Trabajo',
-    associatedStage: 'investigation_complete',
-    priority: 'high'
-  },
-  {
-    name: 'Respuesta DT',
-    description: 'Plazo para que la DT revise y responda sobre el caso',
-    businessDays: 30,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-E del Código del Trabajo',
-    associatedStage: 'dt_submission',
-    priority: 'medium'
-  },
-  {
-    name: 'Adopción de medidas',
-    description: 'Plazo para implementar medidas dispuestas (días corridos, no hábiles)',
-    businessDays: 0, // Se maneja diferente por ser días corridos
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-F del Código del Trabajo',
-    associatedStage: 'measures_adoption',
-    priority: 'high'
-  },
-  {
-    name: 'Reclamación de multas',
-    description: 'Plazo para reclamar las multas aplicadas',
-    businessDays: 15,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-G del Código del Trabajo',
-    associatedStage: 'sanctions',
-    priority: 'medium'
-  }
-];
+};
 
 // Valores iniciales para el formulario
 export const initialValues: ReportFormValues = {
