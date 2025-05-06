@@ -45,14 +45,17 @@ export default function AdminLeyKarinPage() {
       'complaint_filed': 'Denuncia Interpuesta',
       'reception': 'Recepción',
       'subsanation': 'Subsanación',
-      'dt_notification': 'Notificación Inicial a DT',
+      'dt_notification': 'Notificación a DT',
       'suseso_notification': 'Notificación a SUSESO',
       'precautionary_measures': 'Medidas Precautorias',
       'decision_to_investigate': 'Decisión de Investigar',
       'investigation': 'En Investigación',
-      'report_creation': 'Creación de Informe',
-      'report_approval': 'Aprobación de Informe',
-      'labor_department': 'Remisión a Dir. del Trabajo',
+      'report_creation': 'Creación Informe Preliminar',
+      'report_approval': 'Revisión Interna Informe',
+      'investigation_complete': 'Investigación Completa',
+      'final_report': 'Creación Informe Final',
+      'dt_submission': 'Envío Formal a DT',
+      'labor_department': 'Investigación Completa', // Para compatibilidad
       'dt_resolution': 'Resolución de DT',
       'measures_adoption': 'Adopción de Medidas',
       'sanctions': 'Sanciones',
@@ -61,7 +64,7 @@ export default function AdminLeyKarinPage() {
       'closed': 'Cerrada',
       // Mapear valores antiguos por compatibilidad
       'orientation': 'Denuncia Interpuesta', // Mapeo de etapa antigua a nueva
-      'preliminaryReport': 'Creación de Informe' // Mapeo de etapa antigua a nueva
+      'preliminaryReport': 'Creación Informe Preliminar' // Mapeo de etapa antigua a nueva
     };
     
     return stageMap[stage] || stage;
