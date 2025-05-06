@@ -1294,3 +1294,109 @@ export async function refreshKarinDeadlines(
     };
   }
 }
+
+/**
+ * Obtiene las denuncias asignadas a un investigador específico
+ * @param companyId ID de la compañía
+ * @param investigatorId ID del investigador
+ * @returns Lista de denuncias asignadas
+ */
+export async function getAssignedReports(
+  companyId: string,
+  investigatorId: string
+) {
+  try {
+    // Validar datos de entrada
+    if (!companyId) {
+      console.error('getAssignedReports: companyId is empty');
+      return { 
+        success: false, 
+        error: 'ID de compañía no válido',
+        reports: [] 
+      };
+    }
+
+    const reportsRef = collection(db, `companies/${companyId}/reports`);
+    let q;
+
+    // Si es super admin, obtener todas las denuncias
+    // esto lo inferimos por ser el usuario con uid 'admin'
+    if (investigatorId === 'admin' || investigatorId === 'superadmin') {
+      q = query(
+        reportsRef,
+        orderBy('updatedAt', 'desc')
+      );
+    } else {
+      // Si es investigador, solo obtener las asignadas a él
+      q = query(
+        reportsRef,
+        where('assignedTo', '==', investigatorId),
+        orderBy('updatedAt', 'desc')
+      );
+    }
+
+    const querySnapshot = await getDocs(q);
+    const reports: any[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const reportData = doc.data();
+      
+      // Calcular progreso de la investigación
+      let progress = 0;
+      let hasPlan = false;
+      let interviewCount = 0;
+      let findingCount = 0;
+      
+      // Verificar existencia de plan
+      if (reportData.plan) {
+        hasPlan = true;
+        progress += 20; // 20% de progreso por tener plan
+      }
+      
+      // Verificar entrevistas
+      if (reportData.interviews && reportData.interviews.length > 0) {
+        interviewCount = reportData.interviews.length;
+        // Máximo 30% por entrevistas (10% por cada entrevista, hasta 3)
+        progress += Math.min(interviewCount * 10, 30);
+      }
+      
+      // Verificar hallazgos
+      if (reportData.findings && reportData.findings.length > 0) {
+        findingCount = reportData.findings.length;
+        // Máximo 30% por hallazgos (10% por cada hallazgo, hasta 3)
+        progress += Math.min(findingCount * 10, 30);
+      }
+      
+      // Verificar informe final
+      if (reportData.finalReport) {
+        progress += 20; // 20% restante por tener informe final
+      }
+      
+      // Asegurar que el progreso esté entre 0 y 100
+      progress = Math.max(0, Math.min(100, progress));
+      
+      reports.push({
+        id: doc.id,
+        ...reportData,
+        investigation: {
+          progress,
+          hasPlan,
+          interviewCount,
+          findingCount
+        }
+      });
+    });
+
+    return {
+      success: true,
+      reports
+    };
+  } catch (error) {
+    console.error('Error getting assigned reports:', error);
+    return {
+      success: false,
+      error: 'Error al obtener las denuncias asignadas',
+      reports: []
+    };
+  }
+}
