@@ -1324,14 +1324,14 @@ export async function getAssignedReports(
     if (investigatorId === 'admin' || investigatorId === 'superadmin') {
       q = query(
         reportsRef,
-        orderBy('updatedAt', 'desc')
+        orderBy('createdAt', 'desc')
       );
     } else {
       // Si es investigador, solo obtener las asignadas a él
       q = query(
         reportsRef,
         where('assignedTo', '==', investigatorId),
-        orderBy('updatedAt', 'desc')
+        orderBy('createdAt', 'desc')
       );
     }
 
