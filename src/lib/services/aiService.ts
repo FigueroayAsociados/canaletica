@@ -2,6 +2,7 @@
 
 import { getFeatureFlags } from '@/lib/services/featureFlagService';
 import { normalizeCompanyId } from '@/lib/utils/helpers';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Tipo para los niveles de riesgo
@@ -170,7 +171,10 @@ export const aiService = {
       
       return success && features ? features.aiEnabled : false;
     } catch (error) {
-      console.error('Error al verificar habilitación de IA:', error);
+      logger.error('Error al verificar habilitación de IA', error, { 
+        prefix: 'aiService', 
+        tags: ['features'] 
+      });
       return false;
     }
   },
@@ -245,10 +249,23 @@ export const aiService = {
         message: assistantMessage
       };
     } catch (error) {
-      console.error('Error en asistente conversacional:', error);
+      // Usar el logger con más detalles sobre el error
+      logger.error('Error en asistente conversacional', error, { 
+        prefix: 'aiService', 
+        tags: ['conversation', 'assistant'] 
+      });
+      
+      // Proporcionar un mensaje de error más descriptivo si es posible
+      let errorMessage = 'Error al procesar solicitud de asistencia';
+      if (error instanceof Error) {
+        // En producción podríamos querer evitar exponer detalles internos al cliente
+        // Por ahora, incluir un mensaje más detallado para debugging
+        errorMessage += `: ${error.message}`;
+      }
+      
       return {
         success: false,
-        error: 'Error al procesar solicitud de asistencia'
+        error: errorMessage
       };
     }
   },
@@ -413,10 +430,27 @@ export const aiService = {
         }
       };
     } catch (error) {
-      console.error('Error en análisis de riesgo:', error);
+      // Usar logger con contexto más rico
+      logger.error('Error en análisis de riesgo', error, { 
+        prefix: 'aiService', 
+        tags: ['risk', 'analysis'],
+        companyId 
+      });
+      
+      // Mensaje más informativo para debugging
+      let errorMessage = 'Error al realizar análisis de riesgo';
+      if (error instanceof Error) {
+        logger.debug('Detalles del error', { errorName: error.name, errorStack: error.stack }, { prefix: 'aiService' });
+        
+        // En desarrollo podemos proporcionar más detalles
+        if (process.env.NODE_ENV === 'development') {
+          errorMessage += `: ${error.message}`;
+        }
+      }
+      
       return {
         success: false,
-        error: 'Error al realizar análisis de riesgo'
+        error: errorMessage
       };
     }
   },
@@ -492,10 +526,31 @@ export const aiService = {
         categories: predictions
       };
     } catch (error) {
-      console.error('Error en predicción de categorías:', error);
+      // Usar logger con más contexto
+      logger.error('Error en predicción de categorías', error, { 
+        prefix: 'aiService', 
+        tags: ['categories', 'prediction'],
+        companyId
+      });
+      
+      // Mensaje más informativo para ayudar al debugging
+      let errorMessage = 'Error al predecir categorías';
+      if (error instanceof Error) {
+        logger.debug('Detalles del error de predicción', { 
+          errorName: error.name, 
+          errorStack: error.stack,
+          contentLength: reportContent?.length || 0
+        }, { prefix: 'aiService' });
+        
+        // En desarrollo podemos proporcionar más detalles
+        if (process.env.NODE_ENV === 'development') {
+          errorMessage += `: ${error.message}`;
+        }
+      }
+      
       return {
         success: false,
-        error: 'Error al predecir categorías'
+        error: errorMessage
       };
     }
   },
@@ -570,10 +625,33 @@ export const aiService = {
         document: documentTemplate
       };
     } catch (error) {
-      console.error('Error en generación de documento:', error);
+      // Usar logger con más contexto
+      logger.error('Error en generación de documento legal', error, { 
+        prefix: 'aiService', 
+        tags: ['document', 'legal'],
+        documentType: params.documentType,
+        companyId
+      });
+      
+      // Mensaje más informativo para debug
+      let errorMessage = 'Error al generar documento legal';
+      if (error instanceof Error) {
+        logger.debug('Detalles del error de generación', { 
+          errorName: error.name, 
+          errorStack: error.stack,
+          documentType: params.documentType,
+          tone: params.tone
+        }, { prefix: 'aiService' });
+        
+        // En desarrollo podemos proporcionar más detalles
+        if (process.env.NODE_ENV === 'development') {
+          errorMessage += `: ${error.message}`;
+        }
+      }
+      
       return {
         success: false,
-        error: 'Error al generar documento legal'
+        error: errorMessage
       };
     }
   },
@@ -1185,10 +1263,33 @@ ${authorData ? `\n\n__________________________\n${authorData.name}\n${authorData
         insights: filteredInsights
       };
     } catch (error) {
-      console.error('Error al generar insights:', error);
+      // Usar logger con más contexto
+      logger.error('Error al generar insights', error, { 
+        prefix: 'aiService', 
+        tags: ['insights', 'analytics'],
+        timeRange: params.timeRange,
+        companyId
+      });
+      
+      // Mensaje más informativo para debug
+      let errorMessage = 'Error al procesar análisis de insights';
+      if (error instanceof Error) {
+        logger.debug('Detalles del error de insights', { 
+          errorName: error.name, 
+          errorStack: error.stack,
+          timeRange: params.timeRange,
+          focusAreas: params.focusAreas
+        }, { prefix: 'aiService' });
+        
+        // En desarrollo podemos proporcionar más detalles
+        if (process.env.NODE_ENV === 'development') {
+          errorMessage += `: ${error.message}`;
+        }
+      }
+      
       return {
         success: false,
-        error: 'Error al procesar análisis de insights'
+        error: errorMessage
       };
     }
   }

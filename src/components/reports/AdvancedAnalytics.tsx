@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -12,13 +12,15 @@ import { useReporting } from '@/lib/hooks/useReporting';
 import { AdvancedReportingOptions } from '@/lib/services/reportingService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
+import { logger } from '@/lib/utils/logger';
 
 interface AdvancedAnalyticsProps {
   initialOptions?: Partial<AdvancedReportingOptions>;
   showFilters?: boolean;
 }
 
-export function AdvancedAnalytics({ 
+// Usar React.memo para evitar renderizados innecesarios cuando las props no cambian
+export const AdvancedAnalytics = React.memo(function AdvancedAnalytics({ 
   initialOptions, 
   showFilters = true 
 }: AdvancedAnalyticsProps) {
@@ -44,28 +46,74 @@ export function AdvancedAnalytics({
       updateOptions(initialOptions);
     }
     
-    // Usar un timeout para evitar bloqueos en la UI
-    const timer = setTimeout(() => {
-      loadSummary();
-      loadTrends();
-      loadTimeSeriesData();
+    // Usar un timeout para evitar bloqueos en la UI, pero con mejor manejo de recursos
+    // Cargar datos secuencialmente para evitar sobrecarga
+    const loadDataSequentially = async () => {
+      try {
+        // Primero cargamos el resumen, que es la información más básica
+        await loadSummary();
+        
+        // Luego cargamos tendencias, que dependen del resumen
+        await loadTrends();
+        
+        // Finalmente cargamos los datos de series temporales, que son más pesados
+        await loadTimeSeriesData();
+      } catch (error) {
+        // Manejo global de errores durante la carga
+        logger.error('Error al cargar datos de análisis', error, { prefix: 'AdvancedAnalytics' });
+      }
+    };
+    
+    // Usar requestAnimationFrame para alinearnos con el ciclo de renderizado del navegador
+    const timerId = setTimeout(() => {
+      requestAnimationFrame(() => {
+        loadDataSequentially();
+      });
     }, 100);
     
-    return () => clearTimeout(timer);
+    return () => clearTimeout(timerId);
   }, [initialOptions, loadSummary, loadTimeSeriesData, loadTrends, updateOptions]);
 
-  // Manejar cambio de filtros
-  const handleTimeframeChange = (timeframe: AdvancedReportingOptions['timeframe']) => {
+  // Manejar cambio de filtros - Con useCallback para evitar recreaciones
+  const handleTimeframeChange = useCallback((timeframe: AdvancedReportingOptions['timeframe']) => {
     updateOptions({ timeframe });
     
-    // Usar un timeout para evitar bloqueos en la UI
-    setTimeout(() => {
-      loadSummary({ timeframe });
-      setTimeout(() => {
-        loadTimeSeriesData({ timeframe });
-      }, 50);
-    }, 50);
-  };
+    // Crear una función asíncrona para cargar los datos de manera optimizada
+    const loadDataWithTimeframe = async () => {
+      try {
+        // Primero cargar el resumen, que es más ligero
+        await loadSummary({ timeframe });
+        
+        // Usar requestAnimationFrame para esperar al siguiente ciclo de renderizado
+        // Esto asegura que la UI se actualice antes de continuar con operaciones pesadas
+        requestAnimationFrame(async () => {
+          try {
+            // Luego cargar los datos de series temporales, que son más pesados
+            await loadTimeSeriesData({ timeframe });
+          } catch (error) {
+            logger.error('Error al cargar series temporales', error, { 
+              prefix: 'AdvancedAnalytics', 
+              tags: ['timeSeriesData'] 
+            });
+          }
+        });
+      } catch (error) {
+        logger.error('Error al cargar resumen', error, { 
+          prefix: 'AdvancedAnalytics', 
+          tags: ['summary'] 
+        });
+      }
+    };
+    
+    // Usar requestIdleCallback si está disponible, o setTimeout como fallback
+    // Esto garantiza que la carga de datos no bloquee el hilo principal
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      // @ts-ignore - TypeScript puede no reconocer requestIdleCallback
+      window.requestIdleCallback(() => loadDataWithTimeframe());
+    } else {
+      setTimeout(loadDataWithTimeframe, 50);
+    }
+  }, [loadSummary, loadTimeSeriesData, updateOptions]); // Dependencias necesarias
 
   if (isLoading && !reportingSummary) {
     return (
@@ -300,4 +348,5 @@ export function AdvancedAnalytics({
       </Tabs>
     </div>
   );
-}
+// Cerramos la función memo que abrimos al principio del componente
+});

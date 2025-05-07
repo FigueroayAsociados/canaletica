@@ -7,16 +7,29 @@ import ConversationalAssistant from './ConversationalAssistant';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { usePathname } from 'next/navigation';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
+import { logger } from '@/lib/utils/logger';
+
+/**
+ * Interfaz para el contexto del asistente
+ */
+interface AssistantContext {
+  currentModule: string;
+  reportId?: string;
+  caseType?: string;
+  deadlines?: Array<{ label: string; date: Date }>;
+}
 
 export default function FloatingAssistant() {
   const [isOpen, setIsOpen] = useState(false);
-  const [assistantContext, setAssistantContext] = useState<any>({});
+  const [assistantContext, setAssistantContext] = useState<AssistantContext>({
+    currentModule: 'dashboard'
+  });
   const { profile } = useCurrentUser();
   const pathname = usePathname();
   const { isEnabled } = useFeatureFlags();
 
   // Determinar el rol del usuario para el asistente
-  const getUserRole = () => {
+  const getUserRole = (): 'super_admin' | 'admin' | 'investigator' => {
     if (profile?.role === 'super_admin') return 'super_admin';
     if (profile?.role === 'admin') return 'admin';
     return 'investigator';
@@ -24,7 +37,7 @@ export default function FloatingAssistant() {
 
   // Actualizar el contexto basado en la ruta actual
   useEffect(() => {
-    const newContext: any = {
+    const newContext: AssistantContext = {
       currentModule: getCurrentModule(pathname)
     };
 
@@ -46,7 +59,7 @@ export default function FloatingAssistant() {
   }, [pathname]);
 
   // Obtener el módulo actual basado en la ruta
-  const getCurrentModule = (path: string) => {
+  const getCurrentModule = (path: string): string => {
     if (path.includes('/investigation')) return 'investigation';
     if (path.includes('/reports')) return 'report';
     if (path.includes('/follow-up')) return 'follow-up';
@@ -55,16 +68,20 @@ export default function FloatingAssistant() {
   };
 
   // Manejar respuesta del asistente (por si queremos realizar acciones basadas en ella)
-  const handleAssistantResponse = (message: string) => {
+  const handleAssistantResponse = (message: string): void => {
     // Opcional: realizar acciones basadas en la respuesta
-    console.log('Respuesta del asistente:', message);
+    logger.debug('Respuesta del asistente', { message }, { prefix: 'FloatingAssistant' });
   };
 
   // Verificar si el asistente conversacional está habilitado
-  const isAssistantEnabled = () => {
+  const isAssistantEnabled = (): boolean => {
     // Verificar que isEnabled es una función antes de llamarla
     if (typeof isEnabled !== 'function') {
-      console.error('isEnabled no es una función válida en FloatingAssistant');
+      // Usar el logger en lugar de console.error para mejor consistencia
+      logger.error('isEnabled no es una función válida en FloatingAssistant', 
+        { isEnabled }, 
+        { prefix: 'FloatingAssistant' }
+      );
       return false;
     }
     return isEnabled('aiEnabled') && isEnabled('conversationalAssistantEnabled');
