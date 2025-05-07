@@ -19,6 +19,7 @@ import {
   completeDeadline,
   extendDeadline
 } from '@/lib/utils/deadlineUtils';
+import { formatChileanDate } from '@/lib/utils/dateUtils';
 
 interface KarinDeadlinesTimelineProps {
   report: any;
@@ -154,11 +155,7 @@ export const KarinDeadlinesTimeline: React.FC<KarinDeadlinesTimelineProps> = ({
     if (!dateString) return 'No disponible';
     
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('es-CL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }).format(date);
+    return formatChileanDate(date);
   };
 
   if (!report?.isKarinLaw) {

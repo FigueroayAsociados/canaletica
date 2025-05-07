@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { addInterview, convertInterviewToTestimony, signTestimony } from '@/lib/services/investigationService';
+import { formatChileanDate } from '@/lib/utils/dateUtils';
 
 // Esquema de validación para entrevistas
 const InterviewSchema = Yup.object().shape({
@@ -281,11 +282,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
     
     const dateObj = date.toDate ? new Date(date.toDate()) : new Date(date);
     
-    return new Intl.DateTimeFormat('es-CL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(dateObj);
+    return formatChileanDate(dateObj);
   };
   
   // Obtener etiqueta de estado

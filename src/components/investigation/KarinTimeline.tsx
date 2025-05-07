@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { 
+  addBusinessDays, 
+  getBusinessDaysCount, 
+  isChileanHoliday, 
+  formatChileanDate,
+  BusinessDayType
+} from '@/lib/utils/dateUtils';
 
 interface KarinTimelineProps {
   report: any;
@@ -37,16 +44,16 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
           const receptionDate = report.karinProcess?.receivedDate 
             ? new Date(report.karinProcess.receivedDate) 
             : createdDate;
-          const dtNotificationDeadline = addBusinessDays(receptionDate, 3);
-          setDaysRemaining(getBusinessDaysCount(now, dtNotificationDeadline));
+          const dtNotificationDeadline = addBusinessDays(receptionDate, 3, BusinessDayType.ADMINISTRATIVE);
+          setDaysRemaining(getBusinessDaysCount(now, dtNotificationDeadline, BusinessDayType.ADMINISTRATIVE));
           break;
           
         case 'subsanation':
           // Plazo para subsanar: 5 días hábiles desde solicitud
           if (report.karinProcess?.subsanationRequested) {
             const subsanationRequestDate = new Date(report.karinProcess.subsanationRequested);
-            const subsanationDeadline = addBusinessDays(subsanationRequestDate, 5);
-            setDaysRemaining(getBusinessDaysCount(now, subsanationDeadline));
+            const subsanationDeadline = addBusinessDays(subsanationRequestDate, 5, BusinessDayType.ADMINISTRATIVE);
+            setDaysRemaining(getBusinessDaysCount(now, subsanationDeadline, BusinessDayType.ADMINISTRATIVE));
           }
           break;
           
@@ -55,8 +62,8 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
           const dtReceptionDate = report.karinProcess?.receivedDate 
             ? new Date(report.karinProcess.receivedDate) 
             : createdDate;
-          const dtDeadline = addBusinessDays(dtReceptionDate, 3);
-          setDaysRemaining(getBusinessDaysCount(now, dtDeadline));
+          const dtDeadline = addBusinessDays(dtReceptionDate, 3, BusinessDayType.ADMINISTRATIVE);
+          setDaysRemaining(getBusinessDaysCount(now, dtDeadline, BusinessDayType.ADMINISTRATIVE));
           break;
           
         case 'suseso_notification':
@@ -64,8 +71,8 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
           const susesoReceptionDate = report.karinProcess?.receivedDate 
             ? new Date(report.karinProcess.receivedDate) 
             : createdDate;
-          const susesoDeadline = addBusinessDays(susesoReceptionDate, 5);
-          setDaysRemaining(getBusinessDaysCount(now, susesoDeadline));
+          const susesoDeadline = addBusinessDays(susesoReceptionDate, 5, BusinessDayType.ADMINISTRATIVE);
+          setDaysRemaining(getBusinessDaysCount(now, susesoDeadline, BusinessDayType.ADMINISTRATIVE));
           break;
           
         case 'precautionary_measures':
@@ -73,12 +80,13 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
           const precautionaryReceptionDate = report.karinProcess?.receivedDate 
             ? new Date(report.karinProcess.receivedDate) 
             : createdDate;
-          const precautionaryDeadline = addBusinessDays(precautionaryReceptionDate, 3);
-          setDaysRemaining(getBusinessDaysCount(now, precautionaryDeadline));
+          const precautionaryDeadline = addBusinessDays(precautionaryReceptionDate, 3, BusinessDayType.ADMINISTRATIVE);
+          setDaysRemaining(getBusinessDaysCount(now, precautionaryDeadline, BusinessDayType.ADMINISTRATIVE));
           break;
           
         case 'investigation':
           // Plazo para investigación: 30 días hábiles (prorrogable una vez)
+          // Para Ley Karin utilizamos días hábiles administrativos (lunes a viernes)
           let investigationStartDate;
           if (report.karinProcess?.investigationStartDate) {
             investigationStartDate = new Date(report.karinProcess.investigationStartDate);
@@ -86,17 +94,17 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
             // Fecha estimada de inicio
             investigationStartDate = report.karinProcess?.decisionToInvestigateDate
               ? new Date(report.karinProcess.decisionToInvestigateDate)
-              : addBusinessDays(createdDate, 5);
+              : addBusinessDays(createdDate, 5, BusinessDayType.ADMINISTRATIVE);
           }
           
           // Considerar prórroga si existe
           const investigationDeadline = report.karinProcess?.investigationDeadline 
             ? new Date(report.karinProcess.investigationDeadline)
             : report.karinProcess?.investigationExtensionDate
-              ? addBusinessDays(investigationStartDate, 60) // Con prórroga: 60 días
-              : addBusinessDays(investigationStartDate, 30); // Sin prórroga: 30 días
+              ? addBusinessDays(investigationStartDate, 60, BusinessDayType.ADMINISTRATIVE) // Con prórroga: 60 días
+              : addBusinessDays(investigationStartDate, 30, BusinessDayType.ADMINISTRATIVE); // Sin prórroga: 30 días
           
-          setDaysRemaining(getBusinessDaysCount(now, investigationDeadline));
+          setDaysRemaining(getBusinessDaysCount(now, investigationDeadline, BusinessDayType.ADMINISTRATIVE));
           break;
           
         case 'labor_department':
@@ -104,8 +112,8 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
           const reportApprovalDate = report.karinProcess?.reportApprovalDate
             ? new Date(report.karinProcess.reportApprovalDate)
             : now;
-          const laborDeptDeadline = addBusinessDays(reportApprovalDate, 2);
-          setDaysRemaining(getBusinessDaysCount(now, laborDeptDeadline));
+          const laborDeptDeadline = addBusinessDays(reportApprovalDate, 2, BusinessDayType.ADMINISTRATIVE);
+          setDaysRemaining(getBusinessDaysCount(now, laborDeptDeadline, BusinessDayType.ADMINISTRATIVE));
           break;
           
         case 'dt_resolution':
@@ -113,8 +121,8 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
           const referralDate = report.karinProcess?.laborDepartmentReferralDate
             ? new Date(report.karinProcess.laborDepartmentReferralDate)
             : now;
-          const dtResolutionDeadline = addBusinessDays(referralDate, 30);
-          setDaysRemaining(getBusinessDaysCount(now, dtResolutionDeadline));
+          const dtResolutionDeadline = addBusinessDays(referralDate, 30, BusinessDayType.ADMINISTRATIVE);
+          setDaysRemaining(getBusinessDaysCount(now, dtResolutionDeadline, BusinessDayType.ADMINISTRATIVE));
           break;
           
         case 'measures_adoption':
@@ -251,11 +259,7 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
     
     const dateObj = date.toDate ? new Date(date.toDate()) : new Date(date);
     
-    return new Intl.DateTimeFormat('es-CL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }).format(dateObj);
+    return formatChileanDate(dateObj);
   };
   
   // Verificar si es posible avanzar a la siguiente etapa
@@ -385,84 +389,7 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
     return true;
   };
   
-  // Lista de feriados chilenos (actualizar cada año)
-  // Formato: 'AAAA-MM-DD'
-  const CHILEAN_HOLIDAYS = [
-    // 2025
-    '2025-01-01', // Año Nuevo
-    '2025-04-18', // Viernes Santo
-    '2025-04-19', // Sábado Santo
-    '2025-05-01', // Día del Trabajo
-    '2025-05-21', // Día de las Glorias Navales
-    '2025-06-29', // San Pedro y San Pablo
-    '2025-07-16', // Virgen del Carmen
-    '2025-08-15', // Asunción de la Virgen
-    '2025-09-18', // Independencia Nacional
-    '2025-09-19', // Fiestas Patrias
-    '2025-10-12', // Encuentro de Dos Mundos
-    '2025-10-31', // Día de las Iglesias Evangélicas
-    '2025-11-01', // Día de Todos los Santos
-    '2025-12-08', // Inmaculada Concepción
-    '2025-12-25', // Navidad
-    // 2024
-    '2024-01-01', // Año Nuevo
-    '2024-03-29', // Viernes Santo
-    '2024-03-30', // Sábado Santo
-    '2024-05-01', // Día del Trabajo
-    '2024-05-21', // Día de las Glorias Navales
-    '2024-06-29', // San Pedro y San Pablo
-    '2024-07-16', // Virgen del Carmen
-    '2024-08-15', // Asunción de la Virgen
-    '2024-09-18', // Independencia Nacional
-    '2024-09-19', // Fiestas Patrias
-    '2024-10-12', // Encuentro de Dos Mundos
-    '2024-10-31', // Día de las Iglesias Evangélicas
-    '2024-11-01', // Día de Todos los Santos
-    '2024-12-08', // Inmaculada Concepción
-    '2024-12-25', // Navidad
-  ];
-
-  // Verificar si una fecha es feriado en Chile
-  function isChileanHoliday(date: Date): boolean {
-    const dateString = date.toISOString().split('T')[0]; // Formato AAAA-MM-DD
-    return CHILEAN_HOLIDAYS.includes(dateString);
-  }
-
-  // Añadir días hábiles a una fecha (omitiendo fines de semana y feriados)
-  function addBusinessDays(date: Date, days: number): Date {
-    let result = new Date(date);
-    let count = 0;
-    
-    while (count < days) {
-      result.setDate(result.getDate() + 1);
-      const dayOfWeek = result.getDay();
-      
-      // Verificar si no es fin de semana ni feriado
-      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isChileanHoliday(result)) {
-        // Es día hábil (no es sábado, domingo ni feriado)
-        count++;
-      }
-    }
-    
-    return result;
-  }
-  
-  // Calcular número de días hábiles entre dos fechas
-  function getBusinessDaysCount(startDate: Date, endDate: Date): number {
-    let count = 0;
-    const curDate = new Date(startDate.getTime());
-    
-    while (curDate <= endDate) {
-      const dayOfWeek = curDate.getDay();
-      // Verificar si no es fin de semana ni feriado
-      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !isChileanHoliday(curDate)) {
-        count++;
-      }
-      curDate.setDate(curDate.getDate() + 1);
-    }
-    
-    return count;
-  }
+  // Las funciones de cálculo de días hábiles han sido trasladadas al archivo dateUtils.ts
   
   if (!report?.isKarinLaw) {
     return (
@@ -585,6 +512,29 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                             <strong>Pendiente:</strong> Algunos testimonios no están firmados o no tienen copia física.
                           </p>
                         )}
+                        {/* Verificación extendida para entrevistas formales como testimonios */}
+                        {report.karinProcess?.extendedInterviews && 
+                         report.karinProcess.extendedInterviews.some(i => i.isTestimony && i.status !== 'signed' && i.status !== 'verified') && (
+                          <p className="text-xs text-red-600 mt-1">
+                            <strong>Pendiente:</strong> Hay entrevistas formales que requieren firma para ser testimonios válidos.
+                          </p>
+                        )}
+                        <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-md">
+                          <h4 className="text-xs font-medium">Estado de testimonios</h4>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                              {(report.karinProcess?.testimonies?.filter(t => t.hasSigned)?.length || 0) + 
+                               (report.karinProcess?.extendedInterviews?.filter(i => i.isTestimony && (i.status === 'signed' || i.status === 'verified'))?.length || 0)} Firmados
+                            </span>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
+                              {(report.karinProcess?.testimonies?.filter(t => !t.hasSigned)?.length || 0) + 
+                               (report.karinProcess?.extendedInterviews?.filter(i => i.isTestimony && i.status === 'pending_signature')?.length || 0)} Pendientes
+                            </span>
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                              {(report.karinProcess?.extendedInterviews?.filter(i => !i.isTestimony)?.length || 0)} Entrevistas
+                            </span>
+                          </div>
+                        </div>
                       </>
                     )}
                     
@@ -633,7 +583,7 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                       <p className="text-xs text-orange-600 mt-1">
                         <strong>Plazo legal:</strong> La DT tiene 30 días hábiles para revisar el procedimiento y emitir un pronunciamiento.
                         {report.karinProcess?.laborDepartmentReferralDate && (
-                          <> Fecha estimada de respuesta: {formatDate(addBusinessDays(new Date(report.karinProcess.laborDepartmentReferralDate), 30))}</>
+                          <> Fecha estimada de respuesta: {formatDate(addBusinessDays(new Date(report.karinProcess.laborDepartmentReferralDate), 30, BusinessDayType.ADMINISTRATIVE))}</>
                         )}
                       </p>
                     )}
@@ -706,6 +656,7 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
                           <ul className="list-disc pl-5 mt-1 text-xs">
                             <li>La subsanación de la denuncia aún no ha sido recibida</li>
                             <li>Plazo legal: 5 días hábiles para que el denunciante subsane</li>
+                            <li>Use el formulario de subsanación para gestionar los ítems pendientes</li>
                           </ul>
                         )}
                         

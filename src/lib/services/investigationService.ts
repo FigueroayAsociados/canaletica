@@ -18,6 +18,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { db, storage, auth } from '@/lib/firebase/config';
+import { isSuperAdmin, isAdmin } from '@/lib/utils/roleUtils';
 
 // Función para obtener los detalles de una investigación
 export async function getInvestigationDetails(companyId, reportId) {
@@ -1726,17 +1727,17 @@ export async function getAssignedReports(
     }
 
     console.log(`Ejecutando getAssignedReports - companyId: ${companyId}, investigatorId: ${investigatorId}`);
-    console.log(`Tipo de usuario - isAdmin o SuperAdmin: ${investigatorId === 'admin' || investigatorId === 'superadmin'}`);
+    
+    // Usar correctamente las utilidades de roles
+    const isSuperAdminUser = isSuperAdmin(null, investigatorId);
+    const isUserAdmin = isSuperAdminUser || isAdmin(null);
+    console.log(`Tipo de usuario - isAdmin: ${isUserAdmin}, isSuperAdmin: ${isSuperAdminUser}`);
 
     const reportsRef = collection(db, `companies/${companyId}/reports`);
     let q;
 
-    // Si es super admin, o si el ID incluye "admin" o "super", obtener todas las denuncias
-    // Ampliamos la detección para cubrir más casos
-    if (investigatorId === 'admin' || 
-        investigatorId === 'superadmin' || 
-        investigatorId.includes('admin') || 
-        investigatorId.includes('super')) {
+    // Si es admin o superadmin, obtener todas las denuncias usando las funciones de utilidad
+    if (isUserAdmin) {
       console.log("Usando consulta para admin - todas las denuncias");
       q = query(
         reportsRef,
@@ -1811,10 +1812,7 @@ export async function getAssignedReports(
       console.log(`Ejemplo de primer reporte - ID: ${reports[0].id}, Estado: ${reports[0].status}`);
     } else {
       // Si no hay reportes y no es admin, intentar con todos los reportes como plan B
-      if (investigatorId !== 'admin' && 
-          investigatorId !== 'superadmin' && 
-          !investigatorId.includes('admin') && 
-          !investigatorId.includes('super')) {
+      if (!isSuperAdminUser && !isUserAdmin) {
         
         console.log("No se encontraron reportes asignados. Usando fallback para mostrar todos los reportes.");
         

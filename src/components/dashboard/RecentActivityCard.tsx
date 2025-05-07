@@ -2,11 +2,10 @@
 
 // src/components/dashboard/RecentActivityCard.tsx
 import React from 'react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { FileText, AlertCircle, Activity, User, HelpCircle } from 'lucide-react';
+import { formatChileanDate } from '@/lib/utils/dateUtils';
 
 interface ActivityItem {
   id: string;
@@ -95,7 +94,7 @@ export default function RecentActivityCard({
   };
 
   const formatDate = (date: Date) => {
-    return format(date, "d 'de' MMMM, yyyy", { locale: es });
+    return formatChileanDate(date);
   };
 
   return (
