@@ -216,6 +216,84 @@ export async function updateInvestigationPlan(
 }
 
 /**
+ * Guarda o actualiza un plan de investigación
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que crea/actualiza el plan
+ * @param planData Datos del plan
+ * @returns Resultado de la operación
+ */
+export async function saveInvestigationPlan(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  planData: any
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const reportData = reportDoc.data();
+    const now = serverTimestamp();
+    
+    // Verificar si ya existe un plan
+    const planExists = reportData.plan && typeof reportData.plan === 'object';
+    
+    // Datos a actualizar
+    const updateData: any = {
+      updatedAt: now
+    };
+    
+    if (planExists) {
+      // Si ya existe, actualizar cada campo individualmente
+      Object.keys(planData).forEach(key => {
+        updateData[`plan.${key}`] = planData[key];
+      });
+      updateData['plan.updatedAt'] = now;
+      updateData['plan.updatedBy'] = userId;
+    } else {
+      // Si no existe, crear el plan completo
+      updateData.plan = {
+        ...planData,
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now
+      };
+    }
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, updateData);
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: now,
+      actorId: userId,
+      actionType: planExists ? 'planUpdated' : 'planCreated',
+      description: planExists ? 'Plan de investigación actualizado' : 'Plan de investigación creado',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error saving investigation plan:', error);
+    return {
+      success: false,
+      error: 'Error al guardar el plan de investigación'
+    };
+  }
+}
+
+/**
  * Agrega una nueva entrevista
  * (Guarda como una actividad al no tener la colección interviews)
  */
@@ -555,6 +633,166 @@ export async function updateReport(
     return {
       success: false,
       error: 'Error al actualizar el informe'
+    };
+  }
+}
+
+/**
+ * Guarda o actualiza un informe final
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que crea/actualiza el informe
+ * @param reportData Datos del informe
+ * @returns Resultado de la operación
+ */
+export async function saveFinalReport(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  reportData: any
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const existingData = reportDoc.data();
+    const now = serverTimestamp();
+    
+    // Verificar si ya existe un informe final
+    const finalReportExists = existingData.finalReport && typeof existingData.finalReport === 'object';
+    
+    // Datos a actualizar
+    const updateData: any = {
+      updatedAt: now
+    };
+    
+    if (finalReportExists) {
+      // Si ya existe, actualizar manteniendo metadatos existentes
+      updateData.finalReport = {
+        ...existingData.finalReport,
+        ...reportData,
+        updatedBy: userId,
+        updatedAt: now
+      };
+    } else {
+      // Si no existe, crear el informe completo
+      updateData.finalReport = {
+        ...reportData,
+        type: 'finalReport',
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now
+      };
+    }
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, updateData);
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: now,
+      actorId: userId,
+      actionType: finalReportExists ? 'finalReportUpdated' : 'finalReportCreated',
+      description: finalReportExists ? 'Informe final actualizado' : 'Informe final creado',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error saving final report:', error);
+    return {
+      success: false,
+      error: 'Error al guardar el informe final'
+    };
+  }
+}
+
+/**
+ * Guarda o actualiza un informe preliminar
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que crea/actualiza el informe
+ * @param reportData Datos del informe
+ * @returns Resultado de la operación
+ */
+export async function savePreliminaryReport(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  reportData: any
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const existingData = reportDoc.data();
+    const now = serverTimestamp();
+    
+    // Verificar si ya existe un informe preliminar
+    const preliminaryReportExists = existingData.preliminaryReport && typeof existingData.preliminaryReport === 'object';
+    
+    // Datos a actualizar
+    const updateData: any = {
+      updatedAt: now
+    };
+    
+    if (preliminaryReportExists) {
+      // Si ya existe, actualizar manteniendo metadatos existentes
+      updateData.preliminaryReport = {
+        ...existingData.preliminaryReport,
+        ...reportData,
+        updatedBy: userId,
+        updatedAt: now
+      };
+    } else {
+      // Si no existe, crear el informe completo
+      updateData.preliminaryReport = {
+        ...reportData,
+        type: 'preliminaryReport',
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now
+      };
+    }
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, updateData);
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: now,
+      actorId: userId,
+      actionType: preliminaryReportExists ? 'preliminaryReportUpdated' : 'preliminaryReportCreated',
+      description: preliminaryReportExists ? 'Informe preliminar actualizado' : 'Informe preliminar creado',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error saving preliminary report:', error);
+    return {
+      success: false,
+      error: 'Error al guardar el informe preliminar'
     };
   }
 }
@@ -1291,6 +1529,177 @@ export async function refreshKarinDeadlines(
     return {
       success: false,
       error: 'Error al actualizar los estados de plazos de Ley Karin'
+    };
+  }
+}
+
+/**
+ * Agrega una nueva tarea a la investigación
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que crea la tarea
+ * @param taskData Datos de la tarea
+ * @returns Resultado de la operación
+ */
+export async function addTask(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  taskData: {
+    title: string;
+    description: string;
+    assignedTo: string;
+    dueDate: string;
+    priority: 'alta' | 'media' | 'baja';
+  }
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    // Extraer los datos actuales
+    const reportData = reportDoc.data();
+    const existingTasks = reportData.tasks || [];
+    
+    // Generar un ID único para la tarea
+    const taskId = uuidv4();
+    
+    // Convertir fecha a objeto Date para manipulación
+    const dueDate = new Date(taskData.dueDate);
+    
+    // Crear el objeto de la tarea
+    const newTask = {
+      id: taskId,
+      ...taskData,
+      status: 'pendiente',
+      createdBy: userId,
+      createdAt: serverTimestamp(),
+      dueDate: Timestamp.fromDate(dueDate)
+    };
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      tasks: [...existingTasks, newTask],
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'taskAdded',
+      description: `Tarea creada: ${taskData.title}`,
+      taskId,
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true,
+      taskId
+    };
+  } catch (error) {
+    console.error('Error adding task:', error);
+    return {
+      success: false,
+      error: 'Error al agregar la tarea'
+    };
+  }
+}
+
+/**
+ * Actualiza el estado de una tarea
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param taskId ID de la tarea
+ * @param userId ID del usuario que actualiza la tarea
+ * @param newStatus Nuevo estado de la tarea
+ * @param comment Comentario opcional sobre el cambio de estado
+ * @returns Resultado de la operación
+ */
+export async function updateTaskStatus(
+  companyId: string,
+  reportId: string,
+  taskId: string,
+  userId: string,
+  newStatus: 'pendiente' | 'en_progreso' | 'completada' | 'cancelada',
+  comment?: string
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    // Extraer los datos actuales
+    const reportData = reportDoc.data();
+    const existingTasks = reportData.tasks || [];
+    
+    // Buscar la tarea a actualizar
+    const taskIndex = existingTasks.findIndex(task => task.id === taskId);
+    
+    if (taskIndex === -1) {
+      return {
+        success: false,
+        error: 'Tarea no encontrada'
+      };
+    }
+    
+    // Crear una copia de las tareas para modificar
+    const updatedTasks = [...existingTasks];
+    
+    // Actualizar la tarea
+    updatedTasks[taskIndex] = {
+      ...updatedTasks[taskIndex],
+      status: newStatus,
+      updatedBy: userId,
+      updatedAt: serverTimestamp(),
+      comment: comment || updatedTasks[taskIndex].comment,
+      completedAt: newStatus === 'completada' ? serverTimestamp() : updatedTasks[taskIndex].completedAt
+    };
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      tasks: updatedTasks,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'taskStatusUpdated',
+      description: `Estado de tarea actualizado a: ${newStatus}`,
+      taskId,
+      statusChange: {
+        from: existingTasks[taskIndex].status,
+        to: newStatus,
+        comment
+      },
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error updating task status:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar el estado de la tarea'
     };
   }
 }
