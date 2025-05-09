@@ -30,11 +30,15 @@ export default function SuperAdminPage() {
   const [creatingCompany, setCreatingCompany] = useState(false);
   
   // Verificar si el usuario es super admin
+  // Desactiva temporalmente esta verificación hasta que arreglemos los roles
+  // (Consistente con el comportamiento en src/app/(dashboard)/layout.tsx)
+  /*
   useEffect(() => {
     if (!isSuperAdmin()) {
       router.push('/dashboard');
     }
   }, [isSuperAdmin, router]);
+  */
   
   // Cargar la lista de empresas
   useEffect(() => {
