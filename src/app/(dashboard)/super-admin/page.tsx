@@ -398,7 +398,7 @@ export default function SuperAdminPage() {
           <CardDescription>Accede rápidamente a las principales funcionalidades de super administrador</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card className="bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => router.push('/dashboard')}>
               <CardContent className="p-4 text-center">
                 <div className="mb-2 mt-2">
@@ -420,6 +420,18 @@ export default function SuperAdminPage() {
                 </div>
                 <h3 className="text-lg font-medium">Usuarios</h3>
                 <p className="text-sm text-gray-500 mt-1">Gestionar usuarios de empresas</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-gray-50 hover:bg-amber-50 transition-colors cursor-pointer" onClick={() => router.push('/super-admin/companies')}>
+              <CardContent className="p-4 text-center">
+                <div className="mb-2 mt-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium">Empresas</h3>
+                <p className="text-sm text-gray-500 mt-1">Gestionar empresas del sistema</p>
               </CardContent>
             </Card>
             
