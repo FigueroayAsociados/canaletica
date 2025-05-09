@@ -119,10 +119,14 @@ export default function SuperAdminUsersPage() {
     }
   };
   
+  // Desactiva temporalmente esta verificación hasta que arreglemos los roles
+  // (Consistente con el comportamiento en src/app/(dashboard)/layout.tsx)
+  /*
   // Si no es super admin, no mostrar nada (redirigirá)
   if (!isSuperAdmin()) {
     return null;
   }
+  */
   
   return (
     <div className="container mx-auto py-6">
