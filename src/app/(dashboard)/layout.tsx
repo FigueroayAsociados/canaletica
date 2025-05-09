@@ -305,6 +305,19 @@ export default function DashboardLayout({
                 </svg>
                 Eliminar Denuncias
               </Link>
+
+              {/* Enlace al Panel de Super Admin - Solo visible para super admins */}
+              {profile?.role === 'super_admin' && (
+                <Link 
+                  href="/super-admin" 
+                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/super-admin') ? 'bg-purple-600 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                >
+                  <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/super-admin') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Panel Super Admin
+                </Link>
+              )}
             </>
           )}
         </nav>
@@ -461,6 +474,16 @@ export default function DashboardLayout({
                   >
                     Eliminar Denuncias
                   </Link>
+
+                  {/* Enlace al Panel de Super Admin (móvil) - Solo visible para super admins */}
+                  {profile?.role === 'super_admin' && (
+                    <Link 
+                      href="/super-admin" 
+                      className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/super-admin') ? 'bg-purple-600 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                    >
+                      Panel Super Admin
+                    </Link>
+                  )}
                 </>
               )}
             </div>
