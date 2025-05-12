@@ -11,13 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getCompanies, getCompany, createCompany, updateCompany, deleteCompany, Company } from '@/lib/services/configService';
+import { getCompanies, getCompany, updateCompany, deleteCompany, Company } from '@/lib/services/configService';
+import { createCompany } from '@/lib/services/companyService';
 import { httpsCallable } from 'firebase/functions';
 import { functions, safeCallFunction } from '@/lib/firebase/functions';
 import { CompanyDocumentsManager } from '@/components/settings/CompanyDocumentsManager';
 import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
 
 interface CompanyFormData {
+  id?: string;
   name: string;
   description: string;
   isActive: boolean;
@@ -136,6 +138,20 @@ export default function CompaniesManager() {
         return;
       }
       
+      if (!companyForm.id || !companyForm.id.trim()) {
+        setError('El ID de la empresa es obligatorio');
+        setLoading(false);
+        return;
+      }
+
+      // Validar formato del ID (solo letras minúsculas, números y guiones)
+      const idFormat = /^[a-z0-9-]+$/;
+      if (!idFormat.test(companyForm.id)) {
+        setError('El ID de la empresa solo puede contener letras minúsculas, números y guiones');
+        setLoading(false);
+        return;
+      }
+      
       if (companyForm.contactEmail && !isValidEmail(companyForm.contactEmail)) {
         setError('El correo electrónico de contacto no es válido');
         setLoading(false);
@@ -152,18 +168,21 @@ export default function CompaniesManager() {
       
       // Preparar datos para creación, asegurando tipos correctos
       const createData = {
+        id: companyForm.id.trim(),
         name: companyForm.name.trim(),
         description: companyForm.description || '',
-        isActive: companyForm.isActive === false ? false : true, // Asegura que sea booleano
+        isActive: companyForm.isActive === false ? false : true,
         contactEmail: companyForm.contactEmail || '',
         contactPhone: companyForm.contactPhone || '',
         address: companyForm.address || '',
         industry: companyForm.industry || '',
-        maxUsers: maxUsers
+        maxUsers: maxUsers,
+        environment: 'production'
       };
       
       console.log("Creando empresa con datos:", createData);
-      const result = await createCompany(createData);
+      // Obtenemos un ID de usuario del sistema para el creador
+      const result = await createCompany(createData, 'system');
       
       if (result.success) {
         showSuccessMessage('Empresa creada correctamente');
@@ -176,7 +195,7 @@ export default function CompaniesManager() {
         
         // Intentar diagnóstico
         if (result.error?.includes('already exists') || result.error?.includes('ya existe')) {
-          setError('Ya existe una empresa con este nombre. Por favor, elija un nombre diferente.');
+          setError('Ya existe una empresa con este ID. Por favor, utilice otro ID.');
         }
       }
     } catch (err) {
@@ -402,6 +421,7 @@ export default function CompaniesManager() {
   const resetCompanyForm = () => {
     // Limpiar todos los campos del formulario
     setCompanyForm({
+      id: '',
       name: '',
       description: '',
       isActive: true,
@@ -618,12 +638,25 @@ export default function CompaniesManager() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
+                <Label htmlFor="companyId">ID de la Empresa*</Label>
+                <Input
+                  id="companyId"
+                  value={companyForm.id}
+                  onChange={(e) => setCompanyForm({ ...companyForm, id: e.target.value.toLowerCase() })}
+                  className="mt-1"
+                  placeholder="ejemplo-sa"
+                />
+                <p className="text-xs text-gray-500 mt-1">Solo letras minúsculas, números y guiones</p>
+              </div>
+
+              <div>
                 <Label htmlFor="companyName">Nombre de la Empresa*</Label>
                 <Input
                   id="companyName"
                   value={companyForm.name}
                   onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
                   className="mt-1"
+                  placeholder="Ejemplo S.A."
                 />
               </div>
               
