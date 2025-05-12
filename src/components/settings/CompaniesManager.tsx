@@ -113,27 +113,43 @@ export default function CompaniesManager() {
   const handleAddCompany = async () => {
     try {
       setError(null);
+      setLoading(true);
       
-      if (!companyForm.name.trim()) {
+      // Validaciones básicas
+      if (!companyForm.name || !companyForm.name.trim()) {
         setError('El nombre de la empresa es obligatorio');
+        setLoading(false);
         return;
       }
       
-      if (!isValidEmail(companyForm.contactEmail)) {
+      if (companyForm.contactEmail && !isValidEmail(companyForm.contactEmail)) {
         setError('El correo electrónico de contacto no es válido');
+        setLoading(false);
         return;
       }
       
-      const result = await createCompany({
-        name: companyForm.name,
-        description: companyForm.description,
-        isActive: companyForm.isActive,
-        contactEmail: companyForm.contactEmail,
-        contactPhone: companyForm.contactPhone,
-        address: companyForm.address,
-        industry: companyForm.industry,
-        maxUsers: companyForm.maxUsers
-      });
+      // Asegurar tipos de datos correctos
+      const maxUsers = parseInt(String(companyForm.maxUsers));
+      if (isNaN(maxUsers) || maxUsers < 1) {
+        setError('El número máximo de usuarios debe ser un número positivo');
+        setLoading(false);
+        return;
+      }
+      
+      // Preparar datos para creación, asegurando tipos correctos
+      const createData = {
+        name: companyForm.name.trim(),
+        description: companyForm.description || '',
+        isActive: companyForm.isActive === false ? false : true, // Asegura que sea booleano
+        contactEmail: companyForm.contactEmail || '',
+        contactPhone: companyForm.contactPhone || '',
+        address: companyForm.address || '',
+        industry: companyForm.industry || '',
+        maxUsers: maxUsers
+      };
+      
+      console.log("Creando empresa con datos:", createData);
+      const result = await createCompany(createData);
       
       if (result.success) {
         showSuccessMessage('Empresa creada correctamente');
@@ -141,49 +157,81 @@ export default function CompaniesManager() {
         setIsAddingCompany(false);
         resetCompanyForm();
       } else {
+        console.error("Error al crear empresa:", result.error);
         setError(result.error || 'Error al crear la empresa');
+        
+        // Intentar diagnóstico
+        if (result.error?.includes('already exists') || result.error?.includes('ya existe')) {
+          setError('Ya existe una empresa con este nombre. Por favor, elija un nombre diferente.');
+        }
       }
     } catch (err) {
       console.error('Error al añadir empresa:', err);
-      setError('Ha ocurrido un error al crear la empresa');
+      setError('Ha ocurrido un error al crear la empresa. Por favor, intente nuevamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateCompany = async (companyId: string) => {
     try {
       setError(null);
+      setLoading(true);
       
-      if (!companyForm.name.trim()) {
+      // Validaciones básicas
+      if (!companyForm.name || !companyForm.name.trim()) {
         setError('El nombre de la empresa es obligatorio');
+        setLoading(false);
         return;
       }
       
-      if (!isValidEmail(companyForm.contactEmail)) {
+      if (companyForm.contactEmail && !isValidEmail(companyForm.contactEmail)) {
         setError('El correo electrónico de contacto no es válido');
+        setLoading(false);
         return;
       }
       
-      const result = await updateCompany(companyId, {
-        name: companyForm.name,
-        description: companyForm.description,
-        isActive: companyForm.isActive,
-        contactEmail: companyForm.contactEmail,
-        contactPhone: companyForm.contactPhone,
-        address: companyForm.address,
-        industry: companyForm.industry,
-        maxUsers: companyForm.maxUsers
-      });
+      // Asegurar tipos de datos correctos
+      const maxUsers = parseInt(String(companyForm.maxUsers));
+      if (isNaN(maxUsers) || maxUsers < 1) {
+        setError('El número máximo de usuarios debe ser un número positivo');
+        setLoading(false);
+        return;
+      }
+      
+      // Preparar datos para actualización, asegurando tipos correctos
+      const updateData = {
+        name: companyForm.name.trim(),
+        description: companyForm.description || '',
+        isActive: companyForm.isActive === false ? false : true, // Asegura que sea booleano
+        contactEmail: companyForm.contactEmail || '',
+        contactPhone: companyForm.contactPhone || '',
+        address: companyForm.address || '',
+        industry: companyForm.industry || '',
+        maxUsers: maxUsers
+      };
+      
+      console.log("Actualizando empresa con datos:", updateData);
+      const result = await updateCompany(companyId, updateData);
       
       if (result.success) {
         showSuccessMessage('Empresa actualizada correctamente');
         await loadCompanies();
         setIsEditingCompany(null);
       } else {
+        console.error("Error al actualizar empresa:", result.error);
         setError(result.error || 'Error al actualizar la empresa');
+        
+        // Intentar diagnóstico
+        if (result.error?.includes('already exists') || result.error?.includes('ya existe')) {
+          setError('Ya existe una empresa con este nombre. Por favor, elija un nombre diferente.');
+        }
       }
     } catch (err) {
       console.error('Error al actualizar empresa:', err);
-      setError('Ha ocurrido un error al actualizar la empresa');
+      setError('Ha ocurrido un error al actualizar la empresa. Por favor, intente nuevamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -251,11 +299,76 @@ export default function CompaniesManager() {
   };
 
   const handleEditCompany = async (company: Company) => {
-    // Intentar obtener datos actualizados de la empresa directamente
+    debugCompany(company, "Datos iniciales de empresa");
+    
+    // Verificar que tengamos un ID válido
+    if (!company || !company.id) {
+      setError('Error: No se puede editar una empresa sin ID');
+      return;
+    }
+    
+    // Primero limpiamos el formulario para evitar datos parciales
+    resetCompanyForm();
+    
+    // Iniciar estado de edición inmediatamente
+    setIsEditingCompany(company.id);
+    setIsAddingCompany(false);
+    
+    // Mostrar un mensaje mientras cargamos
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      // Primero usamos los datos que tenemos
-      setCompanyForm({
-        name: company.name || '',
+      // Obtener datos completos y actualizados directamente desde Firestore
+      const result = await getCompany(company.id);
+      
+      let companyData: Partial<Company> = company;
+      let loadedSuccessfully = false;
+      
+      if (result.success && result.company) {
+        companyData = result.company;
+        debugCompany(companyData, "Datos actualizados de empresa");
+        loadedSuccessfully = true;
+      } else {
+        console.warn(`No se pudieron obtener datos actualizados para la empresa ${company.id}`);
+        console.warn('Usando datos disponibles localmente');
+      }
+      
+      // Asegurar que todos los campos requeridos existen
+      // con valores por defecto en caso de que falten
+      const formData = {
+        name: companyData.name || company.name || 'Empresa sin nombre',
+        description: companyData.description || company.description || '',
+        isActive: companyData.isActive !== undefined 
+          ? companyData.isActive 
+          : (company.isActive !== undefined ? company.isActive : true),
+        contactEmail: companyData.contactEmail || company.contactEmail || '',
+        contactPhone: companyData.contactPhone || company.contactPhone || '',
+        address: companyData.address || company.address || '',
+        industry: companyData.industry || company.industry || '',
+        maxUsers: companyData.maxUsers || company.maxUsers || 10
+      };
+      
+      // Asegurar que todos los campos se establecen correctamente
+      debugCompany(formData, "Datos preparados para formulario");
+      
+      // Actualizar el formulario
+      setCompanyForm(formData);
+      
+      // Si no pudimos cargar los datos actualizados pero tenemos suficientes datos locales,
+      // ofrecer la opción de reparar la empresa
+      if (!loadedSuccessfully && company.name) {
+        setSuccess('Datos locales cargados. Después de editar, considere utilizar "Reparar Datos" para completar información faltante.');
+      }
+    } catch (error) {
+      console.error('Error al obtener datos completos de la empresa:', error);
+      setError('Error al cargar datos de la empresa. Se utilizarán los datos disponibles localmente.');
+      
+      // En caso de error, usamos los datos que tenemos aplicando valores por defecto
+      // para cualquier campo que falte
+      const formData = {
+        name: company.name || 'Empresa sin nombre',
         description: company.description || '',
         isActive: company.isActive !== undefined ? company.isActive : true,
         contactEmail: company.contactEmail || '',
@@ -263,35 +376,17 @@ export default function CompaniesManager() {
         address: company.address || '',
         industry: company.industry || '',
         maxUsers: company.maxUsers || 10
-      });
+      };
       
-      // Luego intentamos obtener datos más completos
-      const result = await getCompany(company.id);
-      
-      if (result.success && result.company) {
-        // Si obtenemos datos actualizados, actualizamos el formulario
-        const updatedCompany = result.company;
-        setCompanyForm({
-          name: updatedCompany.name || '',
-          description: updatedCompany.description || '',
-          isActive: updatedCompany.isActive !== undefined ? updatedCompany.isActive : true,
-          contactEmail: updatedCompany.contactEmail || '',
-          contactPhone: updatedCompany.contactPhone || '',
-          address: updatedCompany.address || '',
-          industry: updatedCompany.industry || '',
-          maxUsers: updatedCompany.maxUsers || 10
-        });
-      }
-    } catch (error) {
-      console.error('Error al obtener datos completos de la empresa:', error);
-      // No mostrar error al usuario, ya estamos usando los datos que tenemos
+      debugCompany(formData, "Datos de respaldo para formulario (después de error)");
+      setCompanyForm(formData);
+    } finally {
+      setLoading(false);
     }
-    
-    setIsEditingCompany(company.id);
-    setIsAddingCompany(false);
   };
 
   const resetCompanyForm = () => {
+    // Limpiar todos los campos del formulario
     setCompanyForm({
       name: '',
       description: '',
@@ -303,6 +398,20 @@ export default function CompaniesManager() {
       maxUsers: 10
     });
   };
+  
+  // Función para depurar un objeto de empresa en la consola
+  const debugCompany = (company: any, label: string) => {
+    console.log(`--- ${label} ---`);
+    console.log('name:', company.name);
+    console.log('description:', company.description);
+    console.log('isActive:', company.isActive);
+    console.log('contactEmail:', company.contactEmail);
+    console.log('contactPhone:', company.contactPhone);
+    console.log('address:', company.address);
+    console.log('industry:', company.industry);
+    console.log('maxUsers:', company.maxUsers);
+    console.log('-------------------');
+  };
 
   // Validación de email
   const isValidEmail = (email: string) => {
@@ -311,17 +420,20 @@ export default function CompaniesManager() {
     return re.test(email);
   };
 
-  if (loading) {
+  if (loading && !isEditingCompany) {
     return (
-      <div className="flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="inline-block animate-spin text-primary mb-4">
-            <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg className="h-10 w-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           </div>
-          <p className="text-neutral-600">Cargando empresas...</p>
+          <p className="text-neutral-600 mb-2">Cargando empresas...</p>
+          <p className="text-sm text-neutral-500">
+            Estamos obteniendo la lista de empresas y sus datos. Por favor, espere un momento.
+          </p>
         </div>
       </div>
     );
@@ -363,43 +475,75 @@ export default function CompaniesManager() {
                 }
                 
                 let repaired = 0;
+                let failed = 0;
+                let skipped = 0;
                 
                 // Procesar cada empresa para asegurarnos de que tenga todos los campos
                 for (const company of result.companies || []) {
-                  // Verificar si faltan campos
-                  const hasAllFields = 
-                    company.name !== undefined && 
-                    company.isActive !== undefined &&
-                    company.description !== undefined &&
-                    company.contactEmail !== undefined &&
-                    company.contactPhone !== undefined &&
-                    company.address !== undefined &&
-                    company.industry !== undefined &&
-                    company.maxUsers !== undefined;
+                  // Verificar si es una empresa válida con ID
+                  if (!company.id) {
+                    console.warn('Empresa sin ID encontrada, omitiendo');
+                    skipped++;
+                    continue;
+                  }
                   
-                  // Si faltan campos, actualizar la empresa
-                  if (!hasAllFields) {
-                    const updateResult = await updateCompany(company.id, {
-                      name: company.name || 'Empresa sin nombre',
-                      isActive: company.isActive !== undefined ? company.isActive : true,
-                      description: company.description || '',
-                      contactEmail: company.contactEmail || '',
-                      contactPhone: company.contactPhone || '',
-                      address: company.address || '',
-                      industry: company.industry || '',
-                      maxUsers: company.maxUsers || 10
-                    });
+                  try {
+                    // Verificar si faltan campos
+                    const hasAllFields = 
+                      company.name !== undefined && 
+                      company.isActive !== undefined &&
+                      company.description !== undefined &&
+                      company.contactEmail !== undefined &&
+                      company.contactPhone !== undefined &&
+                      company.address !== undefined &&
+                      company.industry !== undefined &&
+                      company.maxUsers !== undefined;
                     
-                    if (updateResult.success) {
-                      repaired++;
+                    // Verificar si los campos tienen tipos correctos
+                    const needsTypeRepair = 
+                      company.isActive !== undefined && typeof company.isActive !== 'boolean' ||
+                      company.maxUsers !== undefined && typeof company.maxUsers !== 'number';
+                    
+                    // Si faltan campos o hay problemas de tipo, actualizar la empresa
+                    if (!hasAllFields || needsTypeRepair) {
+                      console.log(`Reparando empresa: ${company.id} - ${company.name || 'Sin nombre'}`);
+                      
+                      // Preparar datos para actualización
+                      const updateData = {
+                        name: company.name || 'Empresa sin nombre',
+                        isActive: company.isActive === false ? false : true, // Asegura que sea booleano
+                        description: company.description || '',
+                        contactEmail: company.contactEmail || '',
+                        contactPhone: company.contactPhone || '',
+                        address: company.address || '',
+                        industry: company.industry || '',
+                        maxUsers: parseInt(String(company.maxUsers || 10)) // Asegura que sea número
+                      };
+                      
+                      const updateResult = await updateCompany(company.id, updateData);
+                      
+                      if (updateResult.success) {
+                        repaired++;
+                      } else {
+                        console.error(`Error al actualizar empresa ${company.id}:`, updateResult.error);
+                        failed++;
+                      }
+                    } else {
+                      skipped++;
                     }
+                  } catch (err) {
+                    console.error(`Error procesando la empresa ${company.id}:`, err);
+                    failed++;
                   }
                 }
                 
+                // Construir mensaje de éxito
                 if (repaired > 0) {
-                  setSuccess(`Se han reparado ${repaired} empresas con datos faltantes`);
+                  setSuccess(`Operación completada: ${repaired} empresas reparadas, ${skipped} sin cambios, ${failed} fallidas.`);
+                } else if (failed > 0) {
+                  setError(`No se pudo reparar ninguna empresa. ${failed} empresas fallidas.`);
                 } else {
-                  setSuccess('Todas las empresas tienen datos completos');
+                  setSuccess('Todas las empresas tienen datos completos y válidos.');
                 }
                 
                 // Recargar empresas
@@ -407,7 +551,7 @@ export default function CompaniesManager() {
                 
               } catch (error) {
                 console.error('Error al reparar empresas:', error);
-                setError('Error al reparar empresas');
+                setError('Error al reparar empresas. Por favor, intente nuevamente.');
               } finally {
                 setLoading(false);
               }
@@ -587,6 +731,16 @@ export default function CompaniesManager() {
             <CardTitle>Editar Empresa</CardTitle>
           </CardHeader>
           <CardContent>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                <span className="text-gray-600 text-center">Cargando datos de la empresa...</span>
+                <p className="text-sm text-gray-500 mt-2 text-center max-w-md">
+                  Esto puede tomar unos momentos mientras se obtienen los datos más recientes de la empresa.
+                  Si la carga tarda demasiado, puede cancelar y volver a intentarlo.
+                </p>
+              </div>
+            ) : (
             <Tabs defaultValue={window.location.hash === '#documents' ? 'documents' : 'general'} className="w-full" onValueChange={(value) => {
               // Actualizar el hash en la URL para mantener la pestaña seleccionada
               if (value === 'documents') {
