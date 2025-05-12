@@ -984,6 +984,12 @@ export default function CompaniesManager() {
                         >
                           Gestionar Documentos
                         </button>
+                        <button
+                          onClick={() => setShowConfirmDelete(company.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Eliminar Empresa
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1004,6 +1010,74 @@ export default function CompaniesManager() {
           <p className="mt-1 text-sm text-gray-500">
             Crea tu primera empresa para comenzar a gestionar el canal de denuncias.
           </p>
+        </div>
+      )}
+      
+      {/* Diálogo de confirmación para eliminar empresa */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirmar Eliminación</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              ¿Está seguro que desea eliminar esta empresa? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfirmDelete(null)} 
+                disabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => handleDeleteCompany(showConfirmDelete)} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar Empresa'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Diálogo de confirmación para eliminación completa */}
+      {showDeepDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium text-red-600 mb-4">Eliminación Completa</h3>
+            <p className="text-sm text-gray-700 mb-2 font-medium">
+              ¡Atención! Esta es una operación destructiva.
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              Está a punto de eliminar la empresa y todos sus datos relacionados, incluyendo:
+            </p>
+            <ul className="list-disc pl-5 mb-4 text-sm text-gray-500">
+              <li>Todos los usuarios asociados</li>
+              <li>Todas las denuncias y reportes</li>
+              <li>Todos los documentos subidos</li>
+              <li>Toda la configuración personalizada</li>
+            </ul>
+            <p className="text-sm text-red-500 font-medium mb-4">
+              Esta acción no se puede deshacer y resultará en la pérdida permanente de datos.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeepDeleteConfirm(null)} 
+                disabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => handleDeepDeleteCompany(showDeepDeleteConfirm)} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar Empresa y Todos sus Datos'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
