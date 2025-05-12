@@ -150,17 +150,36 @@ export async function createCompany(
   creatorId: string
 ): Promise<{ success: boolean; companyId?: string; error?: string }> {
   try {
-    // Normalizar ID para consistencia
-    const normalizedCompanyId = normalizeCompanyId(params.id);
+    // IMPORTANTE: Para creación de empresas, usamos el ID proporcionado sin normalizar
+    // Esta es una excepción a la regla general de normalización durante el desarrollo
+    const companyId = params.id.trim().toLowerCase();
     
-    // Verificar si ya existe una empresa con ese ID
-    const companyRef = doc(db, `companies/${normalizedCompanyId}`);
+    // Verificar si ya existe una empresa con ese ID exacto (sin normalizar)
+    // o con el ID normalizado (para compatibilidad con la empresa default)
+    const normalizedId = normalizeCompanyId(companyId);
+    
+    let existingCompany = false;
+    
+    // Verificar con el ID exacto
+    const companyRef = doc(db, `companies/${companyId}`);
     const companySnap = await getDoc(companyRef);
+    existingCompany = companySnap.exists();
     
-    if (companySnap.exists()) {
+    // Si no existe con el ID exacto pero companyId != normalizedId, verificar también con el ID normalizado
+    if (!existingCompany && companyId !== normalizedId) {
+      const normalizedCompanyRef = doc(db, `companies/${normalizedId}`);
+      const normalizedCompanySnap = await getDoc(normalizedCompanyRef);
+      
+      // Si existe con el ID normalizado y estamos intentando crear "default", bloquear
+      if (normalizedCompanySnap.exists() && companyId === "default") {
+        existingCompany = true;
+      }
+    }
+    
+    if (existingCompany) {
       return {
         success: false,
-        error: `Ya existe una empresa con el ID '${normalizedCompanyId}'`
+        error: `Ya existe una empresa con el ID '${companyId}'`
       };
     }
     
@@ -184,16 +203,16 @@ export async function createCompany(
     
     // 1. Configuración de entorno
     await initializeEnvironmentConfig(
-      normalizedCompanyId, 
+      companyId, 
       params.environment || 'production'
     );
     
     // 2. Feature flags
-    await initializeFeatureFlags(normalizedCompanyId, creatorId);
+    await initializeFeatureFlags(companyId, creatorId);
     
     // 3. Configuración general
     await setDoc(
-      doc(db, `companies/${normalizedCompanyId}/settings/general`), 
+      doc(db, `companies/${companyId}/settings/general`), 
       {
         companyName: params.name,
         primaryColor: '#007bff',
@@ -208,11 +227,16 @@ export async function createCompany(
       }
     );
     
-    logger.info(`Nueva empresa creada: ${params.name} (${normalizedCompanyId})`);
+    logger.info(`Nueva empresa creada: ${params.name} (${companyId})`);
+    
+    // NOTA IMPORTANTE: Esto permitirá la creación de empresas con IDs distintos,
+    // pero algunas funcionalidades pueden seguir redirigiendo operaciones a 'default'
+    // debido a la función normalizeCompanyId(). Para una implementación completa
+    // multi-tenant será necesario revisar esa función.
     
     return {
       success: true,
-      companyId: normalizedCompanyId
+      companyId: companyId
     };
   } catch (error) {
     logger.error('Error al crear nueva empresa:', error);
