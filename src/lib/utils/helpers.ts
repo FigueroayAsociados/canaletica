@@ -10,8 +10,16 @@ import { logger } from './logger';
  * Asegura que todos los datos se consoliden en una única colección (default)
  * en lugar de dispersarse entre múltiples colecciones generadas automáticamente.
  * 
+ * IMPORTANTE: Esta función actualmente fuerza todas las operaciones a usar la colección "default".
+ * La excepción es la creación de empresas, donde se ha modificado la función createCompany()
+ * en src/lib/services/companyService.ts para usar el ID proporcionado sin normalizar.
+ * 
  * Para el entorno de producción, esta lógica deberá ajustarse para mantener
  * la separación adecuada entre los datos de diferentes clientes.
+ * 
+ * Referencias:
+ * - Ver scripts/README-MIGRACION.md para entender el contexto de esta decisión
+ * - Ver la implementación de createCompany() en src/lib/services/companyService.ts
  * 
  * @param companyId ID de la compañía proporcionado o detectado
  * @returns ID de compañía normalizado para entorno de desarrollo

@@ -92,6 +92,13 @@ export default function SuperAdminPage() {
       return;
     }
     
+    // Validar formato del ID (solo letras minúsculas, números y guiones)
+    const idFormat = /^[a-z0-9-]+$/;
+    if (!idFormat.test(newCompanyId)) {
+      setError('El ID de la empresa solo puede contener letras minúsculas, números y guiones');
+      return;
+    }
+    
     try {
       setCreatingCompany(true);
       setError(null);
@@ -207,13 +214,16 @@ export default function SuperAdminPage() {
                   <Input
                     id="company-id"
                     value={newCompanyId}
-                    onChange={(e) => setNewCompanyId(e.target.value)}
+                    onChange={(e) => setNewCompanyId(e.target.value.toLowerCase())}
                     placeholder="ejemplo-sa"
                     className="mt-1"
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Solo letras minúsculas, números y guiones
+                    Solo letras minúsculas, números y guiones. Este ID será único y no podrá cambiarse después.
+                  </p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    Nota: Durante la fase de desarrollo, algunas operaciones se redireccionen a la empresa "default".
                   </p>
                 </div>
                 

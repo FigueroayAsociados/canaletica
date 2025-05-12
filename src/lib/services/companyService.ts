@@ -39,6 +39,50 @@ export interface CompanyFilters {
 }
 
 /**
+ * Verifica si ya existe una empresa con el ID proporcionado
+ * Esta función es útil para validar IDs antes de intentar crear empresas
+ */
+export async function companyIdExists(
+  companyId: string
+): Promise<{ exists: boolean; normalizedExists?: boolean; error?: string }> {
+  try {
+    if (!companyId) {
+      return { 
+        exists: false,
+        error: 'ID no proporcionado'
+      };
+    }
+
+    const normalizedId = normalizeCompanyId(companyId);
+    let exists = false;
+    let normalizedExists = false;
+    
+    // Verificar con el ID exacto
+    const companyRef = doc(db, `companies/${companyId}`);
+    const companySnap = await getDoc(companyRef);
+    exists = companySnap.exists();
+    
+    // Si el ID normalizado es diferente, verificar también con el ID normalizado
+    if (companyId !== normalizedId) {
+      const normalizedCompanyRef = doc(db, `companies/${normalizedId}`);
+      const normalizedCompanySnap = await getDoc(normalizedCompanyRef);
+      normalizedExists = normalizedCompanySnap.exists();
+    }
+    
+    return {
+      exists,
+      normalizedExists: normalizedExists || undefined
+    };
+  } catch (error) {
+    logger.error(`Error al verificar existencia del ID ${companyId}:`, error);
+    return {
+      exists: false,
+      error: 'Error al verificar la existencia de la empresa'
+    };
+  }
+}
+
+/**
  * Obtiene todas las empresas (solo para super admin)
  */
 export async function getAllCompanies(
