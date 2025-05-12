@@ -109,6 +109,20 @@ export default function CompaniesManager() {
     }, 3000);
   };
 
+  // Función para depurar un objeto de empresa en la consola
+  const debugCompany = (company: any, label: string) => {
+    console.log(`--- ${label} ---`);
+    console.log('name:', company.name);
+    console.log('description:', company.description);
+    console.log('isActive:', company.isActive);
+    console.log('contactEmail:', company.contactEmail);
+    console.log('contactPhone:', company.contactPhone);
+    console.log('address:', company.address);
+    console.log('industry:', company.industry);
+    console.log('maxUsers:', company.maxUsers);
+    console.log('-------------------');
+  };
+
   // Funciones para manejo de empresas
   const handleAddCompany = async () => {
     try {
@@ -399,20 +413,6 @@ export default function CompaniesManager() {
     });
   };
   
-  // Función para depurar un objeto de empresa en la consola
-  const debugCompany = (company: any, label: string) => {
-    console.log(`--- ${label} ---`);
-    console.log('name:', company.name);
-    console.log('description:', company.description);
-    console.log('isActive:', company.isActive);
-    console.log('contactEmail:', company.contactEmail);
-    console.log('contactPhone:', company.contactPhone);
-    console.log('address:', company.address);
-    console.log('industry:', company.industry);
-    console.log('maxUsers:', company.maxUsers);
-    console.log('-------------------');
-  };
-
   // Validación de email
   const isValidEmail = (email: string) => {
     if (!email) return true; // Permitir vacío
@@ -741,141 +741,142 @@ export default function CompaniesManager() {
                 </p>
               </div>
             ) : (
-            <Tabs defaultValue={window.location.hash === '#documents' ? 'documents' : 'general'} className="w-full" onValueChange={(value) => {
-              // Actualizar el hash en la URL para mantener la pestaña seleccionada
-              if (value === 'documents') {
-                window.location.hash = 'documents';
-              } else {
-                window.location.hash = '';
-              }
-            }}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="general">Información General</TabsTrigger>
-                <TabsTrigger value="documents">Documentos Corporativos</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="general">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="editCompanyName">Nombre de la Empresa*</Label>
-                    <Input
-                      id="editCompanyName"
-                      value={companyForm.name}
-                      onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="editCompanyIndustry">Industria</Label>
-                    <Select
-                      id="editCompanyIndustry"
-                      value={companyForm.industry}
-                      onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
-                      className="mt-1"
-                    >
-                      <option value="">Seleccione una industria</option>
-                      {industries.map(industry => (
-                        <option key={industry.value} value={industry.value}>
-                          {industry.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <Label htmlFor="editCompanyDescription">Descripción</Label>
-                    <Textarea
-                      id="editCompanyDescription"
-                      value={companyForm.description}
-                      onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
-                      className="mt-1"
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="editCompanyEmail">Correo Electrónico de Contacto</Label>
-                    <Input
-                      id="editCompanyEmail"
-                      type="email"
-                      value={companyForm.contactEmail}
-                      onChange={(e) => setCompanyForm({ ...companyForm, contactEmail: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="editCompanyPhone">Teléfono de Contacto</Label>
-                    <Input
-                      id="editCompanyPhone"
-                      value={companyForm.contactPhone}
-                      onChange={(e) => setCompanyForm({ ...companyForm, contactPhone: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <Label htmlFor="editCompanyAddress">Dirección</Label>
-                    <Input
-                      id="editCompanyAddress"
-                      value={companyForm.address}
-                      onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="editCompanyMaxUsers">Número Máximo de Usuarios</Label>
-                    <Input
-                      id="editCompanyMaxUsers"
-                      type="number"
-                      min="1"
-                      value={companyForm.maxUsers.toString()}
-                      onChange={(e) => setCompanyForm({ ...companyForm, maxUsers: parseInt(e.target.value) || 1 })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="editCompanyActive"
-                      checked={companyForm.isActive}
-                      onChange={(e) => setCompanyForm({ ...companyForm, isActive: e.target.checked })}
-                      className="h-4 w-4 text-primary border-neutral-300 rounded"
-                    />
-                    <Label htmlFor="editCompanyActive" className="ml-2">
-                      Empresa Activa
-                    </Label>
-                  </div>
-                </div>
+              <Tabs defaultValue={window.location.hash === '#documents' ? 'documents' : 'general'} className="w-full" onValueChange={(value) => {
+                // Actualizar el hash en la URL para mantener la pestaña seleccionada
+                if (value === 'documents') {
+                  window.location.hash = 'documents';
+                } else {
+                  window.location.hash = '';
+                }
+              }}>
+                <TabsList className="mb-4">
+                  <TabsTrigger value="general">Información General</TabsTrigger>
+                  <TabsTrigger value="documents">Documentos Corporativos</TabsTrigger>
+                </TabsList>
                 
-                <div className="flex justify-end space-x-2 mt-6">
-                  <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={() => handleUpdateCompany(isEditingCompany)}>
-                    Actualizar Empresa
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="documents">
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-4">
-                    Gestiona los documentos corporativos de la empresa. Los documentos marcados como "públicos" se mostrarán en la página de inicio.
-                  </p>
-                  <CompanyDocumentsManager companyId={isEditingCompany} />
-                </div>
+                <TabsContent value="general">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="editCompanyName">Nombre de la Empresa*</Label>
+                      <Input
+                        id="editCompanyName"
+                        value={companyForm.name}
+                        onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="editCompanyIndustry">Industria</Label>
+                      <Select
+                        id="editCompanyIndustry"
+                        value={companyForm.industry}
+                        onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
+                        className="mt-1"
+                      >
+                        <option value="">Seleccione una industria</option>
+                        {industries.map(industry => (
+                          <option key={industry.value} value={industry.value}>
+                            {industry.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <Label htmlFor="editCompanyDescription">Descripción</Label>
+                      <Textarea
+                        id="editCompanyDescription"
+                        value={companyForm.description}
+                        onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
+                        className="mt-1"
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="editCompanyEmail">Correo Electrónico de Contacto</Label>
+                      <Input
+                        id="editCompanyEmail"
+                        type="email"
+                        value={companyForm.contactEmail}
+                        onChange={(e) => setCompanyForm({ ...companyForm, contactEmail: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="editCompanyPhone">Teléfono de Contacto</Label>
+                      <Input
+                        id="editCompanyPhone"
+                        value={companyForm.contactPhone}
+                        onChange={(e) => setCompanyForm({ ...companyForm, contactPhone: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <Label htmlFor="editCompanyAddress">Dirección</Label>
+                      <Input
+                        id="editCompanyAddress"
+                        value={companyForm.address}
+                        onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="editCompanyMaxUsers">Número Máximo de Usuarios</Label>
+                      <Input
+                        id="editCompanyMaxUsers"
+                        type="number"
+                        min="1"
+                        value={companyForm.maxUsers.toString()}
+                        onChange={(e) => setCompanyForm({ ...companyForm, maxUsers: parseInt(e.target.value) || 1 })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="editCompanyActive"
+                        checked={companyForm.isActive}
+                        onChange={(e) => setCompanyForm({ ...companyForm, isActive: e.target.checked })}
+                        className="h-4 w-4 text-primary border-neutral-300 rounded"
+                      />
+                      <Label htmlFor="editCompanyActive" className="ml-2">
+                        Empresa Activa
+                      </Label>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 mt-6">
+                    <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={() => handleUpdateCompany(isEditingCompany)}>
+                      Actualizar Empresa
+                    </Button>
+                  </div>
+                </TabsContent>
                 
-                <div className="flex justify-end space-x-2 mt-6">
-                  <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
-                    Cerrar
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
+                <TabsContent value="documents">
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-4">
+                      Gestiona los documentos corporativos de la empresa. Los documentos marcados como "públicos" se mostrarán en la página de inicio.
+                    </p>
+                    <CompanyDocumentsManager companyId={isEditingCompany} />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 mt-6">
+                    <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
+                      Cerrar
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
       )}
