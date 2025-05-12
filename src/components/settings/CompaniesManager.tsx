@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getCompanies, createCompany, updateCompany, deleteCompany, Company } from '@/lib/services/configService';
+import { getCompanies, getCompany, createCompany, updateCompany, deleteCompany, Company } from '@/lib/services/configService';
 import { httpsCallable } from 'firebase/functions';
 import { functions, safeCallFunction } from '@/lib/firebase/functions';
 import { CompanyDocumentsManager } from '@/components/settings/CompanyDocumentsManager';
@@ -250,17 +250,42 @@ export default function CompaniesManager() {
     }
   };
 
-  const handleEditCompany = (company: Company) => {
-    setCompanyForm({
-      name: company.name || '',
-      description: company.description || '',
-      isActive: company.isActive !== undefined ? company.isActive : true,
-      contactEmail: company.contactEmail || '',
-      contactPhone: company.contactPhone || '',
-      address: company.address || '',
-      industry: company.industry || '',
-      maxUsers: company.maxUsers || 10
-    });
+  const handleEditCompany = async (company: Company) => {
+    // Intentar obtener datos actualizados de la empresa directamente
+    try {
+      // Primero usamos los datos que tenemos
+      setCompanyForm({
+        name: company.name || '',
+        description: company.description || '',
+        isActive: company.isActive !== undefined ? company.isActive : true,
+        contactEmail: company.contactEmail || '',
+        contactPhone: company.contactPhone || '',
+        address: company.address || '',
+        industry: company.industry || '',
+        maxUsers: company.maxUsers || 10
+      });
+      
+      // Luego intentamos obtener datos más completos
+      const result = await getCompany(company.id);
+      
+      if (result.success && result.company) {
+        // Si obtenemos datos actualizados, actualizamos el formulario
+        const updatedCompany = result.company;
+        setCompanyForm({
+          name: updatedCompany.name || '',
+          description: updatedCompany.description || '',
+          isActive: updatedCompany.isActive !== undefined ? updatedCompany.isActive : true,
+          contactEmail: updatedCompany.contactEmail || '',
+          contactPhone: updatedCompany.contactPhone || '',
+          address: updatedCompany.address || '',
+          industry: updatedCompany.industry || '',
+          maxUsers: updatedCompany.maxUsers || 10
+        });
+      }
+    } catch (error) {
+      console.error('Error al obtener datos completos de la empresa:', error);
+      // No mostrar error al usuario, ya estamos usando los datos que tenemos
+    }
     
     setIsEditingCompany(company.id);
     setIsAddingCompany(false);
@@ -321,6 +346,77 @@ export default function CompaniesManager() {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Gestión de Empresas</h2>
         <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              try {
+                setLoading(true);
+                setError(null);
+                setSuccess(null);
+                
+                // Obtener todas las empresas
+                const result = await getCompanies();
+                
+                if (!result.success) {
+                  setError('Error al obtener empresas para reparación');
+                  return;
+                }
+                
+                let repaired = 0;
+                
+                // Procesar cada empresa para asegurarnos de que tenga todos los campos
+                for (const company of result.companies || []) {
+                  // Verificar si faltan campos
+                  const hasAllFields = 
+                    company.name !== undefined && 
+                    company.isActive !== undefined &&
+                    company.description !== undefined &&
+                    company.contactEmail !== undefined &&
+                    company.contactPhone !== undefined &&
+                    company.address !== undefined &&
+                    company.industry !== undefined &&
+                    company.maxUsers !== undefined;
+                  
+                  // Si faltan campos, actualizar la empresa
+                  if (!hasAllFields) {
+                    const updateResult = await updateCompany(company.id, {
+                      name: company.name || 'Empresa sin nombre',
+                      isActive: company.isActive !== undefined ? company.isActive : true,
+                      description: company.description || '',
+                      contactEmail: company.contactEmail || '',
+                      contactPhone: company.contactPhone || '',
+                      address: company.address || '',
+                      industry: company.industry || '',
+                      maxUsers: company.maxUsers || 10
+                    });
+                    
+                    if (updateResult.success) {
+                      repaired++;
+                    }
+                  }
+                }
+                
+                if (repaired > 0) {
+                  setSuccess(`Se han reparado ${repaired} empresas con datos faltantes`);
+                } else {
+                  setSuccess('Todas las empresas tienen datos completos');
+                }
+                
+                // Recargar empresas
+                await loadCompanies();
+                
+              } catch (error) {
+                console.error('Error al reparar empresas:', error);
+                setError('Error al reparar empresas');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+          >
+            Reparar Datos
+          </Button>
+          
           {companies.find(c => c.id === 'default') ? (
             <Button 
               variant="default"
