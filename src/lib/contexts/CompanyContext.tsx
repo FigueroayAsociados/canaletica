@@ -86,6 +86,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           // Es un subdominio que no es www ni localhost
           if (hostname !== 'localhost' && 
               subdomain !== 'www' && 
+              subdomain !== 'canaletic' && 
               subdomain !== 'canaletica' &&
               hostParts.length > 1) {
             extractedId = subdomain;

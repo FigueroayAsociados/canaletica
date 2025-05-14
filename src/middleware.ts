@@ -37,6 +37,11 @@ const adminApiRoutes = [
 
 // Lista de dominios principales para la aplicación
 const mainDomains = [
+  // Nuevo dominio principal (canaletic.app)
+  'canaletic.app',
+  'www.canaletic.app',
+  
+  // Dominios anteriores (por compatibilidad)
   'canaletica.cl',
   'www.canaletica.cl',
   'canaletica.com',
@@ -84,13 +89,13 @@ export default function middleware(request: NextRequest) {
   // Extraer el subdominio o dominio personalizado
   let companyId = null;
   
-  // Caso 1: Subdominio (ej: empresa1.canaletica.cl)
+  // Caso 1: Subdominio (ej: empresa1.canaletic.app o empresa1.canaletica.cl)
   if (!mainDomains.includes(hostname)) {
     // Verificar si es un subdominio
     const hostParts = hostname.split('.');
     
-    // Dominio con subdominio (ej: empresa1.canaletica.cl)
-    if (hostParts.length > 2 && hostParts[0] !== 'www') {
+    // Dominio con subdominio (ej: empresa1.canaletic.app)
+    if (hostParts.length > 1 && hostParts[0] !== 'www') {
       companyId = hostParts[0];
       console.log(`Middleware: Detectado subdominio ${companyId}`);
     }
@@ -102,13 +107,13 @@ export default function middleware(request: NextRequest) {
     }
   }
   
-  // Caso 2: Parámetro en URL (ej: canaletica.cl?company=empresa1)
+  // Caso 2: Parámetro en URL (ej: canaletic.app?company=empresa1)
   if (!companyId && searchParams.has('company')) {
     companyId = searchParams.get('company');
     console.log(`Middleware: Detectada empresa por parámetro: ${companyId}`);
   }
   
-  // Caso 3: Ruta de empresa (ej: canaletica.cl/empresa/empresa1/...)
+  // Caso 3: Ruta de empresa (ej: canaletic.app/empresa/empresa1/...)
   if (!companyId && pathname.startsWith('/empresa/')) {
     const pathParts = pathname.split('/');
     if (pathParts.length > 2) {
