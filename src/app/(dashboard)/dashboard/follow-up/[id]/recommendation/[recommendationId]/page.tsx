@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
+import { SafeRender } from '@/components/ui/safe-render';
 import { getReportById, updateRecommendation } from '@/lib/services/reportService';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { getUserProfileById } from '@/lib/services/userService';
@@ -280,7 +281,11 @@ async function loadData() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <div>
                 <p className="text-sm text-gray-500">Responsable</p>
-                <p className="font-medium">{recommendation.assignedToName || recommendation.assignedTo || 'No asignado'}</p>
+                <p className="font-medium">
+                  <SafeRender condition={!!(recommendation?.assignedToName || recommendation?.assignedTo)} fallback="No asignado">
+                    {recommendation?.assignedToName || recommendation?.assignedTo}
+                  </SafeRender>
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Fecha límite</p>

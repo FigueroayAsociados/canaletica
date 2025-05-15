@@ -9,389 +9,287 @@ import {
   updateDoc,
   query,
   where,
-  orderBy,
   serverTimestamp,
   Timestamp,
-  limit
+  orderBy,
+  limit,
+  deleteDoc
 } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase/config';
-import { getReportById, updateReportStatus } from './reportService';
-import { getUserProfileById } from './userService';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { v4 as uuidv4 } from 'uuid';
+import { db, storage, auth } from '@/lib/firebase/config';
+import { isSuperAdmin, isAdmin } from '@/lib/utils/roleUtils';
 
-/**
- * Obtiene las denuncias asignadas a un investigador o todas si es admin
- */
-export async function getAssignedReports(companyId: string, userId: string) {
-  console.log('getAssignedReports - Inicio', { companyId, userId });
+// Función para obtener los detalles de una investigación
+export async function getInvestigationDetails(companyId, reportId) {
   try {
-    // Primero verificamos si el usuario es administrador
-    const userProfileResult = await getUserProfileById(companyId, userId);
-    const isAdmin = userProfileResult.success && userProfileResult.profile?.role === 'admin';
-    console.log('Usuario es admin:', isAdmin);
-
-    const reportsRef = collection(db, `companies/${companyId}/reports`);
-    let q;
-
-    if (isAdmin) {
-      // Si es admin, obtener todas las denuncias que están en proceso de investigación
-      q = query(
-        reportsRef,
-        where('status', 'in', ['Asignada', 'En Investigación', 'Pendiente Información', 'En Evaluación']),
-        orderBy('createdAt', 'desc')
-      );
-      console.log('Consultando todas las denuncias en investigación para admin');
-    } else {
-      // Si es investigador, solo obtener las asignadas a él
-      q = query(
-        reportsRef,
-        where('assignedTo', '==', userId),
-        orderBy('createdAt', 'desc')
-      );
-      console.log('Consultando denuncias asignadas para investigador');
-    }
-
-    console.log('Ejecutando query Firestore...');
-    const querySnapshot = await getDocs(q);
-    console.log(`Query completada - ${querySnapshot.size} documentos encontrados`);
-
-    if (querySnapshot.empty) {
-      console.log('No se encontraron documentos');
-      return { success: true, reports: [] };
-    }
-
-    // Procesar los documentos para obtener datos adicionales
-    const reports = await Promise.all(querySnapshot.docs.map(async (doc) => {
-      const data = doc.data();
-      const reportId = doc.id;
-      console.log(`Procesando reporte: ${reportId}`);
-
-      // Si el reporte tiene un investigador asignado, obtener su nombre
-      let assignedToName = null;
-      if (data.assignedTo) {
-        const investigatorProfile = await getUserProfileById(companyId, data.assignedTo);
-        if (investigatorProfile.success) {
-          assignedToName = investigatorProfile.profile.displayName;
-        }
-      }
-
-      // Obtener actividades para evaluar progreso de investigación
-      const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-      const activitiesQuery = query(activitiesRef, orderBy('timestamp', 'desc'));
-      const activitiesSnapshot = await getDocs(activitiesQuery);
-
-      // Verificar actividades relacionadas con investigación
-      const activities = activitiesSnapshot.docs.map(doc => doc.data());
-      const hasPlan = activities.some(a => a.actionType === 'planCreated' || a.actionType === 'planUpdated');
-      const interviewCount = activities.filter(a => a.actionType === 'interviewAdded').length;
-      const findingCount = activities.filter(a => a.actionType === 'findingAdded').length;
-      const hasFinalReport = activities.some(a => a.actionType === 'reportCreated' || a.actionType === 'reportUpdated');
-
-      console.log(`Actividades encontradas - Plan: ${hasPlan}, Entrevistas: ${interviewCount}, Hallazgos: ${findingCount}, Informe final: ${hasFinalReport}`);
-
-      // Verificar si hay acusados
-      const accusedRef = collection(db, `companies/${companyId}/reports/${reportId}/accused`);
-      const accusedSnapshot = await getDocs(accusedRef);
-      const accusedCount = accusedSnapshot.size;
-
-      // Obtener testigos
-      const witnessesRef = collection(db, `companies/${companyId}/reports/${reportId}/witnesses`);
-      const witnessesSnapshot = await getDocs(witnessesRef);
-      const witnessCount = witnessesSnapshot.size;
-
-      // Calcular progreso basado en estado y actividades
-      const progress = calculateInvestigationProgress(
-        data.status,
-        hasPlan,
-        interviewCount,
-        findingCount,
-        hasFinalReport
-      );
-
-      console.log(`Progreso calculado: ${progress}%`);
-
-      const processedReport = {
-        id: reportId,
-        ...data,
-        assignedToName,
-        investigation: {
-          hasPlan,
-          interviewCount,
-          findingCount,
-          accusedCount,
-          witnessCount,
-          hasFinalReport,
-          progress
-        }
-      };
-
-      console.log(`Reporte procesado: ${reportId}`, processedReport.investigation);
-      return processedReport;
-    }));
-
-    console.log(`Todos los reportes procesados: ${reports.length}`);
-    return { success: true, reports };
-  } catch (error) {
-    console.error('ERROR en getAssignedReports:', error);
-    return {
-      success: false,
-      error: 'Error al obtener las denuncias asignadas',
-    };
-  }
-}
-
-/**
- * Obtiene todas las investigaciones (para administradores)
- */
-export async function getAllInvestigations(companyId: string) {
-  try {
-    const reportsRef = collection(db, `companies/${companyId}/reports`);
-    const q = query(
-      reportsRef,
-      where('status', 'in', ['Asignada', 'En Investigación', 'Pendiente Información', 'En Evaluación']),
-      orderBy('createdAt', 'desc')
-    );
-
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) {
-      return { success: true, investigations: [] };
-    }
-
-    // Procesar los documentos y obtener información adicional
-    const investigations = await Promise.all(querySnapshot.docs.map(async (doc) => {
-      const data = doc.data();
-      const reportId = doc.id;
-
-      // Obtener el nombre del investigador asignado
-      let investigatorName = 'No asignado';
-      if (data.assignedTo) {
-        const userResult = await getUserProfileById(companyId, data.assignedTo);
-        if (userResult.success) {
-          investigatorName = userResult.profile.displayName;
-        }
-      }
-
-      // Obtener actividades para evaluar progreso de investigación
-      const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-      const activitiesSnapshot = await getDocs(activitiesRef);
-
-      // Verificar actividades relacionadas con investigación
-      const activities = activitiesSnapshot.docs.map(doc => doc.data());
-      const hasPlan = activities.some(a => a.actionType === 'planCreated' || a.actionType === 'planUpdated');
-      const interviewCount = activities.filter(a => a.actionType === 'interviewAdded').length;
-      const findingCount = activities.filter(a => a.actionType === 'findingAdded').length;
-      const hasFinalReport = activities.some(a => a.actionType === 'reportCreated' || a.actionType === 'reportUpdated');
-
-      // Calcular progreso
-      const progress = calculateInvestigationProgress(
-        data.status,
-        hasPlan,
-        interviewCount,
-        findingCount,
-        hasFinalReport
-      );
-
+    // Obtener el documento del reporte
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
       return {
-        id: reportId,
-        ...data,
-        investigatorName,
-        hasPlan,
-        interviewCount,
-        findingCount,
-        hasReport: hasFinalReport,
-        progress
+        success: false,
+        error: 'Reporte no encontrado'
       };
-    }));
-
-    return { success: true, investigations };
-  } catch (error) {
-    console.error('Error getting all investigations:', error);
-    return {
-      success: false,
-      error: 'Error al obtener las investigaciones',
-    };
-  }
-}
-
-/**
- * Obtiene los detalles de una investigación específica
- */
-export async function getInvestigationDetails(companyId: string, reportId: string) {
-  try {
-    // Obtener los datos de la denuncia
-    const reportResult = await getReportById(companyId, reportId);
-    if (!reportResult.success) {
-      return reportResult;
     }
-
-    // Obtener actividades para reconstruir la investigación
+    
+    // Obtener el reporte con sus datos
+    const reportData = reportDoc.data();
+    
+    // Obtener actividades (aquí es donde se guardan las entrevistas)
     const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-    const activitiesQuery = query(activitiesRef, orderBy('timestamp', 'desc'));
+    const activitiesQuery = query(
+      activitiesRef,
+      orderBy('timestamp', 'desc')
+    );
+    
     const activitiesSnapshot = await getDocs(activitiesQuery);
-    const activities = activitiesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    // Filtrar actividades relacionadas con investigación
-    const planActivities = activities.filter(a =>
-      a.actionType === 'planCreated' || a.actionType === 'planUpdated'
-    );
-    const interviewActivities = activities.filter(a =>
-      a.actionType === 'interviewAdded'
-    );
-    const findingActivities = activities.filter(a =>
-      a.actionType === 'findingAdded'
-    );
-    const preliminaryReportActivities = activities.filter(a =>
-      a.actionType === 'preliminaryReportCreated' || a.actionType === 'preliminaryReportUpdated'
-    );
-    const reportActivities = activities.filter(a =>
-      a.actionType === 'reportCreated' || a.actionType === 'reportUpdated'
-    );
-
-    // Reconstruir plan de investigación (último plan creado o actualizado)
-    const plan = planActivities.length > 0 ? {
-      id: planActivities[0].id,
-      description: planActivities[0].description || 'Plan de investigación',
-      timestamp: planActivities[0].timestamp,
-      createdBy: planActivities[0].actorId,
-      // Puedes agregar más campos si los tienes en tus actividades
-    } : null;
-
-    // Reconstruir entrevistas
-    const interviews = interviewActivities.map((activity, index) => ({
-      id: activity.id || `interview-${index}`,
-      interviewee: activity.description.replace('Entrevista realizada a ', ''),
-      date: activity.timestamp,
-      conductedBy: activity.actorId,
-      // Otros campos que puedas tener en tus actividades
-    }));
-
-    // Reconstruir hallazgos
-    const findings = findingActivities.map((activity, index) => ({
-      id: activity.id || `finding-${index}`,
-      title: activity.description.replace('Nuevo hallazgo registrado: ', ''),
-      createdAt: activity.timestamp,
-      createdBy: activity.actorId,
-      // Otros campos que puedas tener en tus actividades
-    }));
-
-    // Reconstruir informe preliminar
-    const preliminaryReport = preliminaryReportActivities.length > 0 ? {
-      id: preliminaryReportActivities[0].id,
-      summary: preliminaryReportActivities[0].reportDetails?.summary || '',
-      safetyMeasures: preliminaryReportActivities[0].reportDetails?.safetyMeasures || '',
-      initialAssessment: preliminaryReportActivities[0].reportDetails?.initialAssessment || '',
-      nextSteps: preliminaryReportActivities[0].reportDetails?.nextSteps || '',
-      timestamp: preliminaryReportActivities[0].timestamp,
-      createdBy: preliminaryReportActivities[0].actorId,
-      createdAt: preliminaryReportActivities[0].timestamp,
-      updatedAt: preliminaryReportActivities[0].timestamp,
-    } : null;
-
-    // Reconstruir informe final
-    const finalReport = reportActivities.length > 0 ? {
-      id: reportActivities[0].id,
-      title: 'Informe final de investigación',
-      timestamp: reportActivities[0].timestamp,
-      createdBy: reportActivities[0].actorId,
-      // Otros campos que puedas tener en tus actividades
-    } : null;
-    // Obtener acusados
-    const accusedRef = collection(db, `companies/${companyId}/reports/${reportId}/accused`);
-    const accusedSnapshot = await getDocs(accusedRef);
-    const accused = accusedSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    // Obtener testigos
-    const witnessesRef = collection(db, `companies/${companyId}/reports/${reportId}/witnesses`);
-    const witnessesSnapshot = await getDocs(witnessesRef);
-    const witnesses = witnessesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
+    
+    // Filtrar las entrevistas de las actividades
+    const interviews = [];
+    const activities = [];
+    
+    activitiesSnapshot.forEach(doc => {
+      const activityData = doc.data();
+      activities.push({
+        id: doc.id,
+        ...activityData,
+      });
+      
+      // Si es una entrevista, añadirla al array de entrevistas
+      if (activityData.actionType === 'interviewAdded' && activityData.interviewDetails) {
+        interviews.push({
+          id: activityData.interviewDetails.id || doc.id,
+          ...activityData.interviewDetails,
+          conductedBy: activityData.actorId,
+          createdAt: activityData.timestamp,
+        });
+      }
+    });
+    
+    // Combinar con entrevistas extendidas si existen (para casos Ley Karin)
+    let combinedInterviews = [...interviews];
+    
+    if (reportData.isKarinLaw && reportData.karinProcess?.extendedInterviews) {
+      // Evitar duplicados (preferir la versión extendida)
+      const extendedIds = reportData.karinProcess.extendedInterviews.map(i => i.id);
+      combinedInterviews = [
+        ...combinedInterviews.filter(i => !extendedIds.includes(i.id)),
+        ...reportData.karinProcess.extendedInterviews
+      ];
+    }
+    
+    // Construcción del objeto a devolver
+    const investigationData = {
+      ...reportData,
+      id: reportId,
+      activities,
+      interviews: combinedInterviews
+    };
+    
     return {
       success: true,
-      investigation: {
-        ...reportResult.report,
-        plan,
-        interviews,
-        findings,
-        preliminaryReport,
-        finalReport,
-        accused,
-        witnesses,
-        activities: activities.filter(a => !a.visibleToReporter) // Solo actividades internas
-      }
+      investigation: investigationData
     };
   } catch (error) {
-    console.error('Error getting investigation details:', error);
+    console.error('Error fetching investigation details:', error);
     return {
       success: false,
-      error: 'Error al obtener los detalles de la investigación',
+      error: 'Error al obtener detalles de la investigación'
+    };
+  }
+}
+
+// Función para actualizar una investigación
+export async function updateInvestigation(companyId, reportId, updateData) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      ...updateData,
+      updatedAt: serverTimestamp()
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error updating investigation:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar la investigación'
+    };
+  }
+}
+
+// Función para registrar un plan de investigación
+export async function addInvestigationPlan(
+  companyId,
+  reportId,
+  userId,
+  planData
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    
+    // Crear el objeto del plan
+    const plan = {
+      ...planData,
+      createdBy: userId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    
+    // Actualizar el documento del reporte
+    await updateDoc(reportRef, {
+      plan,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'planCreated',
+      description: 'Plan de investigación creado',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true,
+      plan
+    };
+  } catch (error) {
+    console.error('Error adding investigation plan:', error);
+    return {
+      success: false,
+      error: 'Error al registrar el plan de investigación'
+    };
+  }
+}
+
+// Función para actualizar un plan de investigación
+export async function updateInvestigationPlan(
+  companyId,
+  reportId,
+  userId,
+  planData
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    
+    // Actualizar el documento del reporte
+    await updateDoc(reportRef, {
+      'plan.scope': planData.scope,
+      'plan.objectives': planData.objectives,
+      'plan.methodology': planData.methodology,
+      'plan.timeline': planData.timeline,
+      'plan.resources': planData.resources,
+      'plan.stakeholders': planData.stakeholders,
+      'plan.riskFactors': planData.riskFactors,
+      'plan.updatedAt': serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'planUpdated',
+      description: 'Plan de investigación actualizado',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error updating investigation plan:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar el plan de investigación'
     };
   }
 }
 
 /**
- * Crea o actualiza el plan de investigación
- * (Guarda como una actividad al no tener la colección investigation)
+ * Guarda o actualiza un plan de investigación
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que crea/actualiza el plan
+ * @param planData Datos del plan
+ * @returns Resultado de la operación
  */
 export async function saveInvestigationPlan(
   companyId: string,
   reportId: string,
   userId: string,
-  planData: {
-    description: string;
-    approach: string;
-    timeline: string;
-    specialConsiderations?: string;
-  }
+  planData: any
 ) {
   try {
-    // Crear actividad para el plan
-    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-
-    // Verificar si ya existe un plan (buscar actividad de plan)
-    const planQuery = query(
-      activitiesRef,
-      where('actionType', 'in', ['planCreated', 'planUpdated'])
-    );
-    const planSnapshot = await getDocs(planQuery);
-    const isNewPlan = planSnapshot.empty;
-    const actionType = isNewPlan ? 'planCreated' : 'planUpdated';
-
-    // Guardar el plan como una actividad con detalles
-    await addDoc(activitiesRef, {
-      timestamp: serverTimestamp(),
-      actorId: userId,
-      actionType: actionType,
-      description: 'Plan de investigación ' + (isNewPlan ? 'creado' : 'actualizado'),
-      planDetails: planData, // Guardar los detalles del plan en la actividad
-      visibleToReporter: false,
-    });
-    // Si la denuncia está en estado "Asignada", actualizar a "En Investigación"
     const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
-    const reportSnap = await getDoc(reportRef);
-    if (reportSnap.exists() && reportSnap.data().status === 'Asignada') {
-      await updateReportStatus(
-        companyId,
-        reportId,
-        'En Investigación',
-        userId,
-        'Investigación iniciada con plan establecido'
-      );
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
     }
-
-    return { success: true };
+    
+    const reportData = reportDoc.data();
+    const now = serverTimestamp();
+    
+    // Verificar si ya existe un plan
+    const planExists = reportData.plan && typeof reportData.plan === 'object';
+    
+    // Datos a actualizar
+    const updateData: any = {
+      updatedAt: now
+    };
+    
+    if (planExists) {
+      // Si ya existe, actualizar cada campo individualmente
+      Object.keys(planData).forEach(key => {
+        updateData[`plan.${key}`] = planData[key];
+      });
+      updateData['plan.updatedAt'] = now;
+      updateData['plan.updatedBy'] = userId;
+    } else {
+      // Si no existe, crear el plan completo
+      updateData.plan = {
+        ...planData,
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now
+      };
+    }
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, updateData);
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: now,
+      actorId: userId,
+      actionType: planExists ? 'planUpdated' : 'planCreated',
+      description: planExists ? 'Plan de investigación actualizado' : 'Plan de investigación creado',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
   } catch (error) {
     console.error('Error saving investigation plan:', error);
     return {
       success: false,
-      error: 'Error al guardar el plan de investigación',
+      error: 'Error al guardar el plan de investigación'
     };
   }
 }
@@ -408,319 +306,22 @@ export async function addInterview(
     interviewee: string;
     position: string;
     date: string;
+    location?: string;
     summary: string;
     keyPoints: string[];
     isConfidential: boolean;
+    recordingConsent?: boolean;
+    protocol?: string;
+    isTestimony?: boolean;
+    notes?: string;
+    status?: string;
+    conductedBy?: string;
+    conductedByName?: string;
+    createdAt?: string;
   }
 ) {
   try {
-    // Registrar la entrevista como una actividad
-    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-
-    // Convertir fecha a Timestamp
-    const interviewDate = new Date(interviewData.date);
-
-    // Crear la actividad
-    const newActivityRef = await addDoc(activitiesRef, {
-      timestamp: serverTimestamp(),
-      actorId: userId,
-      actionType: 'interviewAdded',
-      description: `Entrevista realizada a ${interviewData.interviewee}`,
-      interviewDetails: {
-        ...interviewData,
-        date: Timestamp.fromDate(interviewDate),
-      },
-      visibleToReporter: false,
-    });
-
-    return {
-      success: true,
-      interviewId: newActivityRef.id,
-    };
-  } catch (error) {
-    console.error('Error adding interview:', error);
-    return {
-      success: false,
-      error: 'Error al agregar la entrevista',
-    };
-  }
-}
-
-/**
- * Registra un hallazgo de la investigación
- * (Guarda como una actividad al no tener la colección findings)
- */
-export async function addFinding(
-  companyId: string,
-  reportId: string,
-  userId: string,
-  findingData: {
-    title: string;
-    description: string;
-    severity: 'alta' | 'media' | 'baja';
-    relatedEvidence: string[];
-    conclusion: string;
-  }
-) {
-  try {
-    // Registrar el hallazgo como una actividad
-    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-
-    // Crear la actividad
-    const newActivityRef = await addDoc(activitiesRef, {
-      timestamp: serverTimestamp(),
-      actorId: userId,
-      actionType: 'findingAdded',
-      description: `Nuevo hallazgo registrado: ${findingData.title}`,
-      findingDetails: findingData,
-      visibleToReporter: false,
-    });
-
-    return {
-      success: true,
-      findingId: newActivityRef.id,
-    };
-  } catch (error) {
-    console.error('Error adding finding:', error);
-    return {
-      success: false,
-      error: 'Error al registrar el hallazgo',
-    };
-  }
-}
-
-/**
- * Crea o actualiza el informe preliminar de la investigación
- * (Guarda como una actividad al no tener una colección específica)
- */
-export async function savePreliminaryReport(
-  companyId: string,
-  reportId: string,
-  userId: string,
-  reportData: {
-    summary: string;
-    safetyMeasures: string;
-    initialAssessment: string;
-    nextSteps: string;
-  }
-) {
-  try {
-    // Registrar el informe como actividad
-    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-
-    // Verificar si ya existe un informe preliminar (buscar actividad)
-    const reportQuery = query(
-      activitiesRef,
-      where('actionType', 'in', ['preliminaryReportCreated', 'preliminaryReportUpdated'])
-    );
-    const reportSnapshot = await getDocs(reportQuery);
-    const isNewReport = reportSnapshot.empty;
-    const actionType = isNewReport ? 'preliminaryReportCreated' : 'preliminaryReportUpdated';
-
-    // Guardar como actividad
-    const newActivityRef = await addDoc(activitiesRef, {
-      timestamp: serverTimestamp(),
-      actorId: userId,
-      actionType: actionType,
-      description: 'Informe preliminar ' + (isNewReport ? 'creado' : 'actualizado'),
-      reportDetails: reportData,
-      visibleToReporter: false,
-    });
-
-    // Si la denuncia está en estado "Asignada", actualizar a "En Investigación"
-    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
-    const reportSnap = await getDoc(reportRef);
-    if (reportSnap.exists() && reportSnap.data().status === 'Asignada') {
-      await updateReportStatus(
-        companyId,
-        reportId,
-        'En Investigación',
-        userId,
-        'Investigación iniciada con informe preliminar'
-      );
-    }
-
-    // Si es un caso Ley Karin, actualizar el proceso Karin
-    if (reportSnap.exists() && reportSnap.data().isKarinLaw) {
-      const karinData = reportSnap.data().karinProcess || {};
-      const stageHistory = karinData.stageHistory || [];
-      
-      // Solo actualizar si no existe la etapa 'preliminaryReport'
-      const hasPreliminaryReport = stageHistory.some(h => h.stage === 'preliminaryReport');
-      
-      if (!hasPreliminaryReport) {
-        await updateDoc(reportRef, {
-          'karinProcess.stage': 'preliminaryReport',
-          'karinProcess.stageHistory': [
-            ...stageHistory,
-            {
-              stage: 'preliminaryReport',
-              date: Timestamp.now(),
-              user: userId,
-              notes: 'Informe preliminar creado para envío a la Dirección del Trabajo'
-            }
-          ]
-        });
-      }
-    }
-
-    return {
-      success: true,
-      reportId: newActivityRef.id,
-    };
-  } catch (error) {
-    console.error('Error saving preliminary report:', error);
-    return {
-      success: false,
-      error: 'Error al guardar el informe preliminar',
-    };
-  }
-}
-
-/**
- * Crea o actualiza el informe final de la investigación
- * (Guarda como una actividad al no tener la colección finalReport)
- */
-export async function saveFinalReport(
-  companyId: string,
-  reportId: string,
-  userId: string,
-  reportData: {
-    summary: string;
-    methodology: string;
-    findings: string;
-    conclusions: string;
-    recommendations: string;
-    isKarinReport: boolean;
-  }
-) {
-  try {
-    // Registrar el informe como actividad
-    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-
-    // Verificar si ya existe un informe (buscar actividad)
-    const reportQuery = query(
-      activitiesRef,
-      where('actionType', 'in', ['reportCreated', 'reportUpdated'])
-    );
-    const reportSnapshot = await getDocs(reportQuery);
-    const isNewReport = reportSnapshot.empty;
-    const actionType = isNewReport ? 'reportCreated' : 'reportUpdated';
-
-    // Guardar como actividad
-    const newActivityRef = await addDoc(activitiesRef, {
-      timestamp: serverTimestamp(),
-      actorId: userId,
-      actionType: actionType,
-      description: 'Informe final de investigación ' + (isNewReport ? 'creado' : 'actualizado'),
-      reportDetails: reportData,
-      visibleToReporter: false,
-    });
-
-    // Si la denuncia está en estado "En Investigación", actualizar a "En Evaluación"
-    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
-    const reportSnap = await getDoc(reportRef);
-    if (reportSnap.exists() && reportSnap.data().status === 'En Investigación') {
-      await updateReportStatus(
-        companyId,
-        reportId,
-        'En Evaluación',
-        userId,
-        'Informe final creado, pendiente de evaluación'
-      );
-    }
-
-    return {
-      success: true,
-      reportId: newActivityRef.id,
-    };
-  } catch (error) {
-    console.error('Error saving final report:', error);
-    return {
-      success: false,
-      error: 'Error al guardar el informe final',
-    };
-  }
-}
-
-/**
- * Completa una investigación y cambia su estado a "Resuelta"
- */
-export async function completeInvestigation(
-  companyId: string,
-  reportId: string,
-  userId: string,
-  conclusion: string
-) {
-  try {
-    // Verificar que existe un informe final (actividad)
-    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
-    const reportQuery = query(
-      activitiesRef,
-      where('actionType', 'in', ['reportCreated', 'reportUpdated'])
-    );
-    const reportSnapshot = await getDocs(reportQuery);
-    if (reportSnapshot.empty) {
-      return {
-        success: false,
-        error: 'No se puede completar la investigación sin un informe final',
-      };
-    }
-
-    // Obtener el reporte para verificar si es Ley Karin
-    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
-    const reportSnap = await getDoc(reportRef);
-    const isKarinLaw = reportSnap.exists() && reportSnap.data().isKarinLaw;
-
-    // Si es Ley Karin, actualizar el estado del proceso Karin
-    if (isKarinLaw) {
-      const karinData = reportSnap.data().karinProcess || {};
-      const stageHistory = karinData.stageHistory || [];
-      
-      await updateDoc(reportRef, {
-        'karinProcess.stage': 'closed',
-        'karinProcess.stageHistory': [
-          ...stageHistory,
-          {
-            stage: 'closed',
-            date: Timestamp.now(),
-            user: userId,
-            notes: conclusion
-          }
-        ]
-      });
-    }
-
-    // Cambiar el estado de la denuncia a "Resuelta"
-    const result = await updateReportStatus(
-      companyId,
-      reportId,
-      'Resuelta',
-      userId,
-      conclusion
-    );
-
-    return result;
-  } catch (error) {
-    console.error('Error completing investigation:', error);
-    return {
-      success: false,
-      error: 'Error al completar la investigación',
-    };
-  }
-}
-
-/**
- * Actualiza la etapa de un proceso Ley Karin
- */
-export async function updateKarinStage(
-  companyId: string,
-  reportId: string,
-  userId: string,
-  stage: string,
-  notes: string
-) {
-  try {
+    // Obtener referencia al reporte
     const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
     const reportSnap = await getDoc(reportRef);
     
@@ -733,236 +334,1531 @@ export async function updateKarinStage(
     
     const reportData = reportSnap.data();
     
-    // Verificar que sea un caso Ley Karin
-    if (!reportData.isKarinLaw) {
-      return {
-        success: false,
-        error: 'Este reporte no es un caso Ley Karin'
-      };
-    }
+    // Generar un id único para la entrevista
+    const interviewId = uuidv4();
     
-    // Obtener datos actuales del proceso Karin o inicializar
-    const karinProcess = reportData.karinProcess || {};
-    const stageHistory = karinProcess.stageHistory || [];
+    // Convertir fecha a Timestamp
+    const interviewDate = new Date(interviewData.date);
     
-    // Preparar datos a actualizar
-    const now = Timestamp.now();
-    const stageData = {
-      stage,
-      date: now,
-      user: userId,
-      notes: notes || ''
+    // Crear objeto de entrevista extendida
+    const extendedInterview = {
+      id: interviewId,
+      ...interviewData,
+      date: interviewData.date, // Mantener como string para consistencia
+      conductedBy: interviewData.conductedBy || userId,
+      conductedByName: interviewData.conductedByName || auth.currentUser?.displayName || 'Usuario del sistema',
+      status: interviewData.status || (interviewData.isTestimony ? 'pending_signature' : 'draft'),
+      createdAt: interviewData.createdAt || new Date().toISOString()
     };
     
-    // Metadatos adicionales según etapa
-    let extraData = {};
+    // Verificar si el reporte es un caso de Ley Karin
+    const isKarinLaw = reportData.isKarinLaw || false;
     
-    if (stage === 'investigation') {
-      const startDate = now;
-      const deadline = addBusinessDays(startDate.toDate(), 30);
+    if (isKarinLaw) {
+      // Actualizar el array de entrevistas extendidas en karinProcess
+      const extendedInterviews = reportData.karinProcess?.extendedInterviews || [];
       
-      extraData = {
-        'karinProcess.investigationStartDate': startDate,
-        'karinProcess.investigationDeadline': Timestamp.fromDate(deadline)
+      // Actualizar el documento con la nueva entrevista
+      await updateDoc(reportRef, {
+        'karinProcess.extendedInterviews': [...extendedInterviews, extendedInterview],
+        'updatedAt': serverTimestamp()
+      });
+    }
+    
+    // También registrar la entrevista como una actividad para compatibilidad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+
+    // Crear la actividad
+    const newActivityRef = await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'interviewAdded',
+      description: `Entrevista realizada a ${interviewData.interviewee}`,
+      interviewDetails: {
+        ...interviewData,
+        id: interviewId,
+        date: Timestamp.fromDate(interviewDate),
+      },
+      visibleToReporter: false,
+    });
+
+    return {
+      success: true,
+      interviewId: interviewId,
+      activityId: newActivityRef.id,
+    };
+  } catch (error) {
+    console.error('Error adding interview:', error);
+    return {
+      success: false,
+      error: 'Error al agregar la entrevista',
+    };
+  }
+}
+
+// Función para agregar un hallazgo
+export async function addFinding(
+  companyId,
+  reportId,
+  userId,
+  findingData
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
       };
     }
     
-    // Actualizar datos
+    // Extraer los datos actuales
+    const reportData = reportDoc.data();
+    const existingFindings = reportData.findings || [];
+    
+    // Generar un ID único para el hallazgo
+    const findingId = uuidv4();
+    
+    // Crear el objeto del hallazgo
+    const newFinding = {
+      id: findingId,
+      ...findingData,
+      createdBy: userId,
+      createdAt: serverTimestamp()
+    };
+    
+    // Actualizar el documento
     await updateDoc(reportRef, {
-      'karinProcess.stage': stage,
-      'karinProcess.stageHistory': [...stageHistory, stageData],
-      ...extraData
+      findings: [...existingFindings, newFinding],
+      updatedAt: serverTimestamp()
     });
     
     // Registrar actividad
-    await addDoc(
-      collection(db, `companies/${companyId}/reports/${reportId}/activities`),
-      {
-        timestamp: now,
-        actorId: userId,
-        actionType: 'karinStageUpdate',
-        description: `Etapa Ley Karin actualizada a: ${stage}`,
-        stageDetails: stageData,
-        visibleToReporter: false,
-      }
-    );
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'findingAdded',
+      description: `Hallazgo registrado: ${findingData.title}`,
+      findingId,
+      visibleToReporter: false
+    });
     
-    return { success: true };
+    return {
+      success: true,
+      findingId
+    };
   } catch (error) {
-    console.error('Error al actualizar etapa Ley Karin:', error);
+    console.error('Error adding finding:', error);
     return {
       success: false,
-      error: 'Error al actualizar etapa del proceso Ley Karin'
+      error: 'Error al agregar el hallazgo'
     };
   }
 }
 
-// Añadir días hábiles a una fecha (omitiendo fines de semana)
-function addBusinessDays(date: Date, days: number): Date {
-  let result = new Date(date);
-  let count = 0;
-  
-  while (count < days) {
-    result.setDate(result.getDate() + 1);
-    const dayOfWeek = result.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-      // No es sábado ni domingo
-      count++;
+// Función para actualizar un hallazgo
+export async function updateFinding(
+  companyId,
+  reportId,
+  userId,
+  findingId,
+  findingData
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
     }
+    
+    // Extraer los datos actuales
+    const reportData = reportDoc.data();
+    const existingFindings = reportData.findings || [];
+    
+    // Buscar el hallazgo a actualizar
+    const findingIndex = existingFindings.findIndex(finding => finding.id === findingId);
+    
+    if (findingIndex === -1) {
+      return {
+        success: false,
+        error: 'Hallazgo no encontrado'
+      };
+    }
+    
+    // Actualizar el hallazgo
+    const updatedFindings = [...existingFindings];
+    updatedFindings[findingIndex] = {
+      ...existingFindings[findingIndex],
+      ...findingData,
+      updatedAt: serverTimestamp()
+    };
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      findings: updatedFindings,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'findingUpdated',
+      description: `Hallazgo actualizado: ${findingData.title}`,
+      findingId,
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error updating finding:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar el hallazgo'
+    };
   }
-  
-  return result;
+}
+
+// Función para eliminar un hallazgo
+export async function deleteFinding(
+  companyId,
+  reportId,
+  userId,
+  findingId
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    // Extraer los datos actuales
+    const reportData = reportDoc.data();
+    const existingFindings = reportData.findings || [];
+    
+    // Filtrar el hallazgo a eliminar
+    const updatedFindings = existingFindings.filter(finding => finding.id !== findingId);
+    
+    // Si no se encontró el hallazgo
+    if (updatedFindings.length === existingFindings.length) {
+      return {
+        success: false,
+        error: 'Hallazgo no encontrado'
+      };
+    }
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      findings: updatedFindings,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'findingDeleted',
+      description: 'Hallazgo eliminado',
+      findingId,
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error deleting finding:', error);
+    return {
+      success: false,
+      error: 'Error al eliminar el hallazgo'
+    };
+  }
+}
+
+// Función para registrar o actualizar un informe
+export async function updateReport(
+  companyId,
+  reportId,
+  userId,
+  reportData,
+  isPrelimnary = false
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    
+    const fieldName = isPrelimnary ? 'preliminaryReport' : 'finalReport';
+    const actionType = isPrelimnary ? 'preliminaryReportUpdated' : 'finalReportUpdated';
+    const description = isPrelimnary ? 'Informe preliminar actualizado' : 'Informe final actualizado';
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      [fieldName]: {
+        ...reportData,
+        updatedBy: userId,
+        updatedAt: serverTimestamp()
+      },
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType,
+      description,
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error updating report:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar el informe'
+    };
+  }
 }
 
 /**
- * Calcula el porcentaje de progreso de una investigación
+ * Guarda o actualiza un informe final
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que crea/actualiza el informe
+ * @param reportData Datos del informe
+ * @returns Resultado de la operación
  */
+export async function saveFinalReport(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  reportData: any
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const existingData = reportDoc.data();
+    const now = serverTimestamp();
+    
+    // Verificar si ya existe un informe final
+    const finalReportExists = existingData.finalReport && typeof existingData.finalReport === 'object';
+    
+    // Datos a actualizar
+    const updateData: any = {
+      updatedAt: now
+    };
+    
+    if (finalReportExists) {
+      // Si ya existe, actualizar manteniendo metadatos existentes
+      updateData.finalReport = {
+        ...existingData.finalReport,
+        ...reportData,
+        updatedBy: userId,
+        updatedAt: now
+      };
+    } else {
+      // Si no existe, crear el informe completo
+      updateData.finalReport = {
+        ...reportData,
+        type: 'finalReport',
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now
+      };
+    }
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, updateData);
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: now,
+      actorId: userId,
+      actionType: finalReportExists ? 'finalReportUpdated' : 'finalReportCreated',
+      description: finalReportExists ? 'Informe final actualizado' : 'Informe final creado',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error saving final report:', error);
+    return {
+      success: false,
+      error: 'Error al guardar el informe final'
+    };
+  }
+}
+
 /**
- * Añade una nueva tarea a la investigación
+ * Guarda o actualiza un informe preliminar
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que crea/actualiza el informe
+ * @param reportData Datos del informe
+ * @returns Resultado de la operación
+ */
+export async function savePreliminaryReport(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  reportData: any
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const existingData = reportDoc.data();
+    const now = serverTimestamp();
+    
+    // Verificar si ya existe un informe preliminar
+    const preliminaryReportExists = existingData.preliminaryReport && typeof existingData.preliminaryReport === 'object';
+    
+    // Datos a actualizar
+    const updateData: any = {
+      updatedAt: now
+    };
+    
+    if (preliminaryReportExists) {
+      // Si ya existe, actualizar manteniendo metadatos existentes
+      updateData.preliminaryReport = {
+        ...existingData.preliminaryReport,
+        ...reportData,
+        updatedBy: userId,
+        updatedAt: now
+      };
+    } else {
+      // Si no existe, crear el informe completo
+      updateData.preliminaryReport = {
+        ...reportData,
+        type: 'preliminaryReport',
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now
+      };
+    }
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, updateData);
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: now,
+      actorId: userId,
+      actionType: preliminaryReportExists ? 'preliminaryReportUpdated' : 'preliminaryReportCreated',
+      description: preliminaryReportExists ? 'Informe preliminar actualizado' : 'Informe preliminar creado',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error saving preliminary report:', error);
+    return {
+      success: false,
+      error: 'Error al guardar el informe preliminar'
+    };
+  }
+}
+
+// Función para completar una investigación
+export async function completeInvestigation(
+  companyId,
+  reportId,
+  userId,
+  concludingComment
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    
+    // Actualizar el estado del reporte
+    await updateDoc(reportRef, {
+      status: 'Resuelta',
+      concludingComment,
+      resolvedBy: userId,
+      resolvedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'investigationCompleted',
+      description: 'Investigación completada',
+      visibleToReporter: true
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error completing investigation:', error);
+    return {
+      success: false,
+      error: 'Error al completar la investigación'
+    };
+  }
+}
+
+// Función para asignar un investigador a un reporte
+export async function assignInvestigator(
+  companyId,
+  reportId,
+  currentUserId,
+  investigatorId,
+  investigatorName
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      assignedTo: investigatorId,
+      assignedToName: investigatorName,
+      assignedBy: currentUserId,
+      assignedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: currentUserId,
+      actionType: 'investigatorAssigned',
+      description: `Investigador asignado: ${investigatorName}`,
+      investigatorId,
+      visibleToReporter: true
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error assigning investigator:', error);
+    return {
+      success: false,
+      error: 'Error al asignar el investigador'
+    };
+  }
+}
+
+// Función para actualizar la etapa del proceso Ley Karin
+export async function updateKarinStage(
+  companyId,
+  reportId,
+  userId,
+  stage,
+  notes = ''
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    // Extraer los datos actuales
+    const reportData = reportDoc.data();
+    
+    // Si no existe el karinProcess, inicializarlo
+    if (!reportData.karinProcess) {
+      return {
+        success: false,
+        error: 'Este reporte no tiene un proceso Ley Karin inicializado'
+      };
+    }
+    
+    // Fecha actual para registros
+    const now = new Date();
+    const nowISO = now.toISOString();
+    
+    // Guardar la etapa anterior en el historial
+    const karinProcess = reportData.karinProcess;
+    const stageHistory = karinProcess.stageHistory || [];
+    
+    // Solo agregar al historial si es un cambio de etapa
+    if (karinProcess.stage !== stage) {
+      stageHistory.push({
+        stage: karinProcess.stage,
+        date: nowISO,
+        user: userId,
+        notes
+      });
+    }
+    
+    // Actualizar campos específicos según la etapa
+    const updateData = {
+      'karinProcess.stage': stage,
+      'karinProcess.stageHistory': stageHistory,
+      'updatedAt': serverTimestamp()
+    };
+    
+    // Añadir datos específicos según la etapa
+    if (stage === 'reception') {
+      updateData['karinProcess.receivedDate'] = nowISO;
+      updateData['karinProcess.receivedBy'] = userId;
+    } else if (stage === 'subsanation') {
+      if (!karinProcess.subsanationRequested) {
+        updateData['karinProcess.subsanationRequested'] = nowISO;
+        
+        // Calcular fecha límite (5 días hábiles)
+        const deadline = new Date(now);
+        let daysAdded = 0;
+        while (daysAdded < 5) {
+          deadline.setDate(deadline.getDate() + 1);
+          
+          // Verificar si no es fin de semana
+          if (deadline.getDay() !== 0 && deadline.getDay() !== 6) {
+            daysAdded++;
+          }
+        }
+        
+        updateData['karinProcess.subsanationDeadline'] = deadline.toISOString();
+      }
+    } else if (stage === 'dt_notification') {
+      updateData['karinProcess.dtInitialNotificationDate'] = nowISO;
+    } else if (stage === 'suseso_notification') {
+      updateData['karinProcess.susesoNotificationDate'] = nowISO;
+    } else if (stage === 'precautionary_measures') {
+      updateData['karinProcess.precautionaryDeadline'] = nowISO;
+    } else if (stage === 'investigation') {
+      updateData['karinProcess.investigationStartDate'] = nowISO;
+      
+      // Calcular fecha límite (30 días hábiles)
+      const deadline = new Date(now);
+      let daysAdded = 0;
+      while (daysAdded < 30) {
+        deadline.setDate(deadline.getDate() + 1);
+        
+        // Verificar si no es fin de semana
+        if (deadline.getDay() !== 0 && deadline.getDay() !== 6) {
+          daysAdded++;
+        }
+      }
+      
+      updateData['karinProcess.investigationDeadline'] = deadline.toISOString();
+    } else if (stage === 'report_creation') {
+      updateData['karinProcess.reportCreationDate'] = nowISO;
+    } else if (stage === 'report_approval') {
+      updateData['karinProcess.reportApprovalDate'] = nowISO;
+    } else if (stage === 'investigation_complete' || stage === 'labor_department') {
+      updateData['karinProcess.investigationCompleted'] = true;
+    } else if (stage === 'dt_submission') {
+      updateData['karinProcess.laborDepartmentReferralDate'] = nowISO;
+    } else if (stage === 'measures_adoption') {
+      updateData['karinProcess.measuresAdoptionDate'] = nowISO;
+      
+      // Calcular fecha límite (15 días corridos)
+      const deadline = new Date(now);
+      deadline.setDate(deadline.getDate() + 15);
+      
+      updateData['karinProcess.measuresAdoptionDeadline'] = deadline.toISOString();
+    } else if (stage === 'closed') {
+      updateData['karinProcess.resolutionDate'] = nowISO;
+      updateData['karinProcess.allPartiesNotified'] = true;
+      updateData['karinProcess.partyNotificationDate'] = nowISO;
+      updateData['status'] = 'Resuelta';
+    }
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, updateData);
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'karinStageUpdated',
+      description: `Etapa Ley Karin actualizada a: ${stage}`,
+      data: {
+        stage,
+        notes
+      },
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error updating Karin stage:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar la etapa del proceso Ley Karin'
+    };
+  }
+}
+
+/**
+ * Firma un testimonio formal
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param testimonyId ID del testimonio
+ * @param signatureData Datos de la firma
+ * @returns Resultado de la operación
+ */
+export async function signTestimony(
+  companyId: string,
+  reportId: string,
+  testimonyId: string,
+  signatureData: any
+) {
+  try {
+    // Importar la función del servicio de testimonios
+    const { signTestimony } = await import('./testimonyService');
+    
+    // Llamar a la función importada
+    return signTestimony(companyId, reportId, testimonyId, signatureData);
+  } catch (error) {
+    console.error('Error signing testimony:', error);
+    return {
+      success: false,
+      error: 'Error al firmar el testimonio'
+    };
+  }
+}
+
+/**
+ * Convierte una entrevista normal en un testimonio formal
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param interviewId ID de la entrevista
+ * @param userId ID del usuario que realiza la conversión
+ * @returns Resultado de la operación
+ */
+export async function convertInterviewToTestimony(
+  companyId: string,
+  reportId: string,
+  interviewId: string,
+  userId: string
+) {
+  try {
+    // Importar la función del servicio de testimonios
+    const { convertInterviewToTestimony } = await import('./testimonyService');
+    
+    // Llamar a la función importada
+    return convertInterviewToTestimony(companyId, reportId, interviewId, userId);
+  } catch (error) {
+    console.error('Error converting interview to testimony:', error);
+    return {
+      success: false,
+      error: 'Error al convertir la entrevista en testimonio'
+    };
+  }
+}
+
+/**
+ * Inicializa los plazos para un caso de Ley Karin
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que inicializa los plazos
+ * @returns Resultado de la operación
+ */
+export async function initializeKarinDeadlines(
+  companyId: string,
+  reportId: string,
+  userId: string
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const reportData = reportDoc.data();
+    
+    // Verificar si es un caso de Ley Karin
+    if (!reportData.isKarinLaw) {
+      return {
+        success: false,
+        error: 'Este reporte no corresponde a un caso de Ley Karin'
+      };
+    }
+    
+    // Si ya existen plazos, no inicializar de nuevo
+    if (reportData.karinProcess?.deadlines && reportData.karinProcess.deadlines.length > 0) {
+      return {
+        success: false,
+        error: 'Este caso ya tiene plazos inicializados'
+      };
+    }
+    
+    // Determinar fecha de inicio adecuada
+    const startDate = reportData.karinProcess?.receivedDate
+      ? new Date(reportData.karinProcess.receivedDate)
+      : reportData.createdAt?.toDate
+        ? new Date(reportData.createdAt.toDate())
+        : new Date(reportData.createdAt);
+    
+    // Importar la función de inicialización de plazos
+    const { initializeKarinDeadlines } = await import('@/lib/utils/deadlineUtils');
+    
+    // Generar plazos iniciales
+    const deadlines = initializeKarinDeadlines(startDate);
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      'karinProcess.deadlines': deadlines,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'karinDeadlinesInitialized',
+      description: 'Plazos de Ley Karin inicializados',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true,
+      deadlines
+    };
+  } catch (error) {
+    console.error('Error initializing Karin deadlines:', error);
+    return {
+      success: false,
+      error: 'Error al inicializar los plazos de Ley Karin'
+    };
+  }
+}
+
+/**
+ * Actualiza los plazos para un caso de Ley Karin
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que actualiza los plazos
+ * @param deadlines Plazos actualizados
+ * @returns Resultado de la operación
+ */
+export async function updateKarinDeadlines(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  deadlines: any[]
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      'karinProcess.deadlines': deadlines,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'karinDeadlinesUpdated',
+      description: 'Plazos de Ley Karin actualizados',
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error updating Karin deadlines:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar los plazos de Ley Karin'
+    };
+  }
+}
+
+/**
+ * Marca un plazo como completado
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que completa el plazo
+ * @param deadlineId ID del plazo a completar
+ * @returns Resultado de la operación
+ */
+export async function completeKarinDeadline(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  deadlineId: string
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const reportData = reportDoc.data();
+    
+    // Verificar si existen plazos
+    if (!reportData.karinProcess?.deadlines || reportData.karinProcess.deadlines.length === 0) {
+      return {
+        success: false,
+        error: 'Este caso no tiene plazos inicializados'
+      };
+    }
+    
+    // Importar la función para completar plazos
+    const { completeDeadline, updateDeadlinesStatus } = await import('@/lib/utils/deadlineUtils');
+    
+    // Obtener plazos actualizados
+    let updatedDeadlines = reportData.karinProcess.deadlines;
+    
+    // Actualizar estados primero
+    updatedDeadlines = updateDeadlinesStatus(updatedDeadlines);
+    
+    // Marcar como completado
+    updatedDeadlines = completeDeadline(updatedDeadlines, deadlineId, userId);
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      'karinProcess.deadlines': updatedDeadlines,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    
+    // Encontrar el plazo completado para el registro
+    const completedDeadline = updatedDeadlines.find(d => d.id === deadlineId);
+    
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'karinDeadlineCompleted',
+      description: `Plazo completado: ${completedDeadline?.name || 'Plazo'}`,
+      deadlineId,
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true,
+      deadlines: updatedDeadlines
+    };
+  } catch (error) {
+    console.error('Error completing Karin deadline:', error);
+    return {
+      success: false,
+      error: 'Error al completar el plazo de Ley Karin'
+    };
+  }
+}
+
+/**
+ * Extiende un plazo para un caso de Ley Karin
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que extiende el plazo
+ * @param deadlineId ID del plazo a extender
+ * @param additionalDays Días adicionales
+ * @param reason Razón de la extensión
+ * @returns Resultado de la operación
+ */
+export async function extendKarinDeadline(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  deadlineId: string,
+  additionalDays: number,
+  reason: string
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const reportData = reportDoc.data();
+    
+    // Verificar si existen plazos
+    if (!reportData.karinProcess?.deadlines || reportData.karinProcess.deadlines.length === 0) {
+      return {
+        success: false,
+        error: 'Este caso no tiene plazos inicializados'
+      };
+    }
+    
+    // Importar la función para extender plazos
+    const { extendDeadline, updateDeadlinesStatus } = await import('@/lib/utils/deadlineUtils');
+    
+    // Obtener plazos actualizados
+    let updatedDeadlines = reportData.karinProcess.deadlines;
+    
+    // Actualizar estados primero
+    updatedDeadlines = updateDeadlinesStatus(updatedDeadlines);
+    
+    // Extender el plazo
+    updatedDeadlines = extendDeadline(updatedDeadlines, deadlineId, additionalDays, reason, userId);
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      'karinProcess.deadlines': updatedDeadlines,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    
+    // Encontrar el plazo extendido para el registro
+    const extendedDeadline = updatedDeadlines.find(d => d.id === deadlineId);
+    
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'karinDeadlineExtended',
+      description: `Plazo extendido: ${extendedDeadline?.name || 'Plazo'} (+${additionalDays} días)`,
+      data: {
+        deadlineId,
+        additionalDays,
+        reason
+      },
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true,
+      deadlines: updatedDeadlines
+    };
+  } catch (error) {
+    console.error('Error extending Karin deadline:', error);
+    return {
+      success: false,
+      error: 'Error al extender el plazo de Ley Karin'
+    };
+  }
+}
+
+/**
+ * Añade un plazo personalizado a un caso de Ley Karin
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que añade el plazo
+ * @param deadlineData Datos del nuevo plazo
+ * @returns Resultado de la operación
+ */
+export async function addCustomKarinDeadline(
+  companyId: string,
+  reportId: string,
+  userId: string,
+  deadlineData: any
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const reportData = reportDoc.data();
+    
+    // Verificar si existen plazos
+    if (!reportData.karinProcess?.deadlines) {
+      // Inicializar si no existen
+      await initializeKarinDeadlines(companyId, reportId, userId);
+      
+      // Obtener el reporte actualizado
+      const updatedReportDoc = await getDoc(reportRef);
+      const updatedReportData = updatedReportDoc.data();
+      
+      if (!updatedReportData.karinProcess?.deadlines) {
+        return {
+          success: false,
+          error: 'No se pudieron inicializar los plazos'
+        };
+      }
+    }
+    
+    // Importar la función para añadir plazos personalizados
+    const { addCustomDeadline, updateDeadlinesStatus } = await import('@/lib/utils/deadlineUtils');
+    
+    // Obtener plazos actualizados (puede haberse actualizado arriba)
+    const updatedReportDoc = await getDoc(reportRef);
+    const updatedReportData = updatedReportDoc.data();
+    let updatedDeadlines = updatedReportData.karinProcess.deadlines;
+    
+    // Actualizar estados primero
+    updatedDeadlines = updateDeadlinesStatus(updatedDeadlines);
+    
+    // Añadir el plazo personalizado
+    updatedDeadlines = addCustomDeadline(updatedDeadlines, deadlineData);
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      'karinProcess.deadlines': updatedDeadlines,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Registrar actividad
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'karinDeadlineAdded',
+      description: `Plazo personalizado añadido: ${deadlineData.name}`,
+      visibleToReporter: false
+    });
+    
+    return {
+      success: true,
+      deadlines: updatedDeadlines
+    };
+  } catch (error) {
+    console.error('Error adding custom Karin deadline:', error);
+    return {
+      success: false,
+      error: 'Error al añadir el plazo personalizado de Ley Karin'
+    };
+  }
+}
+
+/**
+ * Actualiza los plazos con sus estados actuales para un caso de Ley Karin
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que actualiza los plazos
+ * @returns Resultado de la operación
+ */
+export async function refreshKarinDeadlines(
+  companyId: string,
+  reportId: string,
+  userId: string
+) {
+  try {
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    const reportData = reportDoc.data();
+    
+    // Verificar si existen plazos
+    if (!reportData.karinProcess?.deadlines || reportData.karinProcess.deadlines.length === 0) {
+      return {
+        success: false,
+        error: 'Este caso no tiene plazos inicializados'
+      };
+    }
+    
+    // Importar la función para actualizar estados
+    const { updateDeadlinesStatus } = await import('@/lib/utils/deadlineUtils');
+    
+    // Actualizar estados
+    const updatedDeadlines = updateDeadlinesStatus(reportData.karinProcess.deadlines);
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      'karinProcess.deadlines': updatedDeadlines,
+      updatedAt: serverTimestamp()
+    });
+    
+    return {
+      success: true,
+      deadlines: updatedDeadlines
+    };
+  } catch (error) {
+    console.error('Error refreshing Karin deadlines:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar los estados de plazos de Ley Karin'
+    };
+  }
+}
+
+/**
+ * Agrega una nueva tarea a la investigación
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param userId ID del usuario que crea la tarea
+ * @param taskData Datos de la tarea
+ * @returns Resultado de la operación
  */
 export async function addTask(
   companyId: string,
   reportId: string,
+  userId: string,
   taskData: {
     title: string;
     description: string;
-    assignedTo?: string;
-    dueDate?: Date;
-    priority?: string;
+    assignedTo: string;
+    dueDate: string;
+    priority: 'alta' | 'media' | 'baja';
   }
 ) {
   try {
-    const tasksRef = collection(db, `companies/${companyId}/reports/${reportId}/tasks`);
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
     
-    const dataToSave = {
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    // Extraer los datos actuales
+    const reportData = reportDoc.data();
+    const existingTasks = reportData.tasks || [];
+    
+    // Generar un ID único para la tarea
+    const taskId = uuidv4();
+    
+    // Convertir fecha a objeto Date para manipulación
+    const dueDate = new Date(taskData.dueDate);
+    
+    // Crear el objeto de la tarea
+    const newTask = {
+      id: taskId,
       ...taskData,
-      status: 'pending',
+      status: 'pendiente',
+      createdBy: userId,
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      dueDate: Timestamp.fromDate(dueDate)
     };
     
-    const docRef = await addDoc(tasksRef, dataToSave);
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      tasks: [...existingTasks, newTask],
+      updatedAt: serverTimestamp()
+    });
     
     // Registrar actividad
-    await addDoc(
-      collection(db, `companies/${companyId}/reports/${reportId}/activities`),
-      {
-        timestamp: serverTimestamp(),
-        actorId: auth.currentUser?.uid || 'system',
-        actionType: 'task_created',
-        description: `Nueva tarea creada: ${taskData.title}`,
-        visibleToReporter: false
-      }
-    );
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'taskAdded',
+      description: `Tarea creada: ${taskData.title}`,
+      taskId,
+      visibleToReporter: false
+    });
     
     return {
       success: true,
-      taskId: docRef.id
+      taskId
     };
   } catch (error) {
-    console.error("Error al añadir tarea:", error);
+    console.error('Error adding task:', error);
     return {
       success: false,
-      error: "Error al añadir la tarea"
+      error: 'Error al agregar la tarea'
     };
   }
 }
 
 /**
  * Actualiza el estado de una tarea
+ * @param companyId ID de la compañía
+ * @param reportId ID del reporte
+ * @param taskId ID de la tarea
+ * @param userId ID del usuario que actualiza la tarea
+ * @param newStatus Nuevo estado de la tarea
+ * @param comment Comentario opcional sobre el cambio de estado
+ * @returns Resultado de la operación
  */
 export async function updateTaskStatus(
   companyId: string,
   reportId: string,
   taskId: string,
-  newStatus: string
+  userId: string,
+  newStatus: 'pendiente' | 'en_progreso' | 'completada' | 'cancelada',
+  comment?: string
 ) {
   try {
-    const taskRef = doc(db, `companies/${companyId}/reports/${reportId}/tasks/${taskId}`);
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
     
-    await updateDoc(taskRef, {
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    // Extraer los datos actuales
+    const reportData = reportDoc.data();
+    const existingTasks = reportData.tasks || [];
+    
+    // Buscar la tarea a actualizar
+    const taskIndex = existingTasks.findIndex(task => task.id === taskId);
+    
+    if (taskIndex === -1) {
+      return {
+        success: false,
+        error: 'Tarea no encontrada'
+      };
+    }
+    
+    // Crear una copia de las tareas para modificar
+    const updatedTasks = [...existingTasks];
+    
+    // Actualizar la tarea
+    updatedTasks[taskIndex] = {
+      ...updatedTasks[taskIndex],
       status: newStatus,
+      updatedBy: userId,
+      updatedAt: serverTimestamp(),
+      comment: comment || updatedTasks[taskIndex].comment,
+      completedAt: newStatus === 'completada' ? serverTimestamp() : updatedTasks[taskIndex].completedAt
+    };
+    
+    // Actualizar el documento
+    await updateDoc(reportRef, {
+      tasks: updatedTasks,
       updatedAt: serverTimestamp()
     });
     
     // Registrar actividad
-    await addDoc(
-      collection(db, `companies/${companyId}/reports/${reportId}/activities`),
-      {
-        timestamp: serverTimestamp(),
-        actorId: auth.currentUser?.uid || 'system',
-        actionType: 'task_updated',
-        description: `Estado de la tarea actualizado a: ${newStatus}`,
-        visibleToReporter: false
-      }
-    );
+    const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
+    await addDoc(activitiesRef, {
+      timestamp: serverTimestamp(),
+      actorId: userId,
+      actionType: 'taskStatusUpdated',
+      description: `Estado de tarea actualizado a: ${newStatus}`,
+      taskId,
+      statusChange: {
+        from: existingTasks[taskIndex].status,
+        to: newStatus,
+        comment
+      },
+      visibleToReporter: false
+    });
     
     return {
       success: true
     };
   } catch (error) {
-    console.error("Error al actualizar estado de tarea:", error);
+    console.error('Error updating task status:', error);
     return {
       success: false,
-      error: "Error al actualizar el estado de la tarea"
+      error: 'Error al actualizar el estado de la tarea'
     };
   }
 }
 
-function calculateInvestigationProgress(
-  status: string,
-  hasPlan: boolean,
-  interviewCount: number,
-  findingCount: number,
-  hasFinalReport: boolean
-): number {
-  console.log('Calculando progreso:', { status, hasPlan, interviewCount, findingCount, hasFinalReport });
+/**
+ * Obtiene las denuncias asignadas a un investigador específico
+ * @param companyId ID de la compañía
+ * @param investigatorId ID del investigador
+ * @returns Lista de denuncias asignadas
+ */
+export async function getAssignedReports(
+  companyId: string,
+  investigatorId: string
+) {
+  try {
+    // Validar datos de entrada
+    if (!companyId) {
+      console.error('getAssignedReports: companyId is empty');
+      return { 
+        success: false, 
+        error: 'ID de compañía no válido',
+        reports: [] 
+      };
+    }
 
-  // Base progress according to status
-  let baseProgress = 0;
-  switch (status) {
-    case 'Asignada':
-      baseProgress = 10;
-      break;
-    case 'En Investigación':
-      baseProgress = 30;
-      break;
-    case 'Pendiente Información':
-      baseProgress = 50;
-      break;
-    case 'En Evaluación':
-      baseProgress = 80;
-      break;
-    case 'Resuelta':
-    case 'En Seguimiento':
-    case 'Cerrada':
-      return 100;
-    default:
-      baseProgress = 0;
-  }
+    console.log(`Ejecutando getAssignedReports - companyId: ${companyId}, investigatorId: ${investigatorId}`);
+    
+    // Usar correctamente las utilidades de roles
+    const isSuperAdminUser = isSuperAdmin(null, investigatorId);
+    const isUserAdmin = isSuperAdminUser || isAdmin(null);
+    console.log(`Tipo de usuario - isAdmin: ${isUserAdmin}, isSuperAdmin: ${isSuperAdminUser}`);
 
-  // Additional progress based on components
-  let additionalProgress = 0;
-  if (hasPlan) additionalProgress += 10;
-  if (interviewCount > 0) additionalProgress += Math.min(interviewCount * 5, 15);
-  if (findingCount > 0) additionalProgress += Math.min(findingCount * 5, 15);
-  if (hasFinalReport) additionalProgress += 20;
+    const reportsRef = collection(db, `companies/${companyId}/reports`);
+    let q;
 
-  // Limit progress based on status
-  let totalProgress = baseProgress + additionalProgress;
-  console.log('Progreso calculado:', { baseProgress, additionalProgress, totalProgress });
+    // Si es admin o superadmin, obtener todas las denuncias usando las funciones de utilidad
+    if (isUserAdmin) {
+      console.log("Usando consulta para admin - todas las denuncias");
+      q = query(
+        reportsRef,
+        orderBy('createdAt', 'desc')
+      );
+    } else {
+      // Si es investigador, solo obtener las asignadas a él
+      console.log(`Usando consulta para investigador - solo denuncias asignadas a: ${investigatorId}`);
+      q = query(
+        reportsRef,
+        where('assignedTo', '==', investigatorId),
+        orderBy('createdAt', 'desc')
+      );
+    }
 
-  // Cap progress based on status
-  switch (status) {
-    case 'Asignada':
-      return Math.min(totalProgress, 30);
-    case 'En Investigación':
-      return Math.min(totalProgress, 60);
-    case 'Pendiente Información':
-      return Math.min(totalProgress, 80);
-    case 'En Evaluación':
-      return Math.min(totalProgress, 99);
-    default:
-      return totalProgress;
+    const querySnapshot = await getDocs(q);
+    const reports: any[] = [];
+
+    console.log(`Número de documentos encontrados: ${querySnapshot.size}`);
+
+    querySnapshot.forEach((doc) => {
+      const reportData = doc.data();
+      
+      // Calcular progreso de la investigación
+      let progress = 0;
+      let hasPlan = false;
+      let interviewCount = 0;
+      let findingCount = 0;
+      
+      // Verificar existencia de plan
+      if (reportData.plan) {
+        hasPlan = true;
+        progress += 20; // 20% de progreso por tener plan
+      }
+      
+      // Verificar entrevistas
+      if (reportData.interviews && reportData.interviews.length > 0) {
+        interviewCount = reportData.interviews.length;
+        // Máximo 30% por entrevistas (10% por cada entrevista, hasta 3)
+        progress += Math.min(interviewCount * 10, 30);
+      }
+      
+      // Verificar hallazgos
+      if (reportData.findings && reportData.findings.length > 0) {
+        findingCount = reportData.findings.length;
+        // Máximo 30% por hallazgos (10% por cada hallazgo, hasta 3)
+        progress += Math.min(findingCount * 10, 30);
+      }
+      
+      // Verificar informe final
+      if (reportData.finalReport) {
+        progress += 20; // 20% restante por tener informe final
+      }
+      
+      // Asegurar que el progreso esté entre 0 y 100
+      progress = Math.max(0, Math.min(100, progress));
+      
+      reports.push({
+        id: doc.id,
+        ...reportData,
+        investigation: {
+          progress,
+          hasPlan,
+          interviewCount,
+          findingCount
+        }
+      });
+    });
+
+    console.log(`Número de reportes procesados: ${reports.length}`);
+    if (reports.length > 0) {
+      console.log(`Ejemplo de primer reporte - ID: ${reports[0].id}, Estado: ${reports[0].status}`);
+    } else {
+      // Si no hay reportes y no es admin, intentar con todos los reportes como plan B
+      if (!isSuperAdminUser && !isUserAdmin) {
+        
+        console.log("No se encontraron reportes asignados. Usando fallback para mostrar todos los reportes.");
+        
+        // Consultar todos los reportes como fallback
+        const fallbackQuery = query(
+          reportsRef,
+          orderBy('createdAt', 'desc')
+        );
+        
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        console.log(`Fallback - Número de documentos encontrados: ${fallbackSnapshot.size}`);
+        
+        fallbackSnapshot.forEach((doc) => {
+          const reportData = doc.data();
+          
+          // Calcular progreso básico
+          const progress = reportData.plan ? 50 : 0;
+          
+          reports.push({
+            id: doc.id,
+            ...reportData,
+            investigation: {
+              progress,
+              hasPlan: !!reportData.plan,
+              interviewCount: 0,
+              findingCount: 0
+            }
+          });
+        });
+        
+        console.log(`Fallback - Número de reportes procesados: ${reports.length}`);
+      } else {
+        console.log("No se encontraron reportes para mostrar, incluso para admin/superadmin");
+      }
+    }
+
+    return {
+      success: true,
+      reports
+    };
+  } catch (error) {
+    console.error('Error getting assigned reports:', error);
+    return {
+      success: false,
+      error: 'Error al obtener las denuncias asignadas',
+      reports: []
+    };
   }
 }

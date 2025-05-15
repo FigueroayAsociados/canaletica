@@ -1140,6 +1140,9 @@ export async function getCompany(companyId: string): Promise<{ success: boolean;
 
 /**
  * Crea una nueva empresa
+ * 
+ * @deprecated - Use createCompany from companyService.ts instead, which requires an explicit ID
+ * This function is kept for backward compatibility with older code.
  */
 export async function createCompany(
   companyData: Omit<Company, 'id' | 'createdAt' | 'updatedAt'>

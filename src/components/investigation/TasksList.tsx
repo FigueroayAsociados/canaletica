@@ -14,6 +14,7 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { addTask, updateTaskStatus } from '@/lib/services/investigationService';
 import { getUsersByRole } from '@/lib/services/userService';
 import { UserRole, DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
+import { formatChileanDate } from '@/lib/utils/dateUtils';
 
 // Esquema de validación para tareas
 const TaskSchema = Yup.object().shape({
@@ -186,11 +187,7 @@ export const TasksList: React.FC<TasksListProps> = ({
     
     const dateObj = date.toDate ? new Date(date.toDate()) : new Date(date);
     
-    return new Intl.DateTimeFormat('es-CL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(dateObj);
+    return formatChileanDate(dateObj);
   };
   
   // Filtrar tareas por estado

@@ -9,6 +9,9 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import FloatingAssistant from '@/components/ai/FloatingAssistant';
+import SmartAlertSystem from '@/components/alerts/SmartAlertSystem';
+import EnvironmentIndicatorClient from '@/components/ui/environment-indicator-client';
 
 export default function DashboardLayout({
   children,
@@ -161,12 +164,32 @@ export default function DashboardLayout({
 
           <Link 
             href="/dashboard/reports" 
-            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/reports') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') && !pathname.includes('/reports/analytics') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
           >
-            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/reports') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') && !pathname.includes('/reports/analytics') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Denuncias
+          </Link>
+
+          <Link 
+            href="/dashboard/reports/intelligence" 
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.includes('/reports/intelligence') ? 'bg-blue-500 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+          >
+            <svg className={`mr-3 h-5 w-5 ${pathname.includes('/reports/intelligence') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Reportes Inteligentes
+          </Link>
+
+          <Link 
+            href="/dashboard/ai" 
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/ai') ? 'bg-purple-500 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+          >
+            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/ai') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            IA Dashboard
           </Link>
 
           <Link 
@@ -177,6 +200,16 @@ export default function DashboardLayout({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             Investigaciones
+          </Link>
+          
+          <Link 
+            href="/dashboard/alerts" 
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/alerts') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+          >
+            <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/alerts') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            Alertas
           </Link>
 
           <Link
@@ -203,6 +236,31 @@ export default function DashboardLayout({
            </svg>
            Seguimiento
          </Link>
+         
+         <Link
+            href="/dashboard/reports/analytics"
+            className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${
+            pathname.startsWith('/dashboard/reports/analytics') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+            }`}
+          >
+           <svg 
+            className={`mr-3 h-5 w-5 ${
+            pathname.startsWith('/dashboard/reports/analytics') ? 'text-white' : 'text-neutral-500'
+            }`} 
+            xmlns="http://www.w3.org/2000/svg" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+           <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth="2" 
+            d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" 
+          />
+           </svg>
+           Reportes Avanzados
+         </Link>
 
           {(isAdmin || profile?.role === 'super_admin') && (
             <>
@@ -227,6 +285,7 @@ export default function DashboardLayout({
                 Usuarios
               </Link>
               
+
               <Link 
                 href="/dashboard/admin/ley-karin" 
                 className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
@@ -246,6 +305,19 @@ export default function DashboardLayout({
                 </svg>
                 Eliminar Denuncias
               </Link>
+
+              {/* Enlace al Panel de Super Admin - Solo visible para super admins */}
+              {profile?.role === 'super_admin' && (
+                <Link 
+                  href="/super-admin" 
+                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/super-admin') ? 'bg-purple-600 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                >
+                  <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/super-admin') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Panel Super Admin
+                </Link>
+              )}
             </>
           )}
         </nav>
@@ -305,15 +377,20 @@ export default function DashboardLayout({
                   <span className="font-bold text-xl text-neutral-900">CanalEtica</span>
                 </Link>
               </div>
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-md text-neutral-500 hover:text-primary hover:bg-neutral-100"
-              >
-                <span className="sr-only">Cerrar sesión</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
+              <div className="flex items-center space-x-1">
+                {/* Componente de alertas compacto */}
+                <SmartAlertSystem compact />
+
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-md text-neutral-500 hover:text-primary hover:bg-neutral-100"
+                >
+                  <span className="sr-only">Cerrar sesión</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -330,15 +407,33 @@ export default function DashboardLayout({
               </Link>
               <Link 
                 href="/dashboard/reports" 
-                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/reports') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/reports') && !pathname.includes('/reports/intelligence') && !pathname.includes('/reports/analytics') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
               >
                 Denuncias
+              </Link>
+              <Link 
+                href="/dashboard/reports/intelligence" 
+                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.includes('/reports/intelligence') ? 'bg-blue-500 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+              >
+                Reportes Inteligentes
+              </Link>
+              <Link 
+                href="/dashboard/ai" 
+                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/ai') ? 'bg-purple-500 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+              >
+                IA Dashboard
               </Link>
               <Link 
                 href="/dashboard/investigation" 
                 className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/investigation') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
               >
                 Investigaciones
+              </Link>
+              <Link 
+                href="/dashboard/alerts" 
+                className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/dashboard/alerts') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+              >
+                Alertas
               </Link>
               {(isAdmin || profile?.role === 'super_admin') && (
                 <>
@@ -350,6 +445,15 @@ export default function DashboardLayout({
                 }`}
               >
                 Seguimiento
+              </Link>
+
+              <Link
+                href="/dashboard/reports/analytics"
+                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                pathname.startsWith('/dashboard/reports/analytics') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+                }`}
+              >
+                Reportes Avanzados
               </Link>
               
                   <Link 
@@ -370,6 +474,16 @@ export default function DashboardLayout({
                   >
                     Eliminar Denuncias
                   </Link>
+
+                  {/* Enlace al Panel de Super Admin (móvil) - Solo visible para super admins */}
+                  {profile?.role === 'super_admin' && (
+                    <Link 
+                      href="/super-admin" 
+                      className={`block px-3 py-2 rounded-md text-base font-medium ${pathname.startsWith('/super-admin') ? 'bg-purple-600 text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                    >
+                      Panel Super Admin
+                    </Link>
+                  )}
                 </>
               )}
             </div>
@@ -396,6 +510,12 @@ export default function DashboardLayout({
             {children}
           </div>
         </main>
+        
+        {/* Indicador de entorno */}
+        <EnvironmentIndicatorClient />
+        
+        {/* Asistente Virtual IA Flotante */}
+        <FloatingAssistant />
       </div>
     </div>
   );

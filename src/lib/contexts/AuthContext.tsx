@@ -34,6 +34,10 @@ type AuthContextType = {
   updateUserPassword: (password: string) => Promise<void>;
   userRole: UserRole | null;
   companyId: string;
+  // Nuevas funciones de super admin
+  isSuperAdmin: () => boolean;
+  switchCompany: (targetCompanyId: string) => Promise<boolean>;
+  refreshUserProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,7 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Asegurarse de que userRole use el enum correcto importado de constants/index.ts
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
-  const [companyId, setCompanyId] = useState<string>(DEFAULT_COMPANY_ID);
+  
+  // Intentar recuperar la empresa seleccionada de localStorage 
+  // solo si estamos en el cliente
+  const initialCompanyId = typeof window !== 'undefined' 
+    ? localStorage.getItem('selectedCompanyId') || DEFAULT_COMPANY_ID
+    : DEFAULT_COMPANY_ID;
+    
+  const [companyId, setCompanyId] = useState<string>(initialCompanyId);
 
   async function login(email: string, password: string) {
     try {
@@ -111,6 +122,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('No hay usuario autenticado');
     }
     return updatePassword(currentUser, password);
+  }
+  
+  // Verificar si el usuario actual es super admin
+  function isSuperAdmin() {
+    if (!currentUser) return false;
+    
+    // Primero verificar la lista ADMIN_UIDS (método rápido)
+    if (ADMIN_UIDS.includes(currentUser.uid)) {
+      return true;
+    }
+    
+    // Si no está en la lista, verificar el rol del perfil de usuario (si existe)
+    if (userProfile && userProfile.role === UserRole.SUPER_ADMIN) {
+      return true;
+    }
+    
+    // Por defecto, no es super admin
+    return false;
+  }
+  
+  // Cambiar entre empresas (solo para super admin)
+  async function switchCompany(targetCompanyId: string) {
+    // Verificar si es super admin
+    if (!isSuperAdmin()) {
+      logger.warn('Intento de cambio de empresa por un usuario no autorizado', null, 
+        { prefix: 'AuthContext', userId: currentUser?.uid });
+      return false;
+    }
+    
+    try {
+      // Guardar selección en localStorage para persistencia
+      localStorage.setItem('selectedCompanyId', targetCompanyId);
+      
+      // Actualizar contexto
+      setCompanyId(targetCompanyId);
+      
+      // Recargar perfil de usuario con la nueva empresa
+      await refreshUserProfile();
+      
+      logger.info(`Empresa cambiada a: ${targetCompanyId}`, null, 
+        { prefix: 'AuthContext', userId: currentUser?.uid });
+      
+      return true;
+    } catch (error) {
+      logger.error('Error al cambiar de empresa', error, 
+        { prefix: 'AuthContext', userId: currentUser?.uid });
+      return false;
+    }
+  }
+  
+  // Recargar el perfil del usuario
+  async function refreshUserProfile() {
+    if (!currentUser || !currentUser.email) return;
+    
+    try {
+      const userProfileResult = await getUserProfileByEmail(companyId, currentUser.email);
+      
+      if (userProfileResult.success && userProfileResult.profile) {
+        setUserProfile(userProfileResult.profile);
+        setUserRole(userProfileResult.profile.role as UserRole);
+      } else if (userProfileResult.isSuperAdmin) {
+        // Si es super admin pero no tiene perfil en la empresa actual
+        // establecer perfil mínimo con rol super admin
+        setUserProfile({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName || 'Super Admin',
+          role: UserRole.SUPER_ADMIN,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          company: companyId
+        });
+        setUserRole(UserRole.SUPER_ADMIN);
+      } else {
+        // Si no hay perfil y no es super admin, limpiar
+        setUserProfile(null);
+        setUserRole(null);
+      }
+    } catch (error) {
+      logger.error('Error al recargar perfil de usuario', error, 
+        { prefix: 'AuthContext', userId: currentUser?.uid });
+      // No cambiamos el estado para mantener lo que ya teníamos
+    }
   }
 
   // Modo demo controlado por variable de entorno
@@ -223,7 +318,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateUserEmail,
     updateUserPassword,
     userRole,
-    companyId
+    companyId,
+    // Nuevas funciones
+    isSuperAdmin,
+    switchCompany,
+    refreshUserProfile
   };
 
   return (

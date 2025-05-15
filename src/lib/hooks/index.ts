@@ -7,6 +7,10 @@ export * from './useCurrentUser';
 
 // Hooks de reportes
 export * from './useReports';
+export * from './useReporting';
 
 // Hooks de configuración
 export * from './useConfig';
+
+// Hooks de documentos
+export * from './useDocuments';

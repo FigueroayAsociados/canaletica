@@ -1,7 +1,9 @@
 'use client';
 
+
+
 // src/app/(dashboard)/dashboard/reports/[id]/page.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -13,22 +15,31 @@ import { Select } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import ExportReportPDF from '@/components/reports/ExportReportPDF';
+import RiskAnalysisCard from '@/components/ai/RiskAnalysisCard';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useAI } from '@/lib/hooks/useAI';
+import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { Spinner } from '@/components/ui/spinner';
 import { 
   useReport, 
-  useUpdateReportStatus, 
+  useUpdateReportStatus,
+  useUpdateKarinStage, 
   useUsersByRole,
   useAssignInvestigator,
   useAddCommunication
 } from '@/lib/hooks/useReports';
 import { updateReportStats } from '@/lib/services/reportService';
 
+
+
+
 export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
   const reportId = params.id as string;
   const { uid, isAdmin, isInvestigator } = useCurrentUser();
+  const { isEnabled } = useFeatureFlags();
+  const { analyzeRisk, riskAnalysis, isLoading: isAiLoading } = useAI();
   
   // Estados para las acciones
   const [newStatus, setNewStatus] = useState<string>('');
@@ -38,6 +49,7 @@ export default function ReportDetailPage() {
   const [newMessage, setNewMessage] = useState<string>('');
   const [isInternalMessage, setIsInternalMessage] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('details');
+  const [showRiskAnalysis, setShowRiskAnalysis] = useState<boolean>(false);
   
   // Usar React Query para cargar los datos
   const companyId = 'default'; // En una implementación multi-tenant real, esto vendría de un contexto o URL
@@ -55,16 +67,42 @@ export default function ReportDetailPage() {
 
   // Preparar las mutaciones
   const updateStatusMutation = useUpdateReportStatus();
+  const updateKarinStage = useUpdateKarinStage();
   const assignInvestigatorMutation = useAssignInvestigator();
   const addCommunicationMutation = useAddCommunication();
   
   // Inicializar estados cuando los datos están disponibles
-  React.useEffect(() => {
+  useEffect(() => {
     if (reportResult?.success && reportResult.report) {
-      setNewStatus(reportResult.report.status);
+      // Para casos de Ley Karin, usar la etapa del proceso como estado inicial
+      if (reportResult.report.isKarinLaw) {
+        setNewStatus(reportResult.report.karinProcess?.stage || 'complaint_filed');
+      } else {
+        setNewStatus(reportResult.report.status);
+      }
       setSelectedInvestigator(reportResult.report.assignedTo || '');
+      
+      // Verificar si la IA está habilitada
+      const aiFeatureEnabled = isEnabled('aiEnabled');
+      setShowRiskAnalysis(aiFeatureEnabled);
+      
+      // Si la IA está habilitada, realizar análisis de riesgo
+      if (aiFeatureEnabled && !riskAnalysis) {
+        const report = reportResult.report;
+        
+        // Preparar parámetros para análisis de riesgo
+        analyzeRisk({
+          reportContent: report.detailedDescription,
+          category: report.category,
+          subcategory: report.subcategory,
+          isAnonymous: report.isAnonymous,
+          hasEvidence: report.hasEvidence,
+          isKarinLaw: report.isKarinLaw,
+          involvedPositions: report.involvedPersons?.map((person: any) => person.position) || []
+        });
+      }
     }
-  }, [reportResult]);
+  }, [reportResult, isEnabled, analyzeRisk, riskAnalysis]);
 
   // Obtener el reporte de los datos cargados
   const report = reportResult?.success ? reportResult.report : null;
@@ -74,19 +112,35 @@ export default function ReportDetailPage() {
   
   // Manejar cambio de estado
   const handleStatusChange = async () => {
-    if (!report || newStatus === report.status || !uid) return;
+    if (!report || (report.isKarinLaw ? (report.karinProcess?.stage === newStatus) : (newStatus === report.status)) || !uid) return;
     
     try {
-      // Ejecutar la mutación
-      await updateStatusMutation.mutateAsync({
-        companyId,
-        reportId,
-        status: newStatus,
-        additionalData: { actorId: uid, comment: statusComment }
-      });
-      
-      // Actualizar estadísticas
-      await updateReportStats(companyId, report.status, newStatus);
+      if (report.isKarinLaw) {
+        // Para casos de Ley Karin, usamos la actualización de etapa de proceso
+        await updateKarinStage({
+          companyId,
+          reportId,
+          newStage: newStatus,
+          additionalData: { 
+            actorId: uid, 
+            notes: statusComment 
+          }
+        });
+      } else {
+        // Para casos normales, usamos la actualización de estado estándar
+        await updateStatusMutation.mutateAsync({
+          companyId,
+          reportId,
+          status: newStatus,
+          additionalData: { 
+            actorId: uid, 
+            comment: statusComment 
+          }
+        });
+        
+        // Actualizar estadísticas
+        await updateReportStats(companyId, report.status, newStatus);
+      }
       
       // Limpiar comentario
       setStatusComment('');
@@ -195,6 +249,7 @@ export default function ReportDetailPage() {
   // Comprobaciones pendientes mientras se cargan las mutaciones
   const isSubmitting = 
     updateStatusMutation.isPending || 
+    updateKarinStage.isPending ||
     assignInvestigatorMutation.isPending || 
     addCommunicationMutation.isPending;
   
@@ -228,16 +283,18 @@ export default function ReportDetailPage() {
       </div>
       
       {/* Mostrar errores de mutaciones si existen */}
-      {(updateStatusMutation.isError || assignInvestigatorMutation.isError || addCommunicationMutation.isError) && (
+      {(updateStatusMutation.isError || updateKarinStage.isError || assignInvestigatorMutation.isError || addCommunicationMutation.isError) && (
         <Alert variant="error">
           <AlertDescription>
             {updateStatusMutation.error instanceof Error 
               ? updateStatusMutation.error.message 
-              : assignInvestigatorMutation.error instanceof Error 
-                ? assignInvestigatorMutation.error.message
-                : addCommunicationMutation.error instanceof Error
-                  ? addCommunicationMutation.error.message
-                  : 'Error al realizar la acción'}
+              : updateKarinStage.error instanceof Error
+                ? updateKarinStage.error.message
+                : assignInvestigatorMutation.error instanceof Error 
+                  ? assignInvestigatorMutation.error.message
+                  : addCommunicationMutation.error instanceof Error
+                    ? addCommunicationMutation.error.message
+                    : 'Error al realizar la acción'}
           </AlertDescription>
         </Alert>
       )}
@@ -253,6 +310,40 @@ export default function ReportDetailPage() {
         
         {/* Pestaña de Detalles */}
         <TabsContent value="details" className="space-y-6">
+          {/* Análisis de IA - Solo visible si está habilitado */}
+          {showRiskAnalysis && (
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+              {/* Panel de Análisis de Riesgo */}
+              <div className="col-span-1">
+                {riskAnalysis ? (
+                  <RiskAnalysisCard analysis={riskAnalysis} />
+                ) : (
+                  <Card className="w-full">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        Análisis de Riesgo (IA)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-4">
+                      {isAiLoading ? (
+                        <div className="flex flex-col items-center justify-center space-y-3">
+                          <Spinner />
+                          <p className="text-sm text-gray-600">Analizando reporte...</p>
+                        </div>
+                      ) : (
+                        <div className="text-center space-y-3">
+                          <p className="text-sm text-gray-500">
+                            El análisis de riesgo no está disponible para este reporte.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Información principal */}
           <Card>
             <CardHeader>
@@ -455,16 +546,41 @@ export default function ReportDetailPage() {
                     onChange={(e) => setNewStatus(e.target.value)}
                     className="mt-1"
                   >
-                    <option value="Nuevo">Nuevo</option>
-                    <option value="Admitida">Admitida</option>
-                    <option value="Asignada">Asignada</option>
-                    <option value="En Investigación">En Investigación</option>
-                    <option value="Pendiente Información">Pendiente Información</option>
-                    <option value="En Evaluación">En Evaluación</option>
-                    <option value="Resuelta">Resuelta</option>
-                    <option value="En Seguimiento">En Seguimiento</option>
-                    <option value="Cerrada">Cerrada</option>
-                    <option value="Rechazada">Rechazada</option>
+                    {/* Mostrar estados específicos para casos de Ley Karin */}
+                    {report.isKarinLaw ? (
+                      <>
+                        <option value="complaint_filed">Etapa 1: Interposición de la Denuncia</option>
+                        <option value="reception">Etapa 2: Recepción de Denuncia</option>
+                        <option value="subsanation">Etapa 2.1: Subsanación de la Denuncia</option>
+                        <option value="precautionary_measures">Etapa 3: Medidas Precautorias</option>
+                        <option value="decision_to_investigate">Etapa 4: Decisión de Investigar</option>
+                        <option value="investigation">Etapa 5: Investigación</option>
+                        <option value="report_creation">Etapa 6: Creación del Informe Preliminar</option>
+                        <option value="report_approval">Etapa 7: Revisión Interna del Informe</option>
+                        <option value="dt_notification">Etapa 8: Notificación a DT</option>
+                        <option value="suseso_notification">Etapa 9: Notificación a SUSESO</option>
+                        <option value="investigation_complete">Etapa 10: Investigación completa</option>
+                        <option value="final_report">Etapa 11: Creación del Informe Final</option>
+                        <option value="dt_submission">Etapa 12: Envío a DT</option>
+                        <option value="dt_resolution">Etapa 13: Resolución de la DT</option>
+                        <option value="measures_adoption">Etapa 14: Adopción de Medidas</option>
+                        <option value="sanctions">Etapa 15: Sanciones</option>
+                        <option value="closed">Finalizado</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Nuevo">Nuevo</option>
+                        <option value="Admitida">Admitida</option>
+                        <option value="Asignada">Asignada</option>
+                        <option value="En Investigación">En Investigación</option>
+                        <option value="Pendiente Información">Pendiente Información</option>
+                        <option value="En Evaluación">En Evaluación</option>
+                        <option value="Resuelta">Resuelta</option>
+                        <option value="En Seguimiento">En Seguimiento</option>
+                        <option value="Cerrada">Cerrada</option>
+                        <option value="Rechazada">Rechazada</option>
+                      </>
+                    )}
                   </Select>
                 </div>
                 

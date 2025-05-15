@@ -3,11 +3,22 @@
 // src/app/(dashboard)/dashboard/page.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import Link from 'next/link';
 import { getDashboardMetrics } from '@/lib/services/dashboardService';
+// Removida importación de iconos no utilizados
+import { ArrowUp, ArrowDown, RefreshCcw } from 'lucide-react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+
+// Componentes de dashboard
+import SummaryStatCard from '@/components/dashboard/SummaryStatCard';
+import CategoryDistributionCard from '@/components/dashboard/CategoryDistributionCard';
+import RecentActivityCard from '@/components/dashboard/RecentActivityCard';
+import MonthlyTrendCard from '@/components/dashboard/MonthlyTrendCard';
+import AssistantCard from '@/components/dashboard/AssistantCard';
+import SmartAlertSystem from '@/components/alerts/SmartAlertSystem';
 
 export default function DashboardPage() {
   const { profile, isAdmin } = useCurrentUser();
@@ -16,29 +27,49 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  useEffect(() => {
-    async function fetchMetrics() {
-      try {
-        setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        
-        const result = await getDashboardMetrics(companyId);
-        
-        if (result.success) {
-          setMetrics(result.metrics);
-          setLastUpdated(new Date());
-        } else {
-          setError('No se pudieron cargar las métricas');
-        }
-      } catch (error) {
-        console.error('Error al cargar métricas:', error);
-        setError('Error al cargar las métricas del dashboard');
-      } finally {
-        setLoading(false);
+  const fetchMetrics = async (companyId = 'default') => {
+    try {
+      setLoading(true);
+      
+      const result = await getDashboardMetrics(companyId);
+      
+      if (result.success) {
+        setMetrics(result.metrics);
+        setLastUpdated(new Date());
+      } else {
+        setError('No se pudieron cargar las métricas');
       }
+    } catch (error) {
+      console.error('Error al cargar métricas:', error);
+      setError('Error al cargar las métricas del dashboard');
+    } finally {
+      setLoading(false);
     }
+  };
 
+  // Cargar métricas iniciales
+  useEffect(() => {
     fetchMetrics();
+  }, []);
+  
+  // Configurar un listener para actualizaciones en tiempo real de la colección de denuncias
+  useEffect(() => {
+    const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
+    
+    // Crear referencia a la colección de denuncias
+    const reportsRef = collection(db, `companies/${companyId}/reports`);
+    
+    // Establecer el listener
+    const unsubscribe = onSnapshot(reportsRef, (snapshot) => {
+      // Cuando hay cambios en la colección de denuncias, actualizar las métricas
+      console.log("Detectado cambio en las denuncias. Actualizando dashboard...");
+      fetchMetrics(companyId);
+    }, (error) => {
+      console.error("Error en el listener de denuncias:", error);
+    });
+    
+    // Limpiar el listener cuando el componente se desmonte
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
@@ -84,12 +115,83 @@ export default function DashboardPage() {
     return Math.round(metrics?.inProgressReports * 0.3);
   };
 
+  // Formatear actividades recientes para el nuevo componente
+  const formatActivities = () => {
+    if (!metrics?.recentActivity) return [];
+    
+    return metrics.recentActivity.map((activity: any) => {
+      let activityType: 'report' | 'investigation' | 'followup' | 'user' = 'report';
+      let status = '';
+      let url = '';
+      
+      if (activity.type === 'report_created') {
+        activityType = 'report';
+        status = 'Nuevo';
+        url = `/dashboard/reports/${activity.reportId}`;
+      } else if (activity.type === 'report_assigned') {
+        activityType = 'investigation';
+        status = 'Asignado';
+        url = `/dashboard/investigation/${activity.reportId}`;
+      } else if (activity.type === 'report_resolved') {
+        activityType = 'followup';
+        status = 'Resuelto';
+        url = `/dashboard/follow-up/${activity.reportId}`;
+      }
+      
+      return {
+        id: activity.id,
+        type: activityType,
+        title: `Denuncia #${activity.reportId.slice(0, 6)}`,
+        description: activity.description,
+        date: new Date(activity.date),
+        status,
+        url
+      };
+    });
+  };
+
+  // Formatear datos mensuales para el componente de tendencias
+  const formatMonthlyData = () => {
+    if (!metrics?.reportsByMonth) return [];
+    
+    return metrics.reportsByMonth.map((item: any) => ({
+      month: item.month,
+      value: item.count
+    }));
+  };
+
+  // Calcular totales para componente de tendencias
+  const calculateTrendTotals = () => {
+    if (!metrics?.reportsByMonth || metrics.reportsByMonth.length < 2) {
+      return { current: 0, previous: 0 };
+    }
+    
+    const monthsData = metrics.reportsByMonth;
+    const currentPeriodTotal = monthsData[monthsData.length - 1].count;
+    const previousPeriodTotal = monthsData[monthsData.length - 2].count;
+    
+    return { current: currentPeriodTotal, previous: previousPeriodTotal };
+  };
+
+  const { current: currentMonthTotal, previous: previousMonthTotal } = calculateTrendTotals();
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Panel de Control</h1>
-        <div className="text-sm text-gray-500">
-          Última actualización: {lastUpdated.toLocaleString()}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => fetchMetrics()} 
+            className="text-primary hover:text-primary-dark focus:outline-none flex items-center"
+            disabled={loading}
+            title="Actualizar métricas del dashboard"
+          >
+            <RefreshCcw className={`h-5 w-5 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            <span className="text-sm">Actualizar</span>
+          </button>
+          <div className="text-sm text-gray-500">
+            Última actualización: {lastUpdated.toLocaleString()}
+          </div>
         </div>
       </div>
 
@@ -110,182 +212,95 @@ export default function DashboardPage() {
 
       {/* Métricas principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Nuevas Denuncias</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline">
-              <span className="text-3xl font-bold text-gray-900">{metrics?.newReports || 0}</span>
-              {getNewThisWeek() > 0 && (
-                <span className="ml-2 text-sm text-green-600">+{getNewThisWeek()} esta semana</span>
-              )}
-            </div>
-            <div className="mt-2">
-              <Link href="/dashboard/reports?status=Nuevo" className="text-sm text-primary hover:underline">
-                Ver denuncias nuevas
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryStatCard
+          title="Nuevas Denuncias"
+          value={metrics?.newReports || 0}
+          change={getNewThisWeek() > 0 ? {
+            value: getNewThisWeek(),
+            type: 'increase',
+            period: 'week'
+          } : undefined}
+          linkUrl="/dashboard/reports?status=nuevo"
+          linkText="Ver denuncias nuevas"
+          colorScheme="primary"
+        />
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">En Investigación</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline">
-              <span className="text-3xl font-bold text-gray-900">{metrics?.inProgressReports || 0}</span>
-              {getExpiringSoon() > 0 && (
-                <span className="ml-2 text-sm text-yellow-600">{getExpiringSoon()} próximas a vencer</span>
-              )}
-            </div>
-            <div className="mt-2">
-              <Link href="/dashboard/reports?status=En Investigación" className="text-sm text-primary hover:underline">
-                Ver investigaciones activas
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryStatCard
+          title="En Investigación"
+          value={metrics?.inProgressReports || 0}
+          urgent={getExpiringSoon() > 0 ? {
+            count: getExpiringSoon(),
+            type: 'expiring'
+          } : undefined}
+          linkUrl="/dashboard/reports?status=en investigación"
+          linkText="Ver investigaciones activas"
+          colorScheme="warning"
+        />
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Resueltas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline">
-              <span className="text-3xl font-bold text-gray-900">{metrics?.resolvedReports || 0}</span>
-              {getNewThisMonth() > 0 && (
-                <span className="ml-2 text-sm text-green-600">+{getNewThisMonth()} este mes</span>
-              )}
-            </div>
-            <div className="mt-2">
-              <Link href="/dashboard/reports?status=Resuelta" className="text-sm text-primary hover:underline">
-                Ver denuncias resueltas
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryStatCard
+          title="Resueltas"
+          value={metrics?.resolvedReports || 0}
+          change={getNewThisMonth() > 0 ? {
+            value: getNewThisMonth(),
+            type: 'increase',
+            period: 'month'
+          } : undefined}
+          linkUrl="/dashboard/reports?status=resuelta"
+          linkText="Ver denuncias resueltas"
+          colorScheme="success"
+        />
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Tiempo Promedio</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline">
-              <span className="text-3xl font-bold text-gray-900">{metrics?.averageResolutionTime || 0}</span>
-              <span className="ml-2 text-sm text-gray-600">días</span>
-            </div>
-            <div className="mt-2">
-              <span className="text-sm text-gray-600">
-                Para resolver una denuncia
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryStatCard
+          title="Tiempo Promedio"
+          value={metrics?.averageResolutionTime || 0}
+          subtitle="días"
+          colorScheme="info"
+        />
       </div>
 
-      {/* Distribución por categorías */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Denuncias por Categoría</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {metrics?.reportsByCategory.map((item: any) => (
-                <div key={item.category} className="flex items-center">
-                  <div className="w-32 text-sm">
-                    {item.category === 'modelo_prevencion' && 'Prev. Delitos'}
-                    {item.category === 'ley_karin' && 'Ley Karin'}
-                    {item.category === 'ciberseguridad' && 'Ciberseguridad'}
-                    {item.category === 'reglamento_interno' && 'Regl. Interno'}
-                    {item.category === 'politicas_codigos' && 'Políticas'}
-                    {item.category === 'represalias' && 'Represalias'}
-                    {item.category === 'otros' && 'Otros'}
-                  </div>
-                  <div className="flex-1">
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{ width: `${(item.count / metrics.totalReports) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  <div className="w-10 text-right text-sm font-medium">{item.count}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Actividad Reciente */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Actividad Reciente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {metrics?.recentActivity.map((activity: any) => (
-                <div key={activity.id} className="flex">
-                  <div className="mr-4 flex-shrink-0">
-                    <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
-                      {activity.type === 'report_created' && (
-                        <svg className="h-4 w-4 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      )}
-                      {activity.type === 'report_assigned' && (
-                        <svg className="h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                      )}
-                      {activity.type === 'report_resolved' && (
-                        <svg className="h-4 w-4 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(activity.date).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 text-center">
-              <Link href="/dashboard/reports" className="text-sm text-primary hover:underline">
-                Ver todo el historial de actividad
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Denuncias por Mes (Gráfico simplificado) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Denuncias por Mes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-64 flex items-end justify-between px-2">
-            {metrics?.reportsByMonth.map((data: any, index: number) => (
-              <div key={index} className="flex flex-col items-center">
-                <div
-                  className="w-10 bg-primary rounded-t-sm"
-                  style={{
-                    height: `${(data.count / Math.max(...metrics.reportsByMonth.map((d: any) => d.count) || [1])) * 180}px`
-                  }}
-                ></div>
-                <div className="mt-2 text-xs font-medium">{data.month}</div>
-              </div>
-            ))}
+      {/* Gráficos y datos detallados */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CategoryDistributionCard
+              title="Denuncias por Categoría"
+              categories={metrics?.reportsByCategory.map((item: any) => ({
+                category: item.category,
+                count: item.count
+              })) || []}
+              totalCount={metrics?.totalReports}
+            />
+            
+            <RecentActivityCard
+              title="Actividad Reciente"
+              activities={formatActivities()}
+              viewAllUrl="/dashboard/reports"
+            />
           </div>
-        </CardContent>
-      </Card>
+          
+          {/* Alertas Inteligentes */}
+          <div className="mt-2">
+            <SmartAlertSystem sidebarMode />
+          </div>
+        </div>
+        
+        {/* Asistente Virtual */}
+        <div className="h-[500px]">
+          <AssistantCard />
+        </div>
+      </div>
+
+      {/* Gráfico de tendencias */}
+      <div className="grid grid-cols-1 gap-6">
+        <MonthlyTrendCard
+          title="Tendencia de Denuncias"
+          data={formatMonthlyData()}
+          currentPeriodTotal={currentMonthTotal}
+          previousPeriodTotal={previousMonthTotal}
+          valueLabel="Denuncias"
+          colorScheme="blue"
+        />
+      </div>
     </div>
   );
 }

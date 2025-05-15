@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "canaletica-e0f81"
+  },
+  "functions": {
+    "region": "southamerica-east1"
+  }
+}

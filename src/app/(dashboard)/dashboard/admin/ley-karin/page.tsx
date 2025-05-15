@@ -45,14 +45,17 @@ export default function AdminLeyKarinPage() {
       'complaint_filed': 'Denuncia Interpuesta',
       'reception': 'Recepción',
       'subsanation': 'Subsanación',
-      'dt_notification': 'Notificación Inicial a DT',
+      'dt_notification': 'Notificación a DT',
       'suseso_notification': 'Notificación a SUSESO',
       'precautionary_measures': 'Medidas Precautorias',
       'decision_to_investigate': 'Decisión de Investigar',
       'investigation': 'En Investigación',
-      'report_creation': 'Creación de Informe',
-      'report_approval': 'Aprobación de Informe',
-      'labor_department': 'Remisión a Dir. del Trabajo',
+      'report_creation': 'Creación Informe Preliminar',
+      'report_approval': 'Revisión Interna Informe',
+      'investigation_complete': 'Investigación Completa',
+      'final_report': 'Creación Informe Final',
+      'dt_submission': 'Envío Formal a DT',
+      'labor_department': 'Investigación Completa', // Para compatibilidad
       'dt_resolution': 'Resolución de DT',
       'measures_adoption': 'Adopción de Medidas',
       'sanctions': 'Sanciones',
@@ -61,7 +64,7 @@ export default function AdminLeyKarinPage() {
       'closed': 'Cerrada',
       // Mapear valores antiguos por compatibilidad
       'orientation': 'Denuncia Interpuesta', // Mapeo de etapa antigua a nueva
-      'preliminaryReport': 'Creación de Informe' // Mapeo de etapa antigua a nueva
+      'preliminaryReport': 'Creación Informe Preliminar' // Mapeo de etapa antigua a nueva
     };
     
     return stageMap[stage] || stage;
@@ -315,9 +318,9 @@ export default function AdminLeyKarinPage() {
           <div className="p-4 bg-gray-50 rounded-lg overflow-x-auto">
             <div className="flex flex-nowrap min-w-max gap-2">
               {/* Etapas del proceso como diagrama de flujo */}
-              {['complaint_filed', 'reception', 'subsanation', 'dt_notification', 'suseso_notification', 'precautionary_measures', 
-                'decision_to_investigate', 'investigation', 'report_creation', 'report_approval', 
-                'labor_department', 'dt_resolution', 'measures_adoption', 'sanctions', 'closed']
+              {['complaint_filed', 'reception', 'subsanation', 'precautionary_measures', 'decision_to_investigate', 
+                'investigation', 'report_creation', 'report_approval', 'dt_notification', 'suseso_notification', 
+                'investigation_complete', 'final_report', 'dt_submission', 'dt_resolution', 'measures_adoption', 'sanctions', 'closed']
                 .map((stage, index, stages) => {
                   // Determinar si la etapa está completa o activa basado en el reporte seleccionado
                   let isActive = false;
@@ -529,10 +532,11 @@ export default function AdminLeyKarinPage() {
               <div className="border-t pt-4">
                 <h4 className="font-medium mb-2">Actualizar etapa del proceso</h4>
                 <div className="grid grid-cols-1 gap-4">
-                  {['complaint_filed', 'reception', 'subsanation', 'dt_notification', 'suseso_notification',
-                   'precautionary_measures', 'decision_to_investigate', 'investigation', 
-                   'report_creation', 'report_approval', 'labor_department', 'dt_resolution',
-                   'measures_adoption', 'sanctions', 'third_party', 'subcontracting', 'closed'].map((stage) => (
+                  {['complaint_filed', 'reception', 'subsanation', 'precautionary_measures', 
+                   'decision_to_investigate', 'investigation', 'report_creation', 'report_approval',
+                   'dt_notification', 'suseso_notification', 'investigation_complete', 'final_report',
+                   'dt_submission', 'dt_resolution', 'measures_adoption', 'sanctions', 
+                   'third_party', 'subcontracting', 'closed'].map((stage) => (
                     <Button 
                       key={stage}
                       variant={selectedReport.karinProcess?.stage === stage ? "default" : "outline"} 

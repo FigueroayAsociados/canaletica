@@ -1,5 +1,6 @@
 // src/types/report.ts
 
+// Tipos básicos
 export type RelationshipType = 
   | 'empleado' 
   | 'proveedor' 
@@ -37,13 +38,22 @@ export type KarinRiskFactorType =
   | 'pruebas'           // Existencia de pruebas concretas
   | 'reincidencia';     // Conducta reincidente
 
+// Estados de plazos para visualización
+export type DeadlineStatus = 
+  | 'ok'                // Plazo en tiempo normal
+  | 'warning'           // Plazo próximo a vencer (3 días o menos)
+  | 'critical'          // Plazo crítico (1 día o menos)
+  | 'expired'           // Plazo vencido
+  | 'extended'          // Plazo prorrogado
+  | 'completed';        // Tarea completada dentro del plazo
+
 // Modelo para preguntas de evaluación de riesgo Ley Karin
-export interface KarinRiskQuestion {
+export type KarinRiskQuestion = {
   id: KarinRiskFactorType;
   question: string;
   description?: string;
   riskLevel: 'high' | 'medium' | 'low';
-}
+};
 
 // Lista predefinida de preguntas para evaluación de riesgo Ley Karin
 export const KARIN_RISK_QUESTIONS: KarinRiskQuestion[] = [
@@ -112,27 +122,28 @@ export type KarinProcessStage =
   | 'complaint_filed'       // Etapa 1: Interposición de la Denuncia
   | 'reception'             // Etapa 2: Recepción de Denuncia
   | 'subsanation'           // Etapa 2.1: Subsanación de la Denuncia (si es necesario)
-  | 'dt_notification'       // Etapa 2.2: Notificación inicial a DT (3 días desde recepción)
-  | 'suseso_notification'   // Etapa 2.3: Notificación a mutualidades/SUSESO (5 días)
   | 'precautionary_measures'// Etapa 3: Medidas Precautorias o de Resguardo
   | 'decision_to_investigate'// Etapa 4: Decisión de Investigar
   | 'investigation'         // Etapa 5: Investigación
-  | 'report_creation'       // Etapa 6a: Creación del Informe Preliminar
-  | 'report_approval'       // Etapa 6b: Aprobación del Informe Preliminar
-  | 'labor_department'      // Etapa 7: Investigación completa (30 días máximo)
-  | 'final_report'          // Etapa 8a: Creación del Informe Final
-  | 'dt_submission'         // Etapa 8b: Envío a DT (2 días desde finalización)
-  | 'dt_resolution'         // Etapa 9: Resolución de la DT (30 días hábiles)
-  | 'measures_adoption'     // Etapa 10: Adopción de Medidas (15 días corridos)
-  | 'sanctions'             // Etapa 11: Sanciones y su Impugnación
+  | 'report_creation'       // Etapa 6: Creación del Informe Preliminar
+  | 'report_approval'       // Etapa 7: Revisión Interna del Informe
+  | 'dt_notification'       // Etapa 8: Notificación a DT con informe preliminar
+  | 'suseso_notification'   // Etapa 9: Notificación a mutualidades/SUSESO
+  | 'investigation_complete'// Etapa 10: Investigación completa (30 días máximo)
+  | 'final_report'          // Etapa 11: Creación del Informe Final
+  | 'dt_submission'         // Etapa 12: Envío a DT (2 días desde finalización)
+  | 'dt_resolution'         // Etapa 13: Resolución de la DT (30 días hábiles)
+  | 'measures_adoption'     // Etapa 14: Adopción de Medidas (15 días corridos)
+  | 'sanctions'             // Etapa 15: Sanciones y su Impugnación
   | 'false_claim'           // Caso especial: Denuncias Falsas
   | 'retaliation_review'    // Caso especial: Prohibición de Represalias
   | 'third_party'           // Caso especial: Conductas por terceros
   | 'subcontracting'        // Caso especial: Régimen de Subcontratación
   | 'closed'                // Finalizado
+  | 'labor_department'      // Valor antiguo (para compatibilidad, equivalente a investigation_complete)
   | 'orientation';          // Valor antiguo (mantenido para compatibilidad)
 
-// Ahora CategoryType puede ser cualquier string (ID de la categoría)
+// CategoryType puede ser cualquier string (ID de la categoría)
 export type CategoryType = string;
 
 export type ModeloPrevSubcategory =
@@ -155,33 +166,33 @@ export type CiberseguridadSubcategory =
   | 'interceptacion_datos'
   | 'otro';
 
-export interface EvidenceType {
+export type EvidenceType = {
   id?: string;
   file?: File;
   description: string;
   url?: string;
-}
+};
 
-export interface AccusedPersonType {
+export type AccusedPersonType = {
   id: string;
   name: string;
   position: string;
   department: string;
   relationship: string;
-}
+};
 
-export interface WitnessType {
+export type WitnessType = {
   id: string;
   name: string;
   contact?: string;
-}
+};
 
 // Medidas precautorias para Ley Karin
-export interface PrecautionaryMeasure {
+export type PrecautionaryMeasure = {
   id: string;
   name: string;
   description: string;
-}
+};
 
 // Lista predefinida de medidas precautorias para Ley Karin
 export const DEFAULT_PRECAUTIONARY_MEASURES: PrecautionaryMeasure[] = [
@@ -232,8 +243,133 @@ export const DEFAULT_PRECAUTIONARY_MEASURES: PrecautionaryMeasure[] = [
   }
 ];
 
-// Interfaz para el formulario completo
-export interface ReportFormValues {
+// Interfaz para deadlines de Ley Karin
+export type KarinDeadline = {
+  id: string;
+  name: string;                     // Nombre descriptivo del plazo
+  description: string;              // Descripción del plazo
+  startDate: string;                // Fecha de inicio del plazo
+  endDate: string;                  // Fecha de vencimiento
+  businessDays: number;             // Días hábiles de plazo
+  status: DeadlineStatus;           // Estado actual del plazo
+  daysRemaining?: number;           // Días hábiles restantes (calculados)
+  completedDate?: string;           // Fecha en que se completó la tarea
+  completedBy?: string;             // Usuario que completó la tarea
+  isLegalRequirement: boolean;      // Si es un plazo legal obligatorio
+  legalReference?: string;          // Referencia legal (artículo)
+  associatedStage: KarinProcessStage; // Etapa del proceso asociada
+  notes?: string;                   // Notas adicionales
+  notificationsEnabled?: boolean;   // Si se envían notificaciones de este plazo
+  notificationsSent?: Array<{       // Registro de notificaciones enviadas
+    date: string;                   // Fecha de envío
+    recipient: string;              // Destinatario
+    type: 'email' | 'system' | 'sms'; // Tipo de notificación
+  }>;
+  isExtended?: boolean;             // Si el plazo ha sido prorrogado
+  originalEndDate?: string;         // Fecha original antes de prórroga
+  extensionReason?: string;         // Razón de la prórroga
+  extensionApprovedBy?: string;     // Quién aprobó la prórroga
+  priority: 'high' | 'medium' | 'low'; // Prioridad del plazo
+  dependencies?: string[];          // IDs de plazos que deben cumplirse antes
+  progressPercentage?: number;      // Porcentaje de avance (0-100)
+};
+
+// Lista de plazos legales para Ley Karin
+export const DEFAULT_KARIN_DEADLINES: Partial<KarinDeadline>[] = [
+  {
+    name: 'Notificación inicial a DT',
+    description: 'Plazo para notificar a la Dirección del Trabajo sobre la denuncia',
+    businessDays: 3,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
+    associatedStage: 'reception',
+    priority: 'high'
+  },
+  {
+    name: 'Adopción de medidas precautorias',
+    description: 'Plazo para implementar medidas de resguardo o precautorias',
+    businessDays: 3,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
+    associatedStage: 'reception',
+    priority: 'high'
+  },
+  {
+    name: 'Subsanación de denuncia',
+    description: 'Plazo para que el denunciante subsane información faltante o incompleta',
+    businessDays: 5,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-A del Código del Trabajo',
+    associatedStage: 'subsanation',
+    priority: 'high'
+  },
+  {
+    name: 'Notificación a SUSESO/Mutualidad',
+    description: 'Plazo para notificar a la mutualidad correspondiente',
+    businessDays: 5,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
+    associatedStage: 'dt_notification',
+    priority: 'medium'
+  },
+  {
+    name: 'Investigación interna',
+    description: 'Plazo para completar la investigación interna',
+    businessDays: 30,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-C del Código del Trabajo',
+    associatedStage: 'investigation',
+    priority: 'high'
+  },
+  {
+    name: 'Prórroga investigación',
+    description: 'Extensión del plazo de investigación (si se solicita)',
+    businessDays: 30,
+    isLegalRequirement: false,
+    legalReference: 'Ley Karin, artículo 211-C del Código del Trabajo',
+    associatedStage: 'investigation',
+    priority: 'medium'
+  },
+  {
+    name: 'Remisión a DT',
+    description: 'Plazo para enviar el informe final y expediente a la DT',
+    businessDays: 2,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-D del Código del Trabajo',
+    associatedStage: 'investigation_complete',
+    priority: 'high'
+  },
+  {
+    name: 'Respuesta DT',
+    description: 'Plazo para que la DT revise y responda sobre el caso',
+    businessDays: 30,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-E del Código del Trabajo',
+    associatedStage: 'dt_submission',
+    priority: 'medium'
+  },
+  {
+    name: 'Adopción de medidas',
+    description: 'Plazo para implementar medidas dispuestas (días corridos, no hábiles)',
+    businessDays: 0, // Se maneja diferente por ser días corridos
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-F del Código del Trabajo',
+    associatedStage: 'measures_adoption',
+    priority: 'high'
+  },
+  {
+    name: 'Reclamación de multas',
+    description: 'Plazo para reclamar las multas aplicadas',
+    businessDays: 15,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin, artículo 211-G del Código del Trabajo',
+    associatedStage: 'sanctions',
+    priority: 'medium'
+  }
+];
+
+// Formulario completo
+export type ReportFormValues = {
   // Paso 1: Identificación del Denunciante
   relationship: RelationshipType;
   isAnonymous: boolean;
@@ -313,6 +449,30 @@ export interface ReportFormValues {
     subsanationRequested?: string; // Fecha de solicitud de subsanación
     subsanationReceived?: string; // Fecha de recepción de subsanación
     subsanationDeadline?: string; // Plazo de 5 días hábiles para subsanar
+    // Campos extendidos para subsanación
+    subsanationItems?: Array<{
+      id: string;
+      description: string;
+      status: 'pending' | 'completed';
+      requiredDocumentType?: string;
+    }>;
+    subsanationDocuments?: Array<{
+      id: string;
+      fileId: string;
+      fileName: string;
+      uploadDate: string;
+      itemId?: string; // Relaciona con el ítem que subsana
+      description: string;
+    }>;
+    subsanationComments?: string;
+    subsanationNotifications?: Array<{
+      date: string;
+      method: 'email' | 'phone' | 'letter';
+      sentBy: string;
+      subject: string;
+    }>;
+    subsanationReminderSent?: boolean; // Si se ha enviado recordatorio
+    subsanationReminderDate?: string; // Fecha del último recordatorio enviado
     initialRiskAssessment?: 'high' | 'medium' | 'low';
     informedRights?: boolean; // Se informó a la víctima sobre sus derechos
     
@@ -322,9 +482,73 @@ export interface ReportFormValues {
     derivedToDT?: boolean; // Se derivó directamente a la DT por solicitud del trabajador
     derivedToDTManagement?: boolean; // Se derivó a la DT por involucrar a gerencia (Art. 4 CT)
     
+    // Registros detallados de notificaciones a DT
+    dtNotifications?: Array<{
+      id: string;
+      date: string; // Fecha de notificación
+      documentId?: string; // ID del documento notificado (ej. informe, expediente)
+      method: 'email' | 'presencial' | 'carta_certificada' | 'sistema_dt'; // Método de notificación
+      trackingNumber?: string; // Número de seguimiento o ID
+      contactPerson?: string; // Persona de contacto en DT
+      contactEmail?: string; // Email de contacto
+      contactPhone?: string; // Teléfono de contacto
+      proofOfDeliveryId?: string; // ID del documento de comprobante
+      proofOfDeliveryType?: 'acuse_recibo' | 'comprobante_envio' | 'email_confirmacion'; // Tipo de comprobante
+      notes?: string; // Notas adicionales
+      notifiedBy: string; // ID del usuario que notificó
+      notifiedByName?: string; // Nombre del usuario que notificó
+      status: 'pendiente' | 'enviada' | 'recibida' | 'respondida'; // Estado de la notificación
+      responseDate?: string; // Fecha de respuesta recibida
+      responseDocumentId?: string; // ID de la respuesta recibida
+      oficina?: string; // Oficina de la DT
+      direccion?: string; // Dirección de la oficina
+    }>;
+    
     // Etapa 2.3: Notificación a SUSESO/Mutualidades
     susesoNotificationDate?: string; // Fecha de notificación a mutualidades
     susesoNotificationId?: string; // ID o referencia de la notificación
+    
+    // Registros detallados de notificaciones a SUSESO/Mutualidades
+    susesoNotifications?: Array<{
+      id: string;
+      date: string; // Fecha de notificación
+      entity: 'suseso' | 'achs' | 'mutual_seguridad' | 'ist' | 'otra'; // Entidad notificada
+      entityName?: string; // Nombre de la entidad si es 'otra'
+      documentId?: string; // ID del documento notificado
+      method: 'email' | 'presencial' | 'carta_certificada' | 'sistema_suseso'; // Método de notificación
+      trackingNumber?: string; // Número de seguimiento o ID
+      contactPerson?: string; // Persona de contacto
+      contactEmail?: string; // Email de contacto
+      contactPhone?: string; // Teléfono de contacto
+      proofOfDeliveryId?: string; // ID del documento de comprobante
+      proofOfDeliveryType?: 'acuse_recibo' | 'comprobante_envio' | 'email_confirmacion'; // Tipo de comprobante
+      notes?: string; // Notas adicionales
+      notifiedBy: string; // ID del usuario que notificó
+      notifiedByName?: string; // Nombre del usuario que notificó
+      status: 'pendiente' | 'enviada' | 'recibida' | 'respondida'; // Estado de la notificación
+      responseDate?: string; // Fecha de respuesta recibida
+      responseDocumentId?: string; // ID de la respuesta recibida
+      oficina?: string; // Oficina o sede
+      direccion?: string; // Dirección de la oficina
+    }>;
+    
+    // Notificaciones a la Inspección del Trabajo
+    inspectionNotifications?: Array<{
+      id: string;
+      date: string; // Fecha de notificación
+      documentId?: string; // ID del documento notificado
+      method: 'email' | 'presencial' | 'carta_certificada'; // Método de notificación
+      trackingNumber?: string; // Número de seguimiento o ID
+      contactPerson?: string; // Persona de contacto
+      notes?: string; // Notas adicionales
+      notifiedBy: string; // ID del usuario que notificó
+      status: 'pendiente' | 'enviada' | 'recibida' | 'respondida'; // Estado de la notificación
+      inspectorName?: string; // Nombre del inspector
+      inspectorEmail?: string; // Email del inspector
+      inspectorPhone?: string; // Teléfono del inspector
+      visitScheduled?: boolean; // Visita programada
+      visitDate?: string; // Fecha de visita programada
+    }>;
     
     // Etapa 3: Medidas Precautorias
     precautionaryMeasures?: string[];
@@ -401,6 +625,7 @@ export interface ReportFormValues {
     
     // Documentación y seguimiento
     testimonies?: Array<{
+      id: string;
       personName: string;
       personType: 'complainant' | 'accused' | 'witness';
       date: string;
@@ -411,6 +636,45 @@ export interface ReportFormValues {
       folioNumber?: string; // Número de folio digital
       hasSigned?: boolean; // Testimonio firmado en todas sus hojas
       physicalCopy?: boolean; // Existe copia física en papel
+      signatureDetails?: {
+        signedAt?: string; // Fecha de firma
+        signatureMethod?: 'fisica' | 'electronica' | 'firma_simple'; // Método de firma
+        signatureVerifiedBy?: string; // ID de quien verificó la firma
+        signatureVerifiedByName?: string; // Nombre de quien verificó la firma
+        signatureImageId?: string; // ID de la imagen de la firma
+        signatureObservations?: string; // Observaciones sobre la firma
+        witnessName?: string; // Nombre del testigo de la firma
+        witnessPosition?: string; // Cargo del testigo de la firma
+        verifiedAt?: string; // Fecha de verificación
+      };
+      authorizedDisclosure?: boolean; // ¿Autorizó la divulgación del testimonio?
+      attachments?: Array<{
+        id: string;
+        fileId: string;
+        fileName: string;
+        fileType: string;
+        uploadDate: string;
+        description: string;
+      }>;
+      recordingConsent?: boolean; // Consintió la grabación de la entrevista
+      recordingFileId?: string; // ID del archivo de grabación
+      transcriptionFileId?: string; // ID del archivo de transcripción
+      interviewProtocol?: 'formal' | 'informal' | 'estructurada' | 'semi_estructurada'; // Protocolo seguido
+      questions?: Array<{
+        question: string;
+        answer: string;
+      }>;
+      followUpDate?: string; // Fecha de seguimiento, si se requiere
+      hasContradiction?: boolean; // ¿Contiene contradicciones?
+      contradictionDetails?: string; // Detalles sobre contradicciones
+      credibilityAssessment?: 'alta' | 'media' | 'baja'; // Evaluación de credibilidad
+      credibilityJustification?: string; // Justificación de la evaluación de credibilidad
+      privateNotes?: string; // Notas privadas del investigador
+      relevanceLevel?: 'critico' | 'importante' | 'contextual' | 'minimo'; // Nivel de relevancia
+      isConfidential?: boolean; // Debe mantenerse confidencial
+      relatedTestimonies?: string[]; // IDs de testimonios relacionados
+      requiresFollowUp?: boolean; // ¿Requiere seguimiento?
+      changesFromPrevious?: string; // Cambios respecto a testimonios anteriores
     }>;
     evidence?: Array<{
       type: string;
@@ -418,6 +682,47 @@ export interface ReportFormValues {
       date: string;
       fileId?: string;
       folioNumber?: string;
+    }>;
+    
+    // Estructura extendida para entrevistas en el contexto de investigación
+    extendedInterviews?: Array<{
+      id: string;
+      interviewee: string;
+      position: string;
+      date: string; // Fecha de la entrevista
+      location?: string; // Lugar de la entrevista
+      conductedBy: string; // ID del entrevistador
+      conductedByName?: string; // Nombre del entrevistador
+      summary: string; // Resumen de la entrevista
+      keyPoints: string[]; // Puntos clave identificados
+      isConfidential: boolean; // Indica si la entrevista es confidencial
+      recordingConsent?: boolean; // ¿Consintió la grabación?
+      recordingFileId?: string; // ID del archivo de grabación
+      notes?: string; // Notas adicionales
+      testimonyId?: string; // ID del testimonio formal asociado
+      status: 'draft' | 'pending_signature' | 'signed' | 'verified'; // Estado de la entrevista/testimonio
+      signRequestSent?: boolean; // ¿Se ha enviado solicitud de firma?
+      signRequestDate?: string; // Fecha de solicitud de firma
+      signatureDate?: string; // Fecha en que se firmó
+      physicalCopyGenerated?: boolean; // ¿Se generó copia física?
+      isTestimony?: boolean; // Indica si es un testimonio formal para efectos legales
+      validationToken?: string; // Token para validación externa
+      validationQRCode?: string; // Código QR para validación externa
+      attachments?: Array<{
+        id: string;
+        fileId: string;
+        fileName: string;
+        fileType: string;
+        uploadDate: string;
+        description: string;
+      }>;
+      protocol?: 'formal' | 'informal' | 'estructurada' | 'semi_estructurada'; // Protocolo seguido
+      questions?: Array<{
+        question: string;
+        answer: string;
+      }>;
+      createdAt: string; // Fecha de registro en el sistema
+      updatedAt?: string; // Última modificación
     }>;
     notifications?: Array<{
       type: 'complainant' | 'accused' | 'labor_dept' | 'authority' | 'suseso' | 'mutual' | 'police';
@@ -431,6 +736,9 @@ export interface ReportFormValues {
       responseReceived?: boolean;
       responseDate?: string;
     }>;
+    
+    // Sistema centralizado de plazos para Ley Karin
+    deadlines?: KarinDeadline[];
     
     // Información de derechos y obligaciones legales
     rightsToCriminalReport?: boolean; // Se informó sobre derechos de denuncia penal
@@ -446,7 +754,7 @@ export interface ReportFormValues {
     allPartiesNotified?: boolean; // Se notificó a todas las partes involucradas
     partyNotificationDate?: string; // Fecha de notificación a partes (5 días hábiles);
   };
-}
+};
 
 // Valores iniciales para el formulario
 export const initialValues: ReportFormValues = {

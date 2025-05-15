@@ -11,13 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getCompanies, createCompany, updateCompany, deleteCompany, Company } from '@/lib/services/configService';
+import { getCompanies, getCompany, updateCompany, deleteCompany, Company } from '@/lib/services/configService';
+import { createCompany } from '@/lib/services/companyService';
 import { httpsCallable } from 'firebase/functions';
 import { functions, safeCallFunction } from '@/lib/firebase/functions';
 import { CompanyDocumentsManager } from '@/components/settings/CompanyDocumentsManager';
 import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
 
 interface CompanyFormData {
+  id?: string;
   name: string;
   description: string;
   isActive: boolean;
@@ -109,31 +111,78 @@ export default function CompaniesManager() {
     }, 3000);
   };
 
+  // Función para depurar un objeto de empresa en la consola
+  const debugCompany = (company: any, label: string) => {
+    console.log(`--- ${label} ---`);
+    console.log('name:', company.name);
+    console.log('description:', company.description);
+    console.log('isActive:', company.isActive);
+    console.log('contactEmail:', company.contactEmail);
+    console.log('contactPhone:', company.contactPhone);
+    console.log('address:', company.address);
+    console.log('industry:', company.industry);
+    console.log('maxUsers:', company.maxUsers);
+    console.log('-------------------');
+  };
+
   // Funciones para manejo de empresas
   const handleAddCompany = async () => {
     try {
       setError(null);
+      setLoading(true);
       
-      if (!companyForm.name.trim()) {
+      // Validaciones básicas
+      if (!companyForm.name || !companyForm.name.trim()) {
         setError('El nombre de la empresa es obligatorio');
+        setLoading(false);
         return;
       }
       
-      if (!isValidEmail(companyForm.contactEmail)) {
+      if (!companyForm.id || !companyForm.id.trim()) {
+        setError('El ID de la empresa es obligatorio');
+        setLoading(false);
+        return;
+      }
+
+      // Validar formato del ID (solo letras minúsculas, números y guiones)
+      const idFormat = /^[a-z0-9-]+$/;
+      if (!idFormat.test(companyForm.id)) {
+        setError('El ID de la empresa solo puede contener letras minúsculas, números y guiones');
+        setLoading(false);
+        return;
+      }
+      
+      if (companyForm.contactEmail && !isValidEmail(companyForm.contactEmail)) {
         setError('El correo electrónico de contacto no es válido');
+        setLoading(false);
         return;
       }
       
-      const result = await createCompany({
-        name: companyForm.name,
-        description: companyForm.description,
-        isActive: companyForm.isActive,
-        contactEmail: companyForm.contactEmail,
-        contactPhone: companyForm.contactPhone,
-        address: companyForm.address,
-        industry: companyForm.industry,
-        maxUsers: companyForm.maxUsers
-      });
+      // Asegurar tipos de datos correctos
+      const maxUsers = parseInt(String(companyForm.maxUsers));
+      if (isNaN(maxUsers) || maxUsers < 1) {
+        setError('El número máximo de usuarios debe ser un número positivo');
+        setLoading(false);
+        return;
+      }
+      
+      // Preparar datos para creación, asegurando tipos correctos
+      const createData = {
+        id: companyForm.id.trim(),
+        name: companyForm.name.trim(),
+        description: companyForm.description || '',
+        isActive: companyForm.isActive === false ? false : true,
+        contactEmail: companyForm.contactEmail || '',
+        contactPhone: companyForm.contactPhone || '',
+        address: companyForm.address || '',
+        industry: companyForm.industry || '',
+        maxUsers: maxUsers,
+        environment: 'production'
+      };
+      
+      console.log("Creando empresa con datos:", createData);
+      // Obtenemos un ID de usuario del sistema para el creador
+      const result = await createCompany(createData, 'system');
       
       if (result.success) {
         showSuccessMessage('Empresa creada correctamente');
@@ -141,49 +190,81 @@ export default function CompaniesManager() {
         setIsAddingCompany(false);
         resetCompanyForm();
       } else {
+        console.error("Error al crear empresa:", result.error);
         setError(result.error || 'Error al crear la empresa');
+        
+        // Intentar diagnóstico
+        if (result.error?.includes('already exists') || result.error?.includes('ya existe')) {
+          setError('Ya existe una empresa con este ID. Por favor, utilice otro ID.');
+        }
       }
     } catch (err) {
       console.error('Error al añadir empresa:', err);
-      setError('Ha ocurrido un error al crear la empresa');
+      setError('Ha ocurrido un error al crear la empresa. Por favor, intente nuevamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleUpdateCompany = async (companyId: string) => {
     try {
       setError(null);
+      setLoading(true);
       
-      if (!companyForm.name.trim()) {
+      // Validaciones básicas
+      if (!companyForm.name || !companyForm.name.trim()) {
         setError('El nombre de la empresa es obligatorio');
+        setLoading(false);
         return;
       }
       
-      if (!isValidEmail(companyForm.contactEmail)) {
+      if (companyForm.contactEmail && !isValidEmail(companyForm.contactEmail)) {
         setError('El correo electrónico de contacto no es válido');
+        setLoading(false);
         return;
       }
       
-      const result = await updateCompany(companyId, {
-        name: companyForm.name,
-        description: companyForm.description,
-        isActive: companyForm.isActive,
-        contactEmail: companyForm.contactEmail,
-        contactPhone: companyForm.contactPhone,
-        address: companyForm.address,
-        industry: companyForm.industry,
-        maxUsers: companyForm.maxUsers
-      });
+      // Asegurar tipos de datos correctos
+      const maxUsers = parseInt(String(companyForm.maxUsers));
+      if (isNaN(maxUsers) || maxUsers < 1) {
+        setError('El número máximo de usuarios debe ser un número positivo');
+        setLoading(false);
+        return;
+      }
+      
+      // Preparar datos para actualización, asegurando tipos correctos
+      const updateData = {
+        name: companyForm.name.trim(),
+        description: companyForm.description || '',
+        isActive: companyForm.isActive === false ? false : true, // Asegura que sea booleano
+        contactEmail: companyForm.contactEmail || '',
+        contactPhone: companyForm.contactPhone || '',
+        address: companyForm.address || '',
+        industry: companyForm.industry || '',
+        maxUsers: maxUsers
+      };
+      
+      console.log("Actualizando empresa con datos:", updateData);
+      const result = await updateCompany(companyId, updateData);
       
       if (result.success) {
         showSuccessMessage('Empresa actualizada correctamente');
         await loadCompanies();
         setIsEditingCompany(null);
       } else {
+        console.error("Error al actualizar empresa:", result.error);
         setError(result.error || 'Error al actualizar la empresa');
+        
+        // Intentar diagnóstico
+        if (result.error?.includes('already exists') || result.error?.includes('ya existe')) {
+          setError('Ya existe una empresa con este nombre. Por favor, elija un nombre diferente.');
+        }
       }
     } catch (err) {
       console.error('Error al actualizar empresa:', err);
-      setError('Ha ocurrido un error al actualizar la empresa');
+      setError('Ha ocurrido un error al actualizar la empresa. Por favor, intente nuevamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -250,24 +331,97 @@ export default function CompaniesManager() {
     }
   };
 
-  const handleEditCompany = (company: Company) => {
-    setCompanyForm({
-      name: company.name || '',
-      description: company.description || '',
-      isActive: company.isActive !== undefined ? company.isActive : true,
-      contactEmail: company.contactEmail || '',
-      contactPhone: company.contactPhone || '',
-      address: company.address || '',
-      industry: company.industry || '',
-      maxUsers: company.maxUsers || 10
-    });
+  const handleEditCompany = async (company: Company) => {
+    debugCompany(company, "Datos iniciales de empresa");
     
+    // Verificar que tengamos un ID válido
+    if (!company || !company.id) {
+      setError('Error: No se puede editar una empresa sin ID');
+      return;
+    }
+    
+    // Primero limpiamos el formulario para evitar datos parciales
+    resetCompanyForm();
+    
+    // Iniciar estado de edición inmediatamente
     setIsEditingCompany(company.id);
     setIsAddingCompany(false);
+    
+    // Mostrar un mensaje mientras cargamos
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      // Obtener datos completos y actualizados directamente desde Firestore
+      const result = await getCompany(company.id);
+      
+      let companyData: Partial<Company> = company;
+      let loadedSuccessfully = false;
+      
+      if (result.success && result.company) {
+        companyData = result.company;
+        debugCompany(companyData, "Datos actualizados de empresa");
+        loadedSuccessfully = true;
+      } else {
+        console.warn(`No se pudieron obtener datos actualizados para la empresa ${company.id}`);
+        console.warn('Usando datos disponibles localmente');
+      }
+      
+      // Asegurar que todos los campos requeridos existen
+      // con valores por defecto en caso de que falten
+      const formData = {
+        name: companyData.name || company.name || 'Empresa sin nombre',
+        description: companyData.description || company.description || '',
+        isActive: companyData.isActive !== undefined 
+          ? companyData.isActive 
+          : (company.isActive !== undefined ? company.isActive : true),
+        contactEmail: companyData.contactEmail || company.contactEmail || '',
+        contactPhone: companyData.contactPhone || company.contactPhone || '',
+        address: companyData.address || company.address || '',
+        industry: companyData.industry || company.industry || '',
+        maxUsers: companyData.maxUsers || company.maxUsers || 10
+      };
+      
+      // Asegurar que todos los campos se establecen correctamente
+      debugCompany(formData, "Datos preparados para formulario");
+      
+      // Actualizar el formulario
+      setCompanyForm(formData);
+      
+      // Si no pudimos cargar los datos actualizados pero tenemos suficientes datos locales,
+      // ofrecer la opción de reparar la empresa
+      if (!loadedSuccessfully && company.name) {
+        setSuccess('Datos locales cargados. Después de editar, considere utilizar "Reparar Datos" para completar información faltante.');
+      }
+    } catch (error) {
+      console.error('Error al obtener datos completos de la empresa:', error);
+      setError('Error al cargar datos de la empresa. Se utilizarán los datos disponibles localmente.');
+      
+      // En caso de error, usamos los datos que tenemos aplicando valores por defecto
+      // para cualquier campo que falte
+      const formData = {
+        name: company.name || 'Empresa sin nombre',
+        description: company.description || '',
+        isActive: company.isActive !== undefined ? company.isActive : true,
+        contactEmail: company.contactEmail || '',
+        contactPhone: company.contactPhone || '',
+        address: company.address || '',
+        industry: company.industry || '',
+        maxUsers: company.maxUsers || 10
+      };
+      
+      debugCompany(formData, "Datos de respaldo para formulario (después de error)");
+      setCompanyForm(formData);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetCompanyForm = () => {
+    // Limpiar todos los campos del formulario
     setCompanyForm({
+      id: '',
       name: '',
       description: '',
       isActive: true,
@@ -278,7 +432,7 @@ export default function CompaniesManager() {
       maxUsers: 10
     });
   };
-
+  
   // Validación de email
   const isValidEmail = (email: string) => {
     if (!email) return true; // Permitir vacío
@@ -286,17 +440,20 @@ export default function CompaniesManager() {
     return re.test(email);
   };
 
-  if (loading) {
+  if (loading && !isEditingCompany) {
     return (
-      <div className="flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="inline-block animate-spin text-primary mb-4">
-            <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg className="h-10 w-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           </div>
-          <p className="text-neutral-600">Cargando empresas...</p>
+          <p className="text-neutral-600 mb-2">Cargando empresas...</p>
+          <p className="text-sm text-neutral-500">
+            Estamos obteniendo la lista de empresas y sus datos. Por favor, espere un momento.
+          </p>
         </div>
       </div>
     );
@@ -321,6 +478,109 @@ export default function CompaniesManager() {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Gestión de Empresas</h2>
         <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              try {
+                setLoading(true);
+                setError(null);
+                setSuccess(null);
+                
+                // Obtener todas las empresas
+                const result = await getCompanies();
+                
+                if (!result.success) {
+                  setError('Error al obtener empresas para reparación');
+                  return;
+                }
+                
+                let repaired = 0;
+                let failed = 0;
+                let skipped = 0;
+                
+                // Procesar cada empresa para asegurarnos de que tenga todos los campos
+                for (const company of result.companies || []) {
+                  // Verificar si es una empresa válida con ID
+                  if (!company.id) {
+                    console.warn('Empresa sin ID encontrada, omitiendo');
+                    skipped++;
+                    continue;
+                  }
+                  
+                  try {
+                    // Verificar si faltan campos
+                    const hasAllFields = 
+                      company.name !== undefined && 
+                      company.isActive !== undefined &&
+                      company.description !== undefined &&
+                      company.contactEmail !== undefined &&
+                      company.contactPhone !== undefined &&
+                      company.address !== undefined &&
+                      company.industry !== undefined &&
+                      company.maxUsers !== undefined;
+                    
+                    // Verificar si los campos tienen tipos correctos
+                    const needsTypeRepair = 
+                      company.isActive !== undefined && typeof company.isActive !== 'boolean' ||
+                      company.maxUsers !== undefined && typeof company.maxUsers !== 'number';
+                    
+                    // Si faltan campos o hay problemas de tipo, actualizar la empresa
+                    if (!hasAllFields || needsTypeRepair) {
+                      console.log(`Reparando empresa: ${company.id} - ${company.name || 'Sin nombre'}`);
+                      
+                      // Preparar datos para actualización
+                      const updateData = {
+                        name: company.name || 'Empresa sin nombre',
+                        isActive: company.isActive === false ? false : true, // Asegura que sea booleano
+                        description: company.description || '',
+                        contactEmail: company.contactEmail || '',
+                        contactPhone: company.contactPhone || '',
+                        address: company.address || '',
+                        industry: company.industry || '',
+                        maxUsers: parseInt(String(company.maxUsers || 10)) // Asegura que sea número
+                      };
+                      
+                      const updateResult = await updateCompany(company.id, updateData);
+                      
+                      if (updateResult.success) {
+                        repaired++;
+                      } else {
+                        console.error(`Error al actualizar empresa ${company.id}:`, updateResult.error);
+                        failed++;
+                      }
+                    } else {
+                      skipped++;
+                    }
+                  } catch (err) {
+                    console.error(`Error procesando la empresa ${company.id}:`, err);
+                    failed++;
+                  }
+                }
+                
+                // Construir mensaje de éxito
+                if (repaired > 0) {
+                  setSuccess(`Operación completada: ${repaired} empresas reparadas, ${skipped} sin cambios, ${failed} fallidas.`);
+                } else if (failed > 0) {
+                  setError(`No se pudo reparar ninguna empresa. ${failed} empresas fallidas.`);
+                } else {
+                  setSuccess('Todas las empresas tienen datos completos y válidos.');
+                }
+                
+                // Recargar empresas
+                await loadCompanies();
+                
+              } catch (error) {
+                console.error('Error al reparar empresas:', error);
+                setError('Error al reparar empresas. Por favor, intente nuevamente.');
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+          >
+            Reparar Datos
+          </Button>
+          
           {companies.find(c => c.id === 'default') ? (
             <Button 
               variant="default"
@@ -378,12 +638,28 @@ export default function CompaniesManager() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
+                <Label htmlFor="companyId">ID de la Empresa*</Label>
+                <Input
+                  id="companyId"
+                  value={companyForm.id}
+                  onChange={(e) => setCompanyForm({ ...companyForm, id: e.target.value.toLowerCase() })}
+                  className="mt-1"
+                  placeholder="ejemplo-sa"
+                />
+                <p className="text-xs text-gray-500 mt-1">Solo letras minúsculas, números y guiones. Este ID será único y no podrá cambiarse después.</p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Nota: Durante la fase de desarrollo, algunas operaciones se redireccionen a la empresa "default".
+                </p>
+              </div>
+
+              <div>
                 <Label htmlFor="companyName">Nombre de la Empresa*</Label>
                 <Input
                   id="companyName"
                   value={companyForm.name}
                   onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
                   className="mt-1"
+                  placeholder="Ejemplo S.A."
                 />
               </div>
               
@@ -491,141 +767,152 @@ export default function CompaniesManager() {
             <CardTitle>Editar Empresa</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue={window.location.hash === '#documents' ? 'documents' : 'general'} className="w-full" onValueChange={(value) => {
-              // Actualizar el hash en la URL para mantener la pestaña seleccionada
-              if (value === 'documents') {
-                window.location.hash = 'documents';
-              } else {
-                window.location.hash = '';
-              }
-            }}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="general">Información General</TabsTrigger>
-                <TabsTrigger value="documents">Documentos Corporativos</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="general">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="editCompanyName">Nombre de la Empresa*</Label>
-                    <Input
-                      id="editCompanyName"
-                      value={companyForm.name}
-                      onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="editCompanyIndustry">Industria</Label>
-                    <Select
-                      id="editCompanyIndustry"
-                      value={companyForm.industry}
-                      onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
-                      className="mt-1"
-                    >
-                      <option value="">Seleccione una industria</option>
-                      {industries.map(industry => (
-                        <option key={industry.value} value={industry.value}>
-                          {industry.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <Label htmlFor="editCompanyDescription">Descripción</Label>
-                    <Textarea
-                      id="editCompanyDescription"
-                      value={companyForm.description}
-                      onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
-                      className="mt-1"
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="editCompanyEmail">Correo Electrónico de Contacto</Label>
-                    <Input
-                      id="editCompanyEmail"
-                      type="email"
-                      value={companyForm.contactEmail}
-                      onChange={(e) => setCompanyForm({ ...companyForm, contactEmail: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="editCompanyPhone">Teléfono de Contacto</Label>
-                    <Input
-                      id="editCompanyPhone"
-                      value={companyForm.contactPhone}
-                      onChange={(e) => setCompanyForm({ ...companyForm, contactPhone: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <Label htmlFor="editCompanyAddress">Dirección</Label>
-                    <Input
-                      id="editCompanyAddress"
-                      value={companyForm.address}
-                      onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="editCompanyMaxUsers">Número Máximo de Usuarios</Label>
-                    <Input
-                      id="editCompanyMaxUsers"
-                      type="number"
-                      min="1"
-                      value={companyForm.maxUsers.toString()}
-                      onChange={(e) => setCompanyForm({ ...companyForm, maxUsers: parseInt(e.target.value) || 1 })}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="editCompanyActive"
-                      checked={companyForm.isActive}
-                      onChange={(e) => setCompanyForm({ ...companyForm, isActive: e.target.checked })}
-                      className="h-4 w-4 text-primary border-neutral-300 rounded"
-                    />
-                    <Label htmlFor="editCompanyActive" className="ml-2">
-                      Empresa Activa
-                    </Label>
-                  </div>
-                </div>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                <span className="text-gray-600 text-center">Cargando datos de la empresa...</span>
+                <p className="text-sm text-gray-500 mt-2 text-center max-w-md">
+                  Esto puede tomar unos momentos mientras se obtienen los datos más recientes de la empresa.
+                  Si la carga tarda demasiado, puede cancelar y volver a intentarlo.
+                </p>
+              </div>
+            ) : (
+              <Tabs defaultValue={window.location.hash === '#documents' ? 'documents' : 'general'} className="w-full" onValueChange={(value) => {
+                // Actualizar el hash en la URL para mantener la pestaña seleccionada
+                if (value === 'documents') {
+                  window.location.hash = 'documents';
+                } else {
+                  window.location.hash = '';
+                }
+              }}>
+                <TabsList className="mb-4">
+                  <TabsTrigger value="general">Información General</TabsTrigger>
+                  <TabsTrigger value="documents">Documentos Corporativos</TabsTrigger>
+                </TabsList>
                 
-                <div className="flex justify-end space-x-2 mt-6">
-                  <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={() => handleUpdateCompany(isEditingCompany)}>
-                    Actualizar Empresa
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="documents">
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-4">
-                    Gestiona los documentos corporativos de la empresa. Los documentos marcados como "públicos" se mostrarán en la página de inicio.
-                  </p>
-                  <CompanyDocumentsManager companyId={isEditingCompany} />
-                </div>
+                <TabsContent value="general">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="editCompanyName">Nombre de la Empresa*</Label>
+                      <Input
+                        id="editCompanyName"
+                        value={companyForm.name}
+                        onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="editCompanyIndustry">Industria</Label>
+                      <Select
+                        id="editCompanyIndustry"
+                        value={companyForm.industry}
+                        onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
+                        className="mt-1"
+                      >
+                        <option value="">Seleccione una industria</option>
+                        {industries.map(industry => (
+                          <option key={industry.value} value={industry.value}>
+                            {industry.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <Label htmlFor="editCompanyDescription">Descripción</Label>
+                      <Textarea
+                        id="editCompanyDescription"
+                        value={companyForm.description}
+                        onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
+                        className="mt-1"
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="editCompanyEmail">Correo Electrónico de Contacto</Label>
+                      <Input
+                        id="editCompanyEmail"
+                        type="email"
+                        value={companyForm.contactEmail}
+                        onChange={(e) => setCompanyForm({ ...companyForm, contactEmail: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="editCompanyPhone">Teléfono de Contacto</Label>
+                      <Input
+                        id="editCompanyPhone"
+                        value={companyForm.contactPhone}
+                        onChange={(e) => setCompanyForm({ ...companyForm, contactPhone: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <Label htmlFor="editCompanyAddress">Dirección</Label>
+                      <Input
+                        id="editCompanyAddress"
+                        value={companyForm.address}
+                        onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="editCompanyMaxUsers">Número Máximo de Usuarios</Label>
+                      <Input
+                        id="editCompanyMaxUsers"
+                        type="number"
+                        min="1"
+                        value={companyForm.maxUsers.toString()}
+                        onChange={(e) => setCompanyForm({ ...companyForm, maxUsers: parseInt(e.target.value) || 1 })}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="editCompanyActive"
+                        checked={companyForm.isActive}
+                        onChange={(e) => setCompanyForm({ ...companyForm, isActive: e.target.checked })}
+                        className="h-4 w-4 text-primary border-neutral-300 rounded"
+                      />
+                      <Label htmlFor="editCompanyActive" className="ml-2">
+                        Empresa Activa
+                      </Label>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 mt-6">
+                    <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={() => handleUpdateCompany(isEditingCompany)}>
+                      Actualizar Empresa
+                    </Button>
+                  </div>
+                </TabsContent>
                 
-                <div className="flex justify-end space-x-2 mt-6">
-                  <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
-                    Cerrar
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
+                <TabsContent value="documents">
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-4">
+                      Gestiona los documentos corporativos de la empresa. Los documentos marcados como "públicos" se mostrarán en la página de inicio.
+                    </p>
+                    <CompanyDocumentsManager companyId={isEditingCompany} />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 mt-6">
+                    <Button variant="outline" onClick={() => setIsEditingCompany(null)}>
+                      Cerrar
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
           </CardContent>
         </Card>
       )}
@@ -733,6 +1020,12 @@ export default function CompaniesManager() {
                         >
                           Gestionar Documentos
                         </button>
+                        <button
+                          onClick={() => setShowConfirmDelete(company.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Eliminar Empresa
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -753,6 +1046,74 @@ export default function CompaniesManager() {
           <p className="mt-1 text-sm text-gray-500">
             Crea tu primera empresa para comenzar a gestionar el canal de denuncias.
           </p>
+        </div>
+      )}
+      
+      {/* Diálogo de confirmación para eliminar empresa */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirmar Eliminación</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              ¿Está seguro que desea eliminar esta empresa? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfirmDelete(null)} 
+                disabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => handleDeleteCompany(showConfirmDelete)} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar Empresa'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Diálogo de confirmación para eliminación completa */}
+      {showDeepDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium text-red-600 mb-4">Eliminación Completa</h3>
+            <p className="text-sm text-gray-700 mb-2 font-medium">
+              ¡Atención! Esta es una operación destructiva.
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              Está a punto de eliminar la empresa y todos sus datos relacionados, incluyendo:
+            </p>
+            <ul className="list-disc pl-5 mb-4 text-sm text-gray-500">
+              <li>Todos los usuarios asociados</li>
+              <li>Todas las denuncias y reportes</li>
+              <li>Todos los documentos subidos</li>
+              <li>Toda la configuración personalizada</li>
+            </ul>
+            <p className="text-sm text-red-500 font-medium mb-4">
+              Esta acción no se puede deshacer y resultará en la pérdida permanente de datos.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeepDeleteConfirm(null)} 
+                disabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => handleDeepDeleteCompany(showDeepDeleteConfirm)} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar Empresa y Todos sus Datos'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 // functions/src/index.ts
 
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import * as nodemailer from 'nodemailer';
 import * as logger from "firebase-functions/logger";
@@ -26,9 +26,17 @@ try {
 }
 
 /**
- * Función para enviar un correo electrónico basado en una notificación de Firestore
+ * Interfaz para los datos de email
  */
-export const sendEmail = functions.https.onCall(async (data: any, context) => {
+interface EmailData {
+  notificationId: string;
+  companyId: string;
+}
+
+/**
+ * Función interna para enviar un correo electrónico
+ */
+async function sendEmailInternal(data: EmailData) {
   try {
     const { notificationId, companyId } = data;
     
@@ -127,12 +135,23 @@ export const sendEmail = functions.https.onCall(async (data: any, context) => {
     
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
   }
-});
+}
+
+/**
+ * Función para enviar un correo electrónico basado en una notificación de Firestore
+ * Expuesta como función HTTP callable
+ */
+export const sendEmail = functions
+  .region('southamerica-east1')
+  .https.onCall(async (data: EmailData, context) => {
+    return sendEmailInternal(data);
+  });
 
 /**
  * Función programada para verificar recomendaciones próximas a vencer diariamente
  */
-export const checkRecommendationsDueSoon = functions.pubsub.schedule('0 9 * * *') // 9 AM todos los días
+export const checkRecommendationsDueSoon = functions.region('southamerica-east1').pubsub
+  .schedule('0 9 * * *') // 9 AM todos los días
   .timeZone('America/Santiago') // Hora de Chile
   .onRun(async (context) => {
     try {
@@ -228,14 +247,11 @@ export const checkRecommendationsDueSoon = functions.pubsub.schedule('0 9 * * *'
             
             // Enviar el correo
             try {
-              // Crear un objeto similar al que espera la función sendEmail
-              const emailData = {
+              // Llamar a la función interna directamente
+              await sendEmailInternal({
                 notificationId: notificationRef.id,
                 companyId
-              };
-              
-              // Llamar a la función directamente
-              await sendEmail(emailData, {});
+              });
               logger.info(`Correo de recordatorio enviado para recomendación: ${recDoc.id}`);
             } catch (emailError) {
               logger.error(`Error al enviar recordatorio para recomendación ${recDoc.id}:`, emailError);
@@ -255,7 +271,8 @@ export const checkRecommendationsDueSoon = functions.pubsub.schedule('0 9 * * *'
 /**
  * Función programada para verificar recomendaciones vencidas diariamente
  */
-export const checkOverdueRecommendations = functions.pubsub.schedule('0 10 * * *') // 10 AM todos los días
+export const checkOverdueRecommendations = functions.region('southamerica-east1').pubsub
+  .schedule('0 10 * * *') // 10 AM todos los días
   .timeZone('America/Santiago') // Hora de Chile
   .onRun(async (context) => {
     try {
@@ -352,10 +369,10 @@ export const checkOverdueRecommendations = functions.pubsub.schedule('0 10 * * *
               
               // Enviar el correo al responsable
               try {
-                await sendEmail({
+                await sendEmailInternal({
                   notificationId: notificationRef.id,
                   companyId
-                }, {});
+                });
                 logger.info(`Correo de vencimiento enviado al responsable para recomendación: ${recDoc.id}`);
               } catch (emailError) {
                 logger.error(`Error al enviar notificación de vencimiento al responsable para recomendación ${recDoc.id}:`, emailError);
@@ -396,10 +413,10 @@ export const checkOverdueRecommendations = functions.pubsub.schedule('0 10 * * *
                 
                 // Enviar el correo al administrador
                 try {
-                  await sendEmail({
+                  await sendEmailInternal({
                     notificationId: adminNotificationRef.id,
                     companyId
-                  }, {});
+                  });
                   logger.info(`Correo de vencimiento enviado al administrador ${adminDoc.id} para recomendación: ${recDoc.id}`);
                 } catch (emailError) {
                   logger.error(`Error al enviar notificación de vencimiento al administrador ${adminDoc.id} para recomendación ${recDoc.id}:`, emailError);
@@ -421,7 +438,7 @@ export const checkOverdueRecommendations = functions.pubsub.schedule('0 10 * * *
 /**
  * Función para enviar notificación cuando se crea una nueva denuncia
  */
-export const onReportCreated = functions.firestore
+export const onReportCreated = functions.region('southamerica-east1').firestore
   .document('companies/{companyId}/reports/{reportId}')
   .onCreate(async (snapshot, context) => {
     try {
@@ -463,10 +480,10 @@ export const onReportCreated = functions.firestore
         
         // Enviar correo al denunciante
         try {
-          await sendEmail({
+          await sendEmailInternal({
             notificationId: emailNotificationRef.id,
             companyId
-          }, {});
+          });
           logger.info(`Correo enviado al denunciante para reporte: ${reportId}`);
         } catch (error) {
           logger.error('Error al enviar notificación al denunciante:', error);
@@ -516,10 +533,10 @@ export const onReportCreated = functions.firestore
           
           // Enviar correo al administrador
           try {
-            await sendEmail({
+            await sendEmailInternal({
               notificationId: adminNotificationRef.id,
               companyId
-            }, {});
+            });
             logger.info(`Correo enviado al administrador ${adminDoc.id} para reporte: ${reportId}`);
           } catch (error) {
             logger.error(`Error al enviar notificación al administrador ${adminDoc.id}:`, error);
@@ -537,7 +554,7 @@ export const onReportCreated = functions.firestore
 /**
  * Función para enviar notificación cuando se asigna un investigador a una denuncia
  */
-export const onReportAssigned = functions.firestore
+export const onReportAssigned = functions.region('southamerica-east1').firestore
   .document('companies/{companyId}/reports/{reportId}')
   .onUpdate(async (change, context) => {
     try {
@@ -595,10 +612,10 @@ export const onReportAssigned = functions.firestore
         
         // Enviar correo al investigador
         try {
-          await sendEmail({
+          await sendEmailInternal({
             notificationId: notificationRef.id,
             companyId
-          }, {});
+          });
           logger.info(`Correo enviado al investigador ${afterData.assignedTo} para reporte: ${reportId}`);
         } catch (error) {
           logger.error('Error al enviar notificación al investigador:', error);
@@ -613,14 +630,10 @@ export const onReportAssigned = functions.firestore
   });
 
 /**
- * Función para eliminar una empresa y todas sus subcollecciones
- * Esta función debe llamarse desde el código del cliente mediante el SDK de Firebase
- */
-/**
  * Función de inicialización que se ejecuta cuando se accede a la primera página
  * Esta función asegura que la estructura básica de datos esté en su lugar
  */
-export const initializeDefaultStructure = functions.https.onRequest(async (request, response) => {
+export const initializeDefaultStructure = functions.region('southamerica-east1').https.onRequest(async (request, response) => {
   try {
     logger.info("Inicializando estructura de datos por defecto");
     
@@ -733,7 +746,7 @@ export const initializeDefaultStructure = functions.https.onRequest(async (reque
   }
 });
 
-export const deleteCompanyAndData = functions.https.onCall(async (data, context) => {
+export const deleteCompanyAndData = functions.region('southamerica-east1').https.onCall(async (data, context) => {
   try {
     // Verificar autenticación
     if (!context.auth) {
@@ -908,7 +921,7 @@ export const deleteCompanyAndData = functions.https.onCall(async (data, context)
     // De lo contrario, creamos un nuevo error
     throw new functions.https.HttpsError(
       'internal',
-      'Error al eliminar la empresa: ' + error.message
+      'Error al eliminar la empresa: ' + (error as Error).message
     );
   }
 });

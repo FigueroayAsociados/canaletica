@@ -321,18 +321,7 @@ export default function SettingsPage() {
           >
             Notificaciones
           </button>
-          {isSuperAdmin && (
-            <button
-              className={`py-4 px-6 text-sm font-medium ${
-                activeTab === 'companies'
-                  ? 'border-b-2 border-primary text-primary'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('companies')}
-            >
-              Empresas
-            </button>
-          )}
+          {/* La gestión de empresas se ha movido al panel de super admin */}
           <button
             className={`py-4 px-6 text-sm font-medium ${
               activeTab === 'legal'
@@ -583,9 +572,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === 'companies' && isSuperAdmin && (
-            <CompaniesManager />
-          )}
+          {/* La gestión de empresas se ha movido al panel de super admin */}
           
           {activeTab === 'legal' && (
             <LegalDocumentsManager companyId={companyId} />

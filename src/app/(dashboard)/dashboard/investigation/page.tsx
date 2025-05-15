@@ -441,18 +441,25 @@ export default function InvestigationPage() {
             <div className="space-y-2">
               <h3 className="font-medium text-gray-900">Plazos de Investigación</h3>
               <ul className="list-disc pl-5 text-sm text-gray-600">
-                <li>Casos regulares: 30 días para completar la investigación</li>
-                <li className="text-red-600 font-medium">Casos Ley Karin: 10 días hábiles para presentar informe preliminar</li>
-                <li>Proporcionar actualizaciones semanales al denunciante</li>
+                <li>Casos regulares: <span className="font-medium">30 días hábiles</span> para completar la investigación (prorrogable hasta 60 días en casos especiales)</li>
+                <li className="text-red-600 font-medium">Casos Ley Karin: <span className="underline">30 días hábiles máximo</span> (plazo improrrogable)</li>
+                <li>Informe preliminar Ley Karin: Dentro de los <span className="font-medium">3 días hábiles</span> administrativos</li>
+                <li>Implementación de medidas precautorias Ley Karin: <span className="font-medium">3 días hábiles</span> desde recepción</li>
+                <li>Notificación a Dirección del Trabajo: <span className="font-medium">3 días hábiles</span> desde recepción</li>
+                <li>Notificación a SUSESO (mutualidad): <span className="font-medium">5 días hábiles</span> desde conocimiento</li>
               </ul>
             </div>
             <div className="space-y-2">
               <h3 className="font-medium text-gray-900">Mejores Prácticas</h3>
               <ul className="list-disc pl-5 text-sm text-gray-600">
-                <li>Documentar todas las entrevistas y hallazgos</li>
-                <li>Mantener la confidencialidad en todo momento</li>
-                <li>Evitar conflictos de interés</li>
-                <li>Basarse en evidencias objetivas</li>
+                <li>Documentar todas las entrevistas y hallazgos con evidencia</li>
+                <li>Mantener absoluta confidencialidad durante todo el proceso</li>
+                <li>Implementar medidas de separación física/funcional entre partes</li>
+                <li>Calcular plazos considerando solo días hábiles administrativos</li>
+                <li>Para casos Ley Karin, registrar todas las notificaciones obligatorias</li>
+                <li>Utilizar enfoque de triangulación para mayor credibilidad</li>
+                <li>Hacer preguntas enfocadas en conductas concretas, no interpretaciones</li>
+                <li>Mantener informada a la persona denunciante sobre avances</li>
               </ul>
             </div>
           </div>
