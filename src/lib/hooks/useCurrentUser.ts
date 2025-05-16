@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getUserProfileById } from '@/lib/services/userService';
 import { useCompany } from '@/lib/hooks';
-import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 
 interface UserProfile {
@@ -38,6 +38,7 @@ interface CurrentUser {
  */
 export function useCurrentUser(): CurrentUser {
   const { currentUser } = useAuth();
+  
   // Obtener la compañía de forma segura con manejo de errores
   let companyIdFromContext = 'default';
   try {
@@ -70,132 +71,124 @@ export function useCurrentUser(): CurrentUser {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true; // Flag para evitar actualizaciones en componentes desmontados
-
+  useEffect(() => { 
+    const isMountedRef = { current: true };
+    
     async function fetchUserProfile() {
-      try {
-        // Verificar si hay un usuario autenticado
-        if (!currentUser) {
-          console.log('[useCurrentUser] No hay usuario autenticado');
-          if (isMounted) {
-            setProfile(null);
-            setIsSuperAdmin(false);
-            setIsLoading(false);
-          }
-          return;
+      // Si no hay usuario, limpiar estado y salir
+      if (!currentUser) {
+        console.log('[useCurrentUser] No hay usuario autenticado');
+        if (isMountedRef.current) {
+          setProfile(null);
+          setIsSuperAdmin(false);
+          setIsLoading(false);
         }
-
-        // Verificar que el currentUser tenga un uid válido
-        if (!currentUser.uid) {
-          console.error('[useCurrentUser] Usuario autenticado sin UID válido');
-          if (isMounted) {
-            setError('Error de autenticación: ID de usuario no disponible');
-            setProfile(null);
-            setIsSuperAdmin(false);
-            setIsLoading(false);
-          }
-          return;
-        }
-
-      let targetCompanyId = companyId;
-
-      // Verificar si estamos en una subdomain específica y usamos el companyId equivocado
-      if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        const hostParts = hostname.split('.');
-        const subdomain = hostParts[0].toLowerCase();
-
-        // Si el subdomain es un nombre de empresa pero no coincide con el companyId actual
-        if (subdomain !== 'www' &&
-            subdomain !== 'localhost' &&
-            subdomain !== 'canaletica' &&
-            subdomain !== 'canaletic' &&
-            subdomain !== 'default' &&
-            subdomain !== targetCompanyId) {
-          console.warn(`*** CORRECCIÓN DE SEGURIDAD: Detectado posible mismatch entre subdominio ${subdomain} y companyId=${targetCompanyId}, priorizando subdominio ***`);
-          targetCompanyId = subdomain;
-        }
+        return;
       }
-
+      
+      // Verificar que uid exista
+      if (!currentUser.uid) {
+        console.error('[useCurrentUser] Usuario autenticado sin UID válido');
+        if (isMountedRef.current) {
+          setError('Error de autenticación: ID de usuario no disponible');
+          setProfile(null);
+          setIsSuperAdmin(false);
+          setIsLoading(false);
+        }
+        return;
+      }
+      
       try {
-        // Primero verificar si es un super admin
+        // Determinar la compañía correcta
+        let targetCompanyId = companyId;
+        
+        // Verificar subdominio como medida de seguridad
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname;
+          const hostParts = hostname.split('.');
+          const subdomain = hostParts[0]?.toLowerCase();
+          
+          // Si es un subdominio específico diferente al companyId actual
+          if (subdomain && 
+              subdomain !== 'www' &&
+              subdomain !== 'localhost' &&
+              subdomain !== 'canaletica' &&
+              subdomain !== 'canaletic' &&
+              subdomain !== 'default' &&
+              subdomain !== targetCompanyId) {
+            console.warn(`*** CORRECCIÓN DE SEGURIDAD: Detectado subdominio ${subdomain} diferente de companyId=${targetCompanyId} ***`);
+            targetCompanyId = subdomain;
+          }
+        }
+        
+        // Verificar si es super admin
         const superAdminRef = doc(db, `super_admins/${currentUser.uid}`);
         const superAdminSnap = await getDoc(superAdminRef);
-
+        
         if (superAdminSnap.exists()) {
-          // Es un super admin
-          if (isMounted) {
+          if (isMountedRef.current) {
             setIsSuperAdmin(true);
-
-            // Crear un perfil con todos los privilegios
             setProfile({
               displayName: currentUser.displayName || 'Super Administrador',
               email: currentUser.email || '',
               role: 'super_admin',
               isActive: true,
-              permissions: ['*'], // El comodín indica acceso total
-              createdAt: new Date()  // Usar Date en lugar de serverTimestamp para el perfil local
+              permissions: ['*'],
+              createdAt: new Date()
             });
-
             setIsLoading(false);
           }
           return;
         }
-
-        // Si no es super admin, obtener perfil normal
-        console.log(`[useCurrentUser] Buscando perfil para UID ${currentUser.uid} en compañía ${targetCompanyId}`);
+        
+        // Buscar perfil de usuario normal
+        console.log(`[useCurrentUser] Buscando perfil para UID ${currentUser.uid} en ${targetCompanyId}`);
         const result = await getUserProfileById(targetCompanyId, currentUser.uid);
-
+        
         if (result.success && result.profile) {
-          console.log(`[useCurrentUser] Perfil encontrado para ${currentUser.uid} en compañía ${targetCompanyId}`);
-          if (isMounted) {
+          if (isMountedRef.current) {
             setProfile(result.profile);
             setIsSuperAdmin(false);
           }
         } else {
-          console.log(`[useCurrentUser] No se encontró perfil para ${currentUser.uid} en compañía ${targetCompanyId}`);
-
-          // Si no se encuentra en targetCompanyId, intentar en mvc específicamente
+          // Intentar con mvc si no se encuentra
           if (targetCompanyId !== 'mvc') {
-            console.log(`[useCurrentUser] Intentando buscar en mvc como último recurso`);
             const mvcResult = await getUserProfileById('mvc', currentUser.uid);
-
+            
             if (mvcResult.success && mvcResult.profile) {
-              console.log(`[useCurrentUser] Encontrado perfil en compañía mvc`);
-              if (isMounted) {
+              if (isMountedRef.current) {
                 setProfile(mvcResult.profile);
                 setIsSuperAdmin(false);
               }
               return;
             }
           }
-
-          if (isMounted) {
-            setError('Usuario no tiene perfil en el sistema. Contacte al administrador.');
+          
+          // No se encontró perfil
+          if (isMountedRef.current) {
+            setError('Usuario no tiene perfil en el sistema');
             setProfile(null);
             setIsSuperAdmin(false);
           }
         }
       } catch (error) {
         console.error('Error al cargar perfil de usuario:', error);
-        if (isMounted) {
+        if (isMountedRef.current) {
           setError('Error al cargar perfil de usuario');
           setProfile(null);
           setIsSuperAdmin(false);
         }
       } finally {
-        if (isMounted) {
+        if (isMountedRef.current) {
           setIsLoading(false);
         }
       }
     }
-
+    
     fetchUserProfile();
-
-    // Función de limpieza para el efecto
+    
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
     };
   }, [currentUser, companyId]);
 
@@ -222,7 +215,7 @@ export function useCurrentUser(): CurrentUser {
 
   // Asegurar que uid no sea undefined
   const safeUid = currentUser ? currentUser.uid : '';
-
+  
   return {
     uid: safeUid,
     email: currentUser?.email || null,
