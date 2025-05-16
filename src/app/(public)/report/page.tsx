@@ -16,6 +16,7 @@ import SuccessStep from '@/components/forms/report/SuccessStep';
 import { createReport, uploadEvidence } from '@/lib/services/reportService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
+import { useCompany } from '@/lib/hooks/useCompany';
 
 // Validación para cada paso del formulario
 const validationSchemas = [
@@ -131,6 +132,7 @@ export default function ReportPage() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showTermsModal, setShowTermsModal] = useState(true);
   const router = useRouter();
+  const { companyId: contextCompanyId } = useCompany();
   
   // Verificar que el usuario haya aceptado los términos antes de acceder al formulario
   useEffect(() => {
@@ -284,8 +286,8 @@ export default function ReportPage() {
     setFileErrors([]);
 
     try {
-      // TODO: Reemplazar con el ID de la empresa real
-      const companyId = 'default';
+      // Usar el companyId del contexto
+      const companyId = contextCompanyId;
 
       // Verificar si hay archivos para subir
       const hasFiles = values.evidences && values.evidences.some(evidence => evidence.file);

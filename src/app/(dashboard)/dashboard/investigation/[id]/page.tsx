@@ -27,6 +27,7 @@ import AuthorityNotificationForm from '@/components/investigation/AuthorityNotif
 import LegalDocumentGenerator from '@/components/ai/LegalDocumentGenerator';
 import LegalDocumentViewer from '@/components/ai/LegalDocumentViewer';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { useAI } from '@/lib/hooks/useAI';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { 
@@ -45,16 +46,20 @@ export default function InvestigationDetailPage() {
   const router = useRouter();
   const reportId = params.id as string;
   const { uid, isAdmin, isInvestigator, isSuperAdmin, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
   const { isEnabled } = useFeatureFlags();
   const { generateLegalDocument, isGeneratingDocument, generatedDocument, error: aiError } = useAI();
-  
+
+  // Determinar el ID de la compañía correcta
+  const userCompanyId = profile?.company || contextCompanyId;
+
   // Estados
   const [investigation, setInvestigation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [showAiTab, setShowAiTab] = useState(false);
-  
+
   // Determinar la pestaña inicial para casos de Ley Karin
   useEffect(() => {
     if (investigation?.isKarinLaw) {
@@ -64,27 +69,25 @@ export default function InvestigationDetailPage() {
   const [concludingComment, setConcludingComment] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState<boolean>(false);
-  
+
   // Verificar si el usuario es el investigador asignado, un administrador o un super administrador
   const isAssignedInvestigator = investigation?.assignedTo === uid;
   const canEdit = isAssignedInvestigator || isAdmin || isSuperAdmin;
-  
+
   // Verificar si la funcionalidad de IA está habilitada
   useEffect(() => {
     const aiFeatureEnabled = isEnabled('aiEnabled');
     setShowAiTab(aiFeatureEnabled);
   }, [isEnabled]);
-  
+
   // Cargar los datos de la investigación
   useEffect(() => {
     async function fetchInvestigationDetails() {
       if (!reportId || !uid) return;
-      
+
       try {
         setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        
-        const result = await getInvestigationDetails(companyId, reportId);
+        const result = await getInvestigationDetails(userCompanyId, reportId);
         
         if (result.success) {
           setInvestigation(result.investigation);
@@ -156,14 +159,12 @@ export default function InvestigationDetailPage() {
       alert('Por favor, ingrese un comentario de conclusión.');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
-      const companyId = 'default';
-      
       const result = await completeInvestigation(
-        companyId,
+        userCompanyId,
         reportId,
         uid!,
         concludingComment
@@ -200,19 +201,17 @@ export default function InvestigationDetailPage() {
   // Actualizar etapa del proceso Ley Karin
   const handleUpdateKarinStage = async (stage: string, notes: string) => {
     try {
-      const companyId = 'default';
-      
       const result = await updateKarinStage(
-        companyId,
+        userCompanyId,
         reportId,
         uid!,
         stage,
         notes
       );
-      
+
       if (result.success) {
         // Recargar los datos de la investigación para reflejar los cambios
-        const updatedResult = await getInvestigationDetails(companyId, reportId);
+        const updatedResult = await getInvestigationDetails(userCompanyId, reportId);
         if (updatedResult.success) {
           setInvestigation(updatedResult.investigation);
         }
@@ -232,17 +231,15 @@ export default function InvestigationDetailPage() {
   // Inicializar plazos Ley Karin si no existen
   const handleInitializeDeadlines = async () => {
     try {
-      const companyId = 'default';
-      
       const result = await initializeKarinDeadlines(
-        companyId,
+        userCompanyId,
         reportId,
         uid!
       );
-      
+
       if (result.success) {
         // Recargar los datos de la investigación para reflejar los cambios
-        const updatedResult = await getInvestigationDetails(companyId, reportId);
+        const updatedResult = await getInvestigationDetails(userCompanyId, reportId);
         if (updatedResult.success) {
           setInvestigation(updatedResult.investigation);
         }
@@ -262,18 +259,16 @@ export default function InvestigationDetailPage() {
   // Actualizar plazos Ley Karin
   const handleUpdateDeadlines = async (deadlines: any[]) => {
     try {
-      const companyId = 'default';
-      
       const result = await updateKarinDeadlines(
-        companyId,
+        userCompanyId,
         reportId,
         uid!,
         deadlines
       );
-      
+
       if (result.success) {
         // Recargar los datos de la investigación para reflejar los cambios
-        const updatedResult = await getInvestigationDetails(companyId, reportId);
+        const updatedResult = await getInvestigationDetails(userCompanyId, reportId);
         if (updatedResult.success) {
           setInvestigation(updatedResult.investigation);
         }
@@ -895,11 +890,10 @@ export default function InvestigationDetailPage() {
             {investigation?.karinProcess?.stage === 'subsanation' && (
               <SubsanationForm
                 report={investigation}
-                companyId="default"
+                companyId={userCompanyId}
                 onUpdate={() => {
                   const fetchUpdatedData = async () => {
-                    const companyId = 'default';
-                    const result = await getInvestigationDetails(companyId, reportId);
+                    const result = await getInvestigationDetails(userCompanyId, reportId);
                     if (result.success) {
                       setInvestigation(result.investigation);
                     }
@@ -909,16 +903,15 @@ export default function InvestigationDetailPage() {
                 readOnly={!canEdit}
               />
             )}
-            
+
             {/* Notificaciones a Autoridades - mostrado para etapas relevantes */}
             {(['reception', 'subsanation', 'dt_notification', 'suseso_notification', 'dt_submission'].includes(investigation?.karinProcess?.stage || '')) && (
-              <AuthorityNotificationForm 
+              <AuthorityNotificationForm
                 report={investigation}
-                companyId="default"
+                companyId={userCompanyId}
                 onUpdate={() => {
                   const fetchUpdatedData = async () => {
-                    const companyId = 'default';
-                    const result = await getInvestigationDetails(companyId, reportId);
+                    const result = await getInvestigationDetails(userCompanyId, reportId);
                     if (result.success) {
                       setInvestigation(result.investigation);
                     }

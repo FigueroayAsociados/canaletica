@@ -11,10 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { getReportsInFollowUp } from '@/lib/services/reportService';
 
 export default function FollowUpPage() {
-  const { isAdmin, isInvestigator, isSuperAdmin } = useCurrentUser();
+  const { isAdmin, isInvestigator, isSuperAdmin, uid, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
+  const userCompanyId = profile?.company || contextCompanyId;
   
   // Estados para filtros
   const [filter, setFilter] = useState({
@@ -33,9 +36,8 @@ export default function FollowUpPage() {
     async function fetchReports() {
       try {
         setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        
-        const result = await getReportsInFollowUp(companyId);
+
+        const result = await getReportsInFollowUp(userCompanyId);
         
         if (result.success) {
           setReports(result.reports);
@@ -52,7 +54,7 @@ export default function FollowUpPage() {
     }
     
     fetchReports();
-  }, []);
+  }, [userCompanyId]);
   
   // Aplicar filtros
   useEffect(() => {

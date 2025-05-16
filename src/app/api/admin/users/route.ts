@@ -38,7 +38,14 @@ export async function GET(request: NextRequest) {
     
     // Parámetros de la consulta
     const { searchParams } = new URL(request.url);
-    const companyId = searchParams.get('companyId') || 'default';
+    const companyId = searchParams.get('companyId');
+
+    if (!companyId) {
+      return NextResponse.json(
+        { error: 'Se requiere el parámetro companyId' },
+        { status: 400 }
+      );
+    }
     
     // Obtener todos los usuarios de la compañía
     const db = getAdminFirestore();
@@ -72,15 +79,16 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { email, password, displayName, role, companyId = 'default' } = await request.json();
-    
+    const { email, password, displayName, role, companyId } = await request.json();
+
     // Validar datos recibidos
-    if (!email || !password || !displayName || !role) {
+    if (!email || !password || !displayName || !role || !companyId) {
       return NextResponse.json(
-        { error: 'Faltan datos requeridos' },
+        { error: 'Faltan datos requeridos (email, password, displayName, role, companyId)' },
         { status: 400 }
       );
     }
+    
     
     // Crear usuario en Firebase Auth
     const auth = getAdminAuth();

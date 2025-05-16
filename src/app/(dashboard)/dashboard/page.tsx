@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/contexts/CompanyContext';
 import Link from 'next/link';
 import { getDashboardMetrics } from '@/lib/services/dashboardService';
 // Removida importación de iconos no utilizados
@@ -22,17 +23,21 @@ import SmartAlertSystem from '@/components/alerts/SmartAlertSystem';
 
 export default function DashboardPage() {
   const { profile, isAdmin } = useCurrentUser();
+  const { companyId } = useCompany();
   const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const fetchMetrics = async (companyId = 'default') => {
+  // Asegurar que solo se puedan ver métricas de la compañía del usuario
+  const userCompanyId = profile?.company || companyId;
+
+  const fetchMetrics = async () => {
     try {
       setLoading(true);
-      
-      const result = await getDashboardMetrics(companyId);
-      
+
+      const result = await getDashboardMetrics(userCompanyId);
+
       if (result.success) {
         setMetrics(result.metrics);
         setLastUpdated(new Date());
@@ -54,16 +59,16 @@ export default function DashboardPage() {
   
   // Configurar un listener para actualizaciones en tiempo real de la colección de denuncias
   useEffect(() => {
-    const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-    
+    // Usar la compañía del usuario para escuchar cambios
+
     // Crear referencia a la colección de denuncias
-    const reportsRef = collection(db, `companies/${companyId}/reports`);
-    
+    const reportsRef = collection(db, `companies/${userCompanyId}/reports`);
+
     // Establecer el listener
     const unsubscribe = onSnapshot(reportsRef, (snapshot) => {
       // Cuando hay cambios en la colección de denuncias, actualizar las métricas
       console.log("Detectado cambio en las denuncias. Actualizando dashboard...");
-      fetchMetrics(companyId);
+      fetchMetrics();
     }, (error) => {
       console.error("Error en el listener de denuncias:", error);
     });

@@ -78,7 +78,7 @@ interface IntegrationFormData {
   isActive: boolean;
 }
 
-export default function IntegrationsManager({ companyId = 'default' }: { companyId?: string }) {
+export default function IntegrationsManager({ companyId }: { companyId: string }) {
   // Estados para las integraciones
   const [integrations, setIntegrations] = useState<ExternalIntegration[]>([]);
   const [loading, setLoading] = useState(true);

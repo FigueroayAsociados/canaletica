@@ -24,7 +24,7 @@ const optionTypes = [
   { value: 'channels', label: 'Canales de Denuncia' },
 ];
 
-export default function FormOptionsManager({ companyId = 'default' }: { companyId?: string }) {
+export default function FormOptionsManager({ companyId }: { companyId: string }) {
   // Estados para las opciones
   const [formOptions, setFormOptions] = useState<FormOptionValue[]>([]);
   const [loading, setLoading] = useState(true);

@@ -13,18 +13,20 @@ import { useReports } from '@/lib/hooks/useReports';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function DeleteReportsPage() {
-  const { companyId: contextCompanyId } = useCompany(); // Mantenemos la referencia aunque no la usamos por ahora
-  const { isAdmin, isSuperAdmin } = useCurrentUser();
+  const { companyId } = useCompany(); // Usamos el companyId del contexto
+  const { isAdmin, isSuperAdmin, profile } = useCurrentUser();
   const [success, setSuccess] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
-  
-  // Usar un companyId fijo (default) para asegurar que los datos se carguen correctamente
-  const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-  
-  // Usar React Query para cargar los datos (igual que en reports/page.tsx)
-  const { data, isLoading, isError, error } = useReports(companyId);
+
+  // Asegurar que solo podamos ver/eliminar denuncias de la compañía actual
+  // Si se intenta manipular la URL para acceder a otra compañía, se usará
+  // la compañía del perfil del usuario
+  const userCompanyId = profile?.company || companyId;
+
+  // Usar React Query para cargar los datos
+  const { data, isLoading, isError, error } = useReports(userCompanyId);
   
   // Estado para los reportes procesados
   const [reports, setReports] = useState<any[]>([]);
@@ -59,29 +61,26 @@ export default function DeleteReportsPage() {
       setConfirmDelete(reportId);
       return;
     }
-    
+
     try {
       setDeleteInProgress(true);
       setSuccess(null);
-      
-      console.log(`Intentando eliminar denuncia ${reportId} de la compañía ${companyId}`);
-      // Usar el ID de compañía fijo para eliminar la denuncia
-      const result = await deleteReport(companyId, reportId);
-      
+
+      console.log(`Intentando eliminar denuncia ${reportId} de la compañía ${userCompanyId}`);
+      // Usar el ID de compañía del usuario para eliminar la denuncia
+      const result = await deleteReport(userCompanyId, reportId);
+
       if (result.success) {
         setSuccess('Denuncia eliminada correctamente');
-        
+
         // Actualizar la lista de denuncias
         setReports(reports.filter(report => report.id !== reportId));
-        
+
         // Invalidar la caché para recargar los datos en otras páginas
-        queryClient.invalidateQueries({ 
-          queryKey: ['reports', companyId] 
+        queryClient.invalidateQueries({
+          queryKey: ['reports', userCompanyId]
         });
-        
-        // Por ahora dejamos la invalidación solo con el ID fijo
-        // Si en el futuro implementamos multi-tenant, debemos invalidar ambos
-        
+
         console.log('Denuncia eliminada exitosamente');
       } else {
         console.error('Error al eliminar la denuncia:', result.error);

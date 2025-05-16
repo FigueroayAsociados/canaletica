@@ -8,9 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getReportByCode, getReportByCodeAndAccessCode } from '@/lib/services/reportService';
+import { useCompany } from '@/lib/hooks/useCompany';
 
 export default function TrackPage() {
   const router = useRouter();
+  const { companyId: contextCompanyId } = useCompany();
   const [reportCode, setReportCode] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -32,8 +34,7 @@ export default function TrackPage() {
     try {
       // TODO: Implementar la verificación de email de contacto
       // Por ahora, solo verificamos que el reporte existe
-      const companyId = 'default'; // TODO: Obtener el ID de la empresa desde la URL
-      const result = await getReportByCode(companyId, reportCode);
+      const result = await getReportByCode(contextCompanyId, reportCode);
       
       if (result.success && result.reportId) {
         // Redireccionar a la página de detalles del reporte
@@ -61,8 +62,7 @@ export default function TrackPage() {
     setLoading(true);
 
     try {
-      const companyId = 'default'; // TODO: Obtener el ID de la empresa desde la URL
-      const result = await getReportByCodeAndAccessCode(companyId, reportCode, accessCode);
+      const result = await getReportByCodeAndAccessCode(contextCompanyId, reportCode, accessCode);
       
       if (result.success && result.reportId) {
         // Redireccionar a la página de detalles del reporte

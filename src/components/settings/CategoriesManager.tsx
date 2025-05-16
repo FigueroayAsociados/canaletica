@@ -23,7 +23,7 @@ interface SubcategoryFormData {
   categoryId: string;
 }
 
-export default function CategoriesManager({ companyId = 'default' }: { companyId?: string }) {
+export default function CategoriesManager({ companyId }: { companyId: string }) {
   // Estados para las categorías
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<{ [key: string]: Subcategory[] }>({});

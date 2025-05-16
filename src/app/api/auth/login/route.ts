@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     let isSuperAdmin = false;
     let userRole: string | null = null;
     let isActive = false;
-    let companyId = 'default'; // Inicializar companyId con valor por defecto
+    let companyId = ''; // Inicializar companyId como string vacío, se determinará más adelante
     
     // Verificar en la colección super_admins
     try {
@@ -71,7 +71,8 @@ export async function POST(request: NextRequest) {
     
     // Si no es superadmin, verificamos en la colección de usuarios normal
     if (!isSuperAdmin) {
-      let companyId = 'default';
+      // Resetear companyId para esta sección
+      companyId = '';
 
       // SOLUCIÓN ESPECÍFICA PARA MVC USER
       if (decodedToken.email?.toLowerCase() === 'mvc@canaletica.cl') {
@@ -107,6 +108,12 @@ export async function POST(request: NextRequest) {
       Host: ${request.headers.get('host')}
       📊📊📊 FIN DIAGNÓSTICO 📊📊📊
       `);
+
+      // Asegurarse de que tenemos un companyId válido
+      if (!companyId) {
+        console.log(`⚠️ API LOGIN: No se pudo detectar un companyId. Usando 'default' como último recurso`);
+        companyId = 'default';
+      }
 
       // SIEMPRE intentar primero en la compañía detectada
       let userRef = db.doc(`companies/${companyId}/users/${decodedToken.uid}`);

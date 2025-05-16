@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { addTask, updateTaskStatus } from '@/lib/services/investigationService';
 import { getUsersByRole } from '@/lib/services/userService';
 import { UserRole, DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
@@ -41,19 +42,22 @@ export const TasksList: React.FC<TasksListProps> = ({
   onTasksUpdated,
 }) => {
   const { uid, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [statusComment, setStatusComment] = useState<string>('');
   const [investigators, setInvestigators] = useState<any[]>([]);
+
+  const userCompanyId = profile?.company || contextCompanyId;
   
   // Cargar investigadores al montar el componente
   useEffect(() => {
     const loadInvestigators = async () => {
       try {
-        const companyId = DEFAULT_COMPANY_ID; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        
+        const companyId = userCompanyId;
+
         // Cargar tanto investigadores como administradores que pueden ser asignados a tareas
         const investigatorsResult = await getUsersByRole(companyId, UserRole.INVESTIGATOR);
         const adminsResult = await getUsersByRole(companyId, UserRole.ADMIN);
@@ -95,13 +99,13 @@ export const TasksList: React.FC<TasksListProps> = ({
   // Manejar el envío del formulario
   const handleSubmit = async (values: any) => {
     if (!uid) return;
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
-      const companyId = DEFAULT_COMPANY_ID; // En un sistema multi-tenant, esto vendría de un contexto o URL
-      
+      const companyId = userCompanyId;
+
       const result = await addTask(
         companyId,
         reportId,
@@ -136,13 +140,13 @@ export const TasksList: React.FC<TasksListProps> = ({
   // Manejar cambio de estado de tarea
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     if (!uid) return;
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
-      const companyId = DEFAULT_COMPANY_ID;
-      
+      const companyId = userCompanyId;
+
       const result = await updateTaskStatus(
         companyId,
         reportId,

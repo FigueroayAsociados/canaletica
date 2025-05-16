@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/contexts/CompanyContext';
 import { 
   getAllActiveUsers, 
   deactivateUser, 
@@ -17,8 +18,9 @@ import {
 } from '@/lib/services/userService';
 
 export default function UsersPage() {
-  const { isAdmin } = useCurrentUser();
-  
+  const { isAdmin, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
+
   // Estados para los datos
   const [users, setUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
@@ -28,15 +30,17 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNewUserForm, setShowNewUserForm] = useState(false);
-  
+
+  // Usar la compañía del usuario para garantizar el aislamiento de datos
+  const userCompanyId = profile?.company || contextCompanyId;
+
   // Cargar los usuarios
   useEffect(() => {
     async function fetchUsers() {
       try {
         setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        
-        const result = await getAllActiveUsers(companyId);
+
+        const result = await getAllActiveUsers(userCompanyId);
         
         if (result.success) {
           setUsers(result.users);
@@ -81,12 +85,11 @@ export default function UsersPage() {
   // Manejar cambio de rol de usuario
   const handleRoleChange = async (userId: string, newRole: string) => {
     if (!isAdmin) return;
-    
+
     try {
       setIsSubmitting(true);
-      const companyId = 'default';
-      
-      const result = await updateUserProfile(companyId, userId, {
+
+      const result = await updateUserProfile(userCompanyId, userId, {
         role: newRole,
       });
       
@@ -113,16 +116,15 @@ export default function UsersPage() {
   // Desactivar usuario
   const handleDeactivateUser = async (userId: string) => {
     if (!isAdmin) return;
-    
+
     if (!confirm('¿Está seguro de que desea desactivar este usuario? Esta acción no se puede deshacer.')) {
       return;
     }
-    
+
     try {
       setIsSubmitting(true);
-      const companyId = 'default';
-      
-      const result = await deactivateUser(companyId, userId);
+
+      const result = await deactivateUser(userCompanyId, userId);
       
       if (result.success) {
         // Eliminar el usuario de la lista

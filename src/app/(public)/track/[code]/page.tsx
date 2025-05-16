@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SafeRender } from '@/components/ui/safe-render';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { getReportByCode, getReportByCodeAndAccessCode, addCommunicationByCode } from '@/lib/services/reportService';
 
 // Aseguramos que estos estados coincidan exactamente con los utilizados en ReportStatusBadge
@@ -30,11 +31,12 @@ export default function ReportDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+  const { companyId: contextCompanyId } = useCompany();
+
   const reportCode = params.code as string;
   const email = searchParams.get('email');
   const accessCode = searchParams.get('accessCode');
-  
+
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,16 +51,14 @@ export default function ReportDetailsPage() {
       }
 
       try {
-        const companyId = 'default'; // TODO: Obtener el ID de la empresa desde la URL
-        
         let result;
         if (accessCode) {
           // Si hay código de acceso, es una denuncia anónima
-          result = await getReportByCodeAndAccessCode(companyId, reportCode, accessCode);
+          result = await getReportByCodeAndAccessCode(contextCompanyId, reportCode, accessCode);
         } else if (email) {
           // Si hay email, es una denuncia identificada
           // TODO: Implementar verificación con email
-          result = await getReportByCode(companyId, reportCode);
+          result = await getReportByCode(contextCompanyId, reportCode);
         } else {
           // Si no hay ninguno de los dos, redirigir a la página de búsqueda
           router.push('/track');
@@ -88,11 +88,9 @@ export default function ReportDetailsPage() {
     setError(null);
     
     try {
-      const companyId = 'default';
-      
       // Usar la nueva función que acepta código de denuncia en lugar de ID
       const result = await addCommunicationByCode(
-        companyId,
+        contextCompanyId,
         reportCode,  // Ahora enviamos el código visible
         null, // userId null porque es el denunciante
         newMessage,

@@ -11,10 +11,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { getAssignedReports } from '@/lib/services/investigationService';
 
 export default function InvestigationPage() {
-  const { uid, isAdmin, isInvestigator, isSuperAdmin } = useCurrentUser();
+  const { uid, isAdmin, isInvestigator, isSuperAdmin, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
 
   // Estados para filtros
   const [filter, setFilter] = useState({
@@ -28,6 +30,9 @@ export default function InvestigationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Determinar el ID de la compañía correcta
+  const userCompanyId = profile?.company || contextCompanyId;
+
   // Cargar las denuncias asignadas
   useEffect(() => {
     async function fetchAssignedReports() {
@@ -35,9 +40,7 @@ export default function InvestigationPage() {
 
       try {
         setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-
-        const result = await getAssignedReports(companyId, uid);
+        const result = await getAssignedReports(userCompanyId, uid);
 
         if (result.success) {
           console.log('Denuncias asignadas:', result.reports); // Para depuración

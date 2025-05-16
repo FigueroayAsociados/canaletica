@@ -17,6 +17,7 @@ import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import ExportReportPDF from '@/components/reports/ExportReportPDF';
 import RiskAnalysisCard from '@/components/ai/RiskAnalysisCard';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/contexts/CompanyContext';
 import { useAI } from '@/lib/hooks/useAI';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { Spinner } from '@/components/ui/spinner';
@@ -37,10 +38,11 @@ export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
   const reportId = params.id as string;
-  const { uid, isAdmin, isInvestigator } = useCurrentUser();
+  const { uid, isAdmin, isInvestigator, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
   const { isEnabled } = useFeatureFlags();
   const { analyzeRisk, riskAnalysis, isLoading: isAiLoading } = useAI();
-  
+
   // Estados para las acciones
   const [newStatus, setNewStatus] = useState<string>('');
   const [statusComment, setStatusComment] = useState<string>('');
@@ -50,9 +52,9 @@ export default function ReportDetailPage() {
   const [isInternalMessage, setIsInternalMessage] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [showRiskAnalysis, setShowRiskAnalysis] = useState<boolean>(false);
-  
-  // Usar React Query para cargar los datos
-  const companyId = 'default'; // En una implementación multi-tenant real, esto vendría de un contexto o URL
+
+  // Usar el company del perfil del usuario o el companyId del contexto
+  const companyId = profile?.company || contextCompanyId;
   const { 
     data: reportResult, 
     isLoading, 

@@ -45,7 +45,7 @@ interface RoleFormData {
   permissions: string[];
 }
 
-export default function RolesManager({ companyId = 'default' }: { companyId?: string }) {
+export default function RolesManager({ companyId }: { companyId: string }) {
   // Estados para los roles
   const [roles, setRoles] = useState<CustomRole[]>([]);
   const [loading, setLoading] = useState(true);

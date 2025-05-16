@@ -18,10 +18,10 @@ import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { SafeRender } from '@/components/ui/safe-render';
 import { getReportById, updateRecommendation } from '@/lib/services/reportService';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { getUserProfileById } from '@/lib/services/userService';
 import { doc, getDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-
 
 
 
@@ -43,7 +43,9 @@ export default function RecommendationDetailPage() {
   const recommendationId = params.recommendationId as string;
 
   const router = useRouter();
-  const { uid, displayName } = useCurrentUser();
+  const { uid, displayName, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
+  const userCompanyId = profile?.company || contextCompanyId;
   const [report, setReport] = useState<any>(null);
   const [recommendation, setRecommendation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -58,14 +60,13 @@ async function loadData() {
 
   try {
     setLoading(true);
-    const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
 
-    const result = await getReportById(companyId, id);
+    const result = await getReportById(userCompanyId, id);
     if (result.success && result.report) {
       setReport(result.report);
 
       // Buscar la recomendación específica
-      const recommendationsRef = collection(db, `companies/${companyId}/reports/${id}/recommendations`);
+      const recommendationsRef = collection(db, `companies/${userCompanyId}/reports/${id}/recommendations`);
       const recommendationSnap = await getDoc(doc(recommendationsRef, recommendationId));
 
       if (recommendationSnap.exists()) {
@@ -76,7 +77,7 @@ async function loadData() {
         if (typeof recommendationData.assignedTo === 'string' && recommendationData.assignedTo.length > 0) {
           try {
             // Si parece ser un ID de usuario, buscar su nombre
-            const userResult = await getUserProfileById(companyId, recommendationData.assignedTo);
+            const userResult = await getUserProfileById(userCompanyId, recommendationData.assignedTo);
             if (userResult.success && userResult.profile) {
               assignedToName = userResult.profile.displayName || userResult.profile.email || recommendationData.assignedTo;
             }
@@ -117,10 +118,8 @@ async function loadData() {
     setSuccess(null);
 
     try {
-      const companyId = 'default';
-
       const result = await updateRecommendation(
-        companyId,
+        userCompanyId,
         id,
         recommendationId,
         {

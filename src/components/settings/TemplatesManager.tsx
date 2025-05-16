@@ -217,7 +217,7 @@ const templateTypes = [
   { value: 'new_message', label: 'Nuevo Mensaje' },
 ];
 
-export default function TemplatesManager({ companyId = 'default' }: { companyId?: string }) {
+export default function TemplatesManager({ companyId }: { companyId: string }) {
   // Estados para las plantillas
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);

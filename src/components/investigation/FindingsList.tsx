@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { addFinding } from '@/lib/services/investigationService';
 
 // Esquema de validación para hallazgos
@@ -41,11 +42,15 @@ export const FindingsList: React.FC<FindingsListProps> = ({
   canEdit,
   onFindingAdded,
 }) => {
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFinding, setSelectedFinding] = useState<any | null>(null);
+
+  // Determinar el ID de la compañía correcta
+  const userCompanyId = profile?.company || contextCompanyId;
   
   // Valores iniciales para el formulario
   const initialValues = {
@@ -59,15 +64,13 @@ export const FindingsList: React.FC<FindingsListProps> = ({
   // Manejar el envío del formulario
   const handleSubmit = async (values: any) => {
     if (!uid) return;
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
-      const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-      
       const result = await addFinding(
-        companyId,
+        userCompanyId,
         reportId,
         uid,
         values

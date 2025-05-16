@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { savePreliminaryReport } from '@/lib/services/investigationService';
 
 // Esquema de validación para el informe preliminar
@@ -44,7 +45,9 @@ export const PreliminaryReport: React.FC<PreliminaryReportProps> = ({
   canEdit,
   onReportUpdated,
 }) => {
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
+  const userCompanyId = profile?.company || contextCompanyId;
   const [isEditing, setIsEditing] = useState(!preliminaryReport);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -186,10 +189,8 @@ Se llevarán a cabo las siguientes acciones como parte de la investigación:
     setError(null);
     
     try {
-      const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-      
       const result = await savePreliminaryReport(
-        companyId,
+        userCompanyId,
         reportId,
         uid,
         values

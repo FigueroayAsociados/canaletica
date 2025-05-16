@@ -48,8 +48,9 @@ interface Report {
 
 export default function ReportsPage() {
   const searchParams = useSearchParams();
-  const { isAdmin } = useCurrentUser();
-  
+  const { isAdmin, profile } = useCurrentUser();
+  const { companyId } = useCompany();
+
   // Estado para los filtros
   const [filters, setFilters] = useState<ReportFilters>({
     status: searchParams.get('status') || '',
@@ -57,12 +58,13 @@ export default function ReportsPage() {
     dateRange: searchParams.get('dateRange') || '',
     searchTerm: searchParams.get('search') || '',
   });
-  
-  // Usar un companyId fijo (default) para asegurar que los datos se carguen correctamente
-  const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-  
+
+  // Asegurar que el usuario solo pueda ver denuncias de su compañía
+  // Usar el company del perfil del usuario o el companyId del contexto
+  const userCompanyId = profile?.company || companyId;
+
   // Usar React Query para cargar los datos
-  const { data, isLoading, isError, error } = useReports(companyId);
+  const { data, isLoading, isError, error } = useReports(userCompanyId);
   
   // Estado para los reportes filtrados y seleccionados
   const [filteredReports, setFilteredReports] = useState<Report[]>([]);

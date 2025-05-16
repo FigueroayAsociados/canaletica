@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -17,6 +18,7 @@ import { createUserProfile } from '@/lib/services/userService';
 export default function RegisterPage() {
   const router = useRouter();
   const { signup } = useAuth();
+  const { companyId: contextCompanyId } = useCompany();
   
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,11 +56,8 @@ export default function RegisterPage() {
       const user = userCredential.user;
       
       // Crear el perfil del usuario en Firestore
-      // Utilizamos un ID de compañía predeterminado por ahora, esto se debe actualizar
-      // en una implementación real con multi-tenant
-      const companyId = 'default';
-      
-      await createUserProfile(companyId, user.uid, {
+      // Utilizamos el ID de compañía del contexto
+      await createUserProfile(contextCompanyId, user.uid, {
         displayName,
         email,
         role,

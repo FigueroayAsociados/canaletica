@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/contexts/CompanyContext';
 import { ensureKarinCategoryExists } from '@/lib/services/setupService';
 import { getKarinReports } from '@/lib/services/reportService';
 import { KarinProcessStage, DEFAULT_PRECAUTIONARY_MEASURES, KARIN_RISK_QUESTIONS } from '@/types/report';
@@ -31,10 +32,12 @@ export default function AdminLeyKarinPage() {
   const [editingMeasure, setEditingMeasure] = useState<string | null>(null);
   
   // 2. Custom hooks
-  const { isAdmin } = useCurrentUser();
-  
+  const { isAdmin, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
+
   // 3. Variables constantes
-  const companyId = 'default'; // Usar ID predeterminado
+  // Usar el company del perfil del usuario o el companyId del contexto
+  const companyId = profile?.company || contextCompanyId;
   
   // 4. Funciones traducidas
   // Traducir etapa del proceso a español para mejor visualización

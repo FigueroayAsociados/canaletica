@@ -25,7 +25,7 @@ const initialQuestionState: Omit<KarinRiskQuestion, 'id'> = {
   riskLevel: 'medium'
 };
 
-export default function RiskQuestionManager({ companyId = 'default' }: { companyId?: string }) {
+export default function RiskQuestionManager({ companyId }: { companyId: string }) {
   // Estado para las preguntas cargadas
   const [questions, setQuestions] = useState<KarinRiskQuestion[]>([]);
   const [loading, setLoading] = useState(true);

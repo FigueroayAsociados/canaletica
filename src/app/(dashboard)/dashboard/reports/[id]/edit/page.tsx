@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { getReportById, updateReport } from '@/lib/services/reportService';
 
 // Esquema de validación para la edición de denuncias
@@ -37,7 +38,9 @@ export default function EditReportPage() {
   const params = useParams();
   const router = useRouter();
   const reportId = params.id as string;
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin, uid, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
+  const userCompanyId = profile?.company || contextCompanyId;
   
   // Estados
   const [report, setReport] = useState<any>(null);
@@ -51,9 +54,8 @@ export default function EditReportPage() {
     async function fetchReport() {
       try {
         setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        
-        const result = await getReportById(companyId, reportId);
+
+        const result = await getReportById(userCompanyId, reportId);
         
         if (result.success) {
           setReport(result.report);
@@ -80,10 +82,8 @@ export default function EditReportPage() {
       setSubmitting(true);
       setError(null);
       setSuccess(false);
-      
-      const companyId = 'default';
-      
-      const result = await updateReport(companyId, reportId, values);
+
+      const result = await updateReport(userCompanyId, reportId, values);
       
       if (result.success) {
         setSuccess(true);

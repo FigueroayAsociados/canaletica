@@ -8,20 +8,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getReportStatistics } from '@/lib/services/reportService';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 
 export default function ReportsStatsPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin, uid, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
+  const userCompanyId = profile?.company || contextCompanyId;
   
   useEffect(() => {
     async function fetchStats() {
       try {
         setLoading(true);
-        const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-        
-        const result = await getReportStatistics(companyId);
+
+        const result = await getReportStatistics(userCompanyId);
         
         if (result.success) {
           setStats(result.stats);
@@ -35,9 +37,9 @@ export default function ReportsStatsPage() {
         setLoading(false);
       }
     }
-    
+
     fetchStats();
-  }, []);
+  }, [userCompanyId]);
   
   if (!isAdmin) {
     return (

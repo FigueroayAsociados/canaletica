@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/hooks/useCompany';
 import { saveInvestigationPlan } from '@/lib/services/investigationService';
 
 // Esquema de validación para el plan de investigación
@@ -42,7 +43,9 @@ export const InvestigationPlan: React.FC<InvestigationPlanProps> = ({
   canEdit,
   onPlanUpdated,
 }) => {
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
+  const { companyId: contextCompanyId } = useCompany();
+  const userCompanyId = profile?.company || contextCompanyId;
   const [isEditing, setIsEditing] = useState(!(plan && typeof plan === 'object'));
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -262,10 +265,8 @@ CONSIDERACIONES ESPECIALES
     setError(null);
     
     try {
-      const companyId = 'default'; // En un sistema multi-tenant, esto vendría de un contexto o URL
-      
       const result = await saveInvestigationPlan(
-        companyId,
+        userCompanyId,
         reportId,
         uid,
         values
