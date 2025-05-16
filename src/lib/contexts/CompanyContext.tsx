@@ -208,5 +208,32 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
 export function useCompany() {
   const context = useContext(CompanyContext);
+
+  // Detección robusta de subdominios para agregar una capa adicional de seguridad
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname && hostname !== 'localhost') {
+      const hostParts = hostname.split('.');
+      const subdomain = hostParts[0].toLowerCase();
+
+      // Si es un subdominio válido (no es www, canaletic, canaletica)
+      if (subdomain !== 'www' &&
+          subdomain !== 'canaletic' &&
+          subdomain !== 'canaletica' &&
+          hostParts.length > 1 &&
+          (context.companyId === DEFAULT_COMPANY_ID || !context.companyId)) {
+
+        console.warn(`*** CORRECCIÓN PREVENTIVA: Detectado subdominio ${subdomain} pero context.companyId=${context.companyId}. Corrigiendo... ***`);
+
+        // Crear una copia del contexto pero con el companyId correcto
+        return {
+          ...context,
+          companyId: subdomain,
+          originalCompanyId: context.companyId
+        };
+      }
+    }
+  }
+
   return context;
 }

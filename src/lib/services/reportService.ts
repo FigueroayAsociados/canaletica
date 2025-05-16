@@ -32,6 +32,7 @@ import {
   } from './notificationService';
   // Importar utilidades de control de acceso para centralizar verificaciones de seguridad
   import { verifyCompanyAccess } from '@/lib/utils/accessControl';
+import { getCompanyIdFromSubdomain, validateCompanyId } from '@/lib/utils/subdomainDetector';
   // Importación que funciona tanto en SSR como en cliente
 // No importamos directamente para evitar errores durante el SSR
 let PDFDocument = null;
@@ -549,7 +550,19 @@ export async function getReportByCodeAndAccessCode(
         };
       }
 
-      // Verificación centralizada de acceso multi-tenant
+      // PRIMERA CAPA DE SEGURIDAD: Verificar que el companyId coincida con el subdominio
+      // Esto previene intentos de acceder a datos de otras compañías desde un subdominio
+      const subdomainCompanyId = getCompanyIdFromSubdomain();
+      if (subdomainCompanyId !== 'default' && companyId !== subdomainCompanyId) {
+        console.error(`⚠️ ALERTA DE SEGURIDAD: Intento de acceder a compañía ${companyId} desde subdominio ${subdomainCompanyId}`);
+        return {
+          success: false,
+          error: 'No tiene permiso para acceder a datos de otra compañía desde este subdominio',
+          reports: []
+        };
+      }
+
+      // SEGUNDA CAPA DE SEGURIDAD: Verificación centralizada de acceso multi-tenant
       const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
       if (!accessCheck.success) {
         console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a todos los reportes de compañía ${companyId}`);
@@ -3088,7 +3101,18 @@ export async function getKarinReports(
       };
     }
 
-    // Verificación centralizada de acceso multi-tenant
+    // PRIMERA CAPA DE SEGURIDAD: Verificar que el companyId coincida con el subdominio
+    const subdomainCompanyId = getCompanyIdFromSubdomain();
+    if (subdomainCompanyId !== 'default' && companyId !== subdomainCompanyId) {
+      console.error(`⚠️ ALERTA DE SEGURIDAD: Intento de acceder a denuncias Karin de compañía ${companyId} desde subdominio ${subdomainCompanyId}`);
+      return {
+        success: false,
+        error: 'No tiene permiso para acceder a datos de otra compañía desde este subdominio',
+        reports: []
+      };
+    }
+
+    // SEGUNDA CAPA DE SEGURIDAD: Verificación centralizada de acceso multi-tenant
     const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
     if (!accessCheck.success) {
       console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a reportes Karin de compañía ${companyId}`);

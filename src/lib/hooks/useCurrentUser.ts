@@ -38,7 +38,33 @@ interface CurrentUser {
  */
 export function useCurrentUser(): CurrentUser {
   const { currentUser } = useAuth();
-  const { companyId } = useCompany();
+  // Obtener la compañía de forma segura con manejo de errores
+  let companyIdFromContext = 'default';
+  try {
+    const companyContext = useCompany();
+    companyIdFromContext = companyContext?.companyId || 'default';
+    console.log(`[useCurrentUser] Obtenido companyId desde Context: ${companyIdFromContext}`);
+  } catch (error) {
+    console.error('[useCurrentUser] Error al acceder a CompanyContext:', error);
+    // Intentar detectar el subdominio directamente como fallback
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname && hostname !== 'localhost') {
+        const hostParts = hostname.split('.');
+        const subdomain = hostParts[0].toLowerCase();
+
+        if (subdomain !== 'www' &&
+            subdomain !== 'canaletic' &&
+            subdomain !== 'canaletica' &&
+            hostParts.length > 1) {
+          companyIdFromContext = subdomain;
+          console.warn(`[useCurrentUser] Fallback: usando subdominio "${subdomain}" detectado de URL`);
+        }
+      }
+    }
+  }
+
+  const [companyId] = useState<string>(companyIdFromContext);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
