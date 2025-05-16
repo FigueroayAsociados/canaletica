@@ -11,10 +11,10 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/hooks';
 import { addTask, updateTaskStatus } from '@/lib/services/investigationService';
 import { getUsersByRole } from '@/lib/services/userService';
-import { UserRole, DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
+import { UserRole } from '@/lib/utils/constants';
+import { useCompany } from '@/lib/hooks';
 import { formatChileanDate } from '@/lib/utils/dateUtils';
 
 // Esquema de validación para tareas
@@ -42,21 +42,18 @@ export const TasksList: React.FC<TasksListProps> = ({
   onTasksUpdated,
 }) => {
   const { uid, profile } = useCurrentUser();
-  const { companyId: contextCompanyId } = useCompany();
+  const { companyId } = useCompany();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [statusComment, setStatusComment] = useState<string>('');
   const [investigators, setInvestigators] = useState<any[]>([]);
-
-  const userCompanyId = profile?.company || contextCompanyId;
   
   // Cargar investigadores al montar el componente
   useEffect(() => {
     const loadInvestigators = async () => {
       try {
-        const companyId = userCompanyId;
         const userRole = profile?.role || null;
 
         // Cargar tanto investigadores como administradores que pueden ser asignados a tareas
@@ -86,7 +83,7 @@ export const TasksList: React.FC<TasksListProps> = ({
     };
 
     loadInvestigators();
-  }, [uid, profile]);
+  }, [uid, profile, companyId]);
 
   // Valores iniciales para el formulario
   const initialValues = {
@@ -105,8 +102,6 @@ export const TasksList: React.FC<TasksListProps> = ({
     setError(null);
 
     try {
-      const companyId = userCompanyId;
-
       const result = await addTask(
         companyId,
         reportId,
@@ -146,8 +141,6 @@ export const TasksList: React.FC<TasksListProps> = ({
     setError(null);
 
     try {
-      const companyId = userCompanyId;
-
       const result = await updateTaskStatus(
         companyId,
         reportId,

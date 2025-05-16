@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth } from '@/lib/firebase/admin';
 import { getAdminFirestore } from '@/lib/firebase/admin';
-import { ADMIN_UIDS, UserRole } from '@/lib/utils/constants/index';
+import { ADMIN_UIDS, UserRole, DEFAULT_COMPANY_ID } from '@/lib/utils/constants/index';
 import { cookies } from 'next/headers';
+import { getCompanyIdFromRequest, getCompanyIdForEmail } from '@/lib/utils/serverSubdomainDetector';
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,68 +72,57 @@ export async function POST(request: NextRequest) {
     
     // Si no es superadmin, verificamos en la colección de usuarios normal
     if (!isSuperAdmin) {
-      // Resetear companyId para esta sección
-      companyId = '';
-
-      // SOLUCIÓN ESPECÍFICA PARA MVC USER
-      if (decodedToken.email?.toLowerCase() === 'mvc@canaletica.cl') {
-        console.log(`🚨 API LOGIN: Detección de usuario mvc@canaletica.cl, forzando companyId=mvc`);
-        companyId = 'mvc';
-      } else {
-        // Extracción de companyId basado en HTTP HOST (similar a la lógica de frontend)
-        const host = request.headers.get('host') || '';
-
-        // Verificar si estamos en un subdominio
-        if (host && host !== 'localhost' && !host.startsWith('www.')) {
-          const hostParts = host.split('.');
-          if (hostParts.length > 1) {
-            const subdomain = hostParts[0];
-
-            // Verificar si el subdominio no es www, canaletic o canaletica
-            if (subdomain !== 'www' &&
-                subdomain !== 'canaletic' &&
-                subdomain !== 'canaletica') {
-              companyId = subdomain;
-              console.log(`🔍 API LOGIN: Detectado companyId=${companyId} del subdominio`);
-            }
-          }
+      // Detectar el ID de la compañía desde el subdominio
+      companyId = getCompanyIdFromRequest(request);
+      console.log(`[login] Detectado companyId: ${companyId} para usuario: ${decodedToken.uid}`);
+      
+      // Para el caso específico de mvc@canaletica.cl, forzar companyId = 'mvc'
+      if (decodedToken.email) {
+        const emailSpecificCompanyId = getCompanyIdForEmail(decodedToken.email, companyId);
+        if (emailSpecificCompanyId !== companyId) {
+          console.log(`[login] Sobreescribiendo companyId ${companyId} con ${emailSpecificCompanyId} basado en email ${decodedToken.email}`);
+          companyId = emailSpecificCompanyId;
         }
       }
 
-      // DIAGNÓSTICO DE USUARIO
-      console.log(`
-      📊📊📊 DIAGNÓSTICO API LOGIN 📊📊📊
-      UID: ${decodedToken.uid}
-      Email: ${decodedToken.email}
-      CompanyId detectado: ${companyId}
-      Host: ${request.headers.get('host')}
-      📊📊📊 FIN DIAGNÓSTICO 📊📊📊
-      `);
-
-      // Asegurarse de que tenemos un companyId válido
-      if (!companyId) {
-        console.log(`⚠️ API LOGIN: No se pudo detectar un companyId. Usando 'default' como último recurso`);
-        companyId = 'default';
-      }
-
-      // SIEMPRE intentar primero en la compañía detectada
-      let userRef = db.doc(`companies/${companyId}/users/${decodedToken.uid}`);
+      // Verificar en la colección de companies/[companyId]/users
+      const userRef = db.doc(`companies/${companyId}/users/${decodedToken.uid}`);
       let userDoc = await userRef.get();
-
-      // Si no existe en la compañía detectada y no es mvc, intentar en mvc como respaldo
-      if (!userDoc.exists && companyId !== 'mvc' && decodedToken.email?.toLowerCase() === 'mvc@canaletica.cl') {
-        console.log(`🔎 API LOGIN: Usuario no encontrado en ${companyId}, intentando en mvc como respaldo`);
-        companyId = 'mvc';
-        userRef = db.doc(`companies/mvc/users/${decodedToken.uid}`);
-        userDoc = await userRef.get();
+      
+      // Si no existe en la compañía detectada pero el email es mvc@canaletica.cl, intentar en 'mvc'
+      if (!userDoc.exists && decodedToken.email === 'mvc@canaletica.cl' && companyId !== 'mvc') {
+        console.log(`[login] Usuario ${decodedToken.email} no encontrado en ${companyId}, intentando en 'mvc'`);
+        const mvcUserRef = db.doc(`companies/mvc/users/${decodedToken.uid}`);
+        const mvcUserDoc = await mvcUserRef.get();
+        
+        if (mvcUserDoc.exists) {
+          console.log(`[login] Usuario ${decodedToken.email} encontrado en 'mvc'`);
+          userDoc = mvcUserDoc;
+          companyId = 'mvc';
+        }
       }
-
+      
+      // Si aún no se encuentra, intentar en DEFAULT_COMPANY_ID como último recurso
+      if (!userDoc.exists && companyId !== DEFAULT_COMPANY_ID) {
+        console.log(`[login] Usuario ${decodedToken.uid} no encontrado en ${companyId}, intentando en ${DEFAULT_COMPANY_ID}`);
+        const defaultUserRef = db.doc(`companies/${DEFAULT_COMPANY_ID}/users/${decodedToken.uid}`);
+        const defaultUserDoc = await defaultUserRef.get();
+        
+        if (defaultUserDoc.exists) {
+          console.log(`[login] Usuario ${decodedToken.uid} encontrado en ${DEFAULT_COMPANY_ID}`);
+          userDoc = defaultUserDoc;
+          companyId = DEFAULT_COMPANY_ID;
+        }
+      }
+      
       if (userDoc.exists) {
-        console.log(`✅ API LOGIN: Usuario encontrado en compañía ${companyId}`);
         const userData = userDoc.data();
         userRole = userData.role;
         isActive = userData.isActive === true;
-
+        
+        // Guardar companyId para uso posterior
+        userData.companyId = companyId;
+        
         // Si el usuario no está activo, rechazar el inicio de sesión
         if (!isActive) {
           return NextResponse.json(
@@ -140,12 +130,21 @@ export async function POST(request: NextRequest) {
             { status: 403 }
           );
         }
+        
+        // Establecer cookie de companyId
+        const cookieStore = await cookies();
+        await cookieStore.set('company_id', companyId, {
+          maxAge: 60 * 60 * 24 * 5, // 5 días
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+        });
       } else {
-        console.log(`❌ API LOGIN: Usuario no encontrado en ninguna compañía`);
         // Si no existe el perfil en Firestore, pero está autenticado,
         // podemos crear un perfil básico o rechazar el inicio de sesión
+        console.log(`[login] No se encontró perfil para usuario ${decodedToken.uid} en compañía ${companyId}`);
         return NextResponse.json(
-          { error: 'Usuario no tiene perfil en el sistema. Contacte al administrador.' },
+          { error: `Usuario no tiene perfil en esta empresa. Contacte al administrador.` },
           { status: 403 }
         );
       }
@@ -176,13 +175,16 @@ export async function POST(request: NextRequest) {
     // Actualizar último inicio de sesión (solo para usuarios regulares, no para superadmins)
     if (!isSuperAdmin && userRole && decodedToken.uid) {
       try {
-        // Usar el companyId detectado para actualizar lastLogin
+        // Obtener el companyId de la cookie que establecimos anteriormente
+        const cookieStore = await cookies();
+        const companyId = cookieStore.get('company_id')?.value || DEFAULT_COMPANY_ID;
+
+        console.log(`[login] Actualizando último login para usuario ${decodedToken.uid} en compañía ${companyId}`);
         await db.doc(`companies/${companyId}/users/${decodedToken.uid}`).update({
           lastLogin: new Date()
         });
-        console.log(`✍️ API LOGIN: Actualizado lastLogin para usuario en compañía ${companyId}`);
       } catch (updateError) {
-        console.warn(`Error al actualizar último login en compañía ${companyId}:`, updateError);
+        console.warn('Error al actualizar último login:', updateError);
         // No bloqueamos la autenticación si esto falla
       }
     }
