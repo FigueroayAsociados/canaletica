@@ -38,15 +38,19 @@ interface CurrentUser {
  */
 export function useCurrentUser(): CurrentUser {
   const { currentUser } = useAuth();
+  const companyContext = useContext(CompanyContext);
   
   // Obtener la compañía directamente del contexto con manejo de errores
-  let companyIdFromContext = 'default';
-  try {
-    const companyContext = useContext(CompanyContext);
-    companyIdFromContext = companyContext?.companyId || 'default';
-    console.log(`[useCurrentUser] Obtenido companyId desde Context: ${companyIdFromContext}`);
-  } catch (error) {
-    console.error('[useCurrentUser] Error al acceder a CompanyContext:', error);
+  const getCompanyId = () => {
+    try {
+      if (companyContext && companyContext.companyId) {
+        console.log(`[useCurrentUser] Obtenido companyId desde Context: ${companyContext.companyId}`);
+        return companyContext.companyId;
+      }
+    } catch (error) {
+      console.error('[useCurrentUser] Error al acceder a CompanyContext:', error);
+    }
+    
     // Intentar detectar el subdominio directamente como fallback
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
@@ -58,12 +62,16 @@ export function useCurrentUser(): CurrentUser {
             subdomain !== 'canaletic' &&
             subdomain !== 'canaletica' &&
             hostParts.length > 1) {
-          companyIdFromContext = subdomain;
           console.warn(`[useCurrentUser] Fallback: usando subdominio "${subdomain}" detectado de URL`);
+          return subdomain;
         }
       }
     }
-  }
+    
+    return 'default';
+  };
+  
+  const companyIdFromContext = getCompanyId();
 
   const [companyId] = useState<string>(companyIdFromContext);
   const [profile, setProfile] = useState<UserProfile | null>(null);
