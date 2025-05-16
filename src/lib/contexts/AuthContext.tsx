@@ -20,6 +20,7 @@ import { getUserProfileByEmail, updateLastLogin } from '@/lib/services/userServi
 import { DEFAULT_COMPANY_ID, UserRole, ADMIN_UIDS } from '@/lib/utils/constants/index';
 import { UserProfile } from '@/lib/services/userService';
 import { logger } from '@/lib/utils/logger';
+import { useCompany } from './CompanyContext';
 
 type AuthContextType = {
   currentUser: User | null;
@@ -56,38 +57,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Asegurarse de que userRole use el enum correcto importado de constants/index.ts
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Intentar recuperar la empresa seleccionada de localStorage 
-  // solo si estamos en el cliente
-  const initialCompanyId = typeof window !== 'undefined' 
-    ? localStorage.getItem('selectedCompanyId') || DEFAULT_COMPANY_ID
+
+  // Obtener el companyId del CompanyContext
+  const companyContext = useCompany();
+
+  // Intentar recuperar la empresa seleccionada, con prioridad:
+  // 1. El ID de la compañía detectado por CompanyContext
+  // 2. localStorage (para super admin que ha cambiado manualmente)
+  // 3. DEFAULT_COMPANY_ID como último recurso
+  const initialCompanyId = typeof window !== 'undefined'
+    ? companyContext.companyId || localStorage.getItem('selectedCompanyId') || DEFAULT_COMPANY_ID
     : DEFAULT_COMPANY_ID;
-    
+
   const [companyId, setCompanyId] = useState<string>(initialCompanyId);
 
   async function login(email: string, password: string) {
     try {
+      // Usar el companyId actual del CompanyContext al iniciar sesión
+      // Esto asegura que siempre usemos el ID correcto detectado del subdominio
+      const loginCompanyId = companyContext.companyId || companyId;
+
+      logger.info(`Intentando login con email: ${email} en compañía: ${loginCompanyId}`, null,
+        { prefix: 'AuthContext.login' });
+
       const result = await signInWithEmailAndPassword(auth, email, password);
-      
+
       // Obtener el perfil del usuario y actualizar el último inicio de sesión
-      const userProfileResult = await getUserProfileByEmail(companyId, email);
-      
+      // Usamos explícitamente el companyId de CompanyContext para la búsqueda
+      const userProfileResult = await getUserProfileByEmail(loginCompanyId, email);
+
       if (userProfileResult.success && userProfileResult.profile) {
         // Si es superadmin, no actualizar el último login ya que puede no tener perfil en la compañía
         if (userProfileResult.isSuperAdmin) {
-          console.log('Super administrador detectado, omitiendo actualización de último login');
+          logger.info('Super administrador detectado, omitiendo actualización de último login', null,
+            { prefix: 'AuthContext.login' });
         } else {
           // Para usuarios normales, actualizar el último login
-          await updateLastLogin(companyId, result.user.uid);
+          await updateLastLogin(loginCompanyId, result.user.uid);
         }
       } else {
-        console.error('Perfil de usuario no encontrado', userProfileResult.error);
+        logger.error(`Perfil de usuario no encontrado en compañía ${loginCompanyId}`, userProfileResult.error,
+          { prefix: 'AuthContext.login' });
         // Podríamos lanzar un error aquí o manejarlo de otra forma
       }
-      
+
       return result;
     } catch (error) {
-      console.error('Error en login:', error);
+      logger.error('Error en login', error, { prefix: 'AuthContext.login' });
       throw error;
     }
   }
@@ -175,16 +191,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Recargar el perfil del usuario
   async function refreshUserProfile() {
     if (!currentUser || !currentUser.email) return;
-    
+
     try {
-      const userProfileResult = await getUserProfileByEmail(companyId, currentUser.email);
-      
+      // Asegurarnos de usar el companyId más actualizado
+      // Prioridad: CompanyContext > estado local
+      const refreshCompanyId = companyContext.companyId || companyId;
+
+      logger.info(`Recargando perfil para ${currentUser.email} en compañía ${refreshCompanyId}`, null,
+        { prefix: 'AuthContext', userId: currentUser?.uid });
+
+      const userProfileResult = await getUserProfileByEmail(refreshCompanyId, currentUser.email);
+
       if (userProfileResult.success && userProfileResult.profile) {
+        logger.info(`Perfil encontrado para ${currentUser.email} con rol ${userProfileResult.profile.role}`, null,
+          { prefix: 'AuthContext', userId: currentUser?.uid });
         setUserProfile(userProfileResult.profile);
         setUserRole(userProfileResult.profile.role as UserRole);
       } else if (userProfileResult.isSuperAdmin) {
         // Si es super admin pero no tiene perfil en la empresa actual
         // establecer perfil mínimo con rol super admin
+        logger.info(`Super Admin sin perfil en ${refreshCompanyId}, creando perfil básico`, null,
+          { prefix: 'AuthContext', userId: currentUser?.uid });
         setUserProfile({
           uid: currentUser.uid,
           email: currentUser.email,
@@ -193,16 +220,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isActive: true,
           createdAt: new Date(),
           updatedAt: new Date(),
-          company: companyId
+          company: refreshCompanyId
         });
         setUserRole(UserRole.SUPER_ADMIN);
       } else {
         // Si no hay perfil y no es super admin, limpiar
+        logger.warn(`Usuario ${currentUser.email} no tiene perfil en compañía ${refreshCompanyId}`, null,
+          { prefix: 'AuthContext', userId: currentUser?.uid });
         setUserProfile(null);
         setUserRole(null);
       }
     } catch (error) {
-      logger.error('Error al recargar perfil de usuario', error, 
+      logger.error('Error al recargar perfil de usuario', error,
         { prefix: 'AuthContext', userId: currentUser?.uid });
       // No cambiamos el estado para mantener lo que ya teníamos
     }
@@ -211,11 +240,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Modo demo controlado por variable de entorno
   const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   
+  // Efecto para actualizar el companyId cuando cambia en CompanyContext
+  useEffect(() => {
+    if (companyContext.companyId && companyContext.companyId !== companyId) {
+      logger.info(`Actualizando companyId en AuthContext de ${companyId} a ${companyContext.companyId}`, null,
+        { prefix: 'AuthContext' });
+      setCompanyId(companyContext.companyId);
+    }
+  }, [companyContext.companyId, companyId]);
+
   useEffect(() => {
     // Verificar si el modo demo está activo
     if (DEMO_MODE) {
       logger.warn('Modo DEMO activado: usando usuario demo', null, { prefix: 'AuthContext' });
-      
+
       // Crear un objeto user demo
       const demoUser = {
         uid: 'demo-user-123',
@@ -230,7 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         reload: () => Promise.resolve(),
         toJSON: () => ({ uid: 'demo-user-123' }),
       } as unknown as User;
-      
+
       // Crear un perfil demo con permisos de super admin
       const demoProfile = {
         uid: 'demo-user-123',
@@ -243,7 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastLogin: new Date(),
         company: companyId
       } as UserProfile;
-      
+
       // Establecer los estados con los valores demo
       setCurrentUser(demoUser);
       setUserProfile(demoProfile);
@@ -251,18 +289,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
-    
+
     // Comportamiento normal (no demo)
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      
+
       if (user) {
         try {
           // Obtener el perfil del usuario de Firestore
           // Solo intentar obtener el perfil si el usuario tiene un email
           if (user.email) {
+            // Usamos el companyId actual que ahora está sincronizado con CompanyContext
+            logger.info(`Cargando perfil para ${user.email} en compañía ${companyId}`, null,
+              { prefix: 'AuthContext' });
+
             const userProfileResult = await getUserProfileByEmail(companyId, user.email);
-            
+
             if (userProfileResult.success && userProfileResult.profile) {
               // Verificar si el usuario es un super admin definido por UID
               if (ADMIN_UIDS.includes(user.uid)) {
@@ -280,18 +322,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUserRole(userProfileResult.profile.role);
               }
             } else {
-              logger.error('Error al cargar perfil de usuario:', userProfileResult.error);
+              logger.error(`Error al cargar perfil de usuario en compañía ${companyId}:`, userProfileResult.error);
               setUserProfile(null);
               setUserRole(null);
             }
           } else {
             // Usuario sin email (posiblemente anónimo)
-            console.log('Usuario sin email detectado');
+            logger.info('Usuario sin email detectado', null, { prefix: 'AuthContext' });
             setUserProfile(null);
             setUserRole(null);
           }
         } catch (error) {
-          console.error('Error al cargar datos de usuario:', error);
+          logger.error('Error al cargar datos de usuario:', error);
           setUserProfile(null);
           setUserRole(null);
         }
@@ -299,7 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserProfile(null);
         setUserRole(null);
       }
-      
+
       setLoading(false);
     });
 
