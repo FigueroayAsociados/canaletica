@@ -66,7 +66,7 @@ export default function ReportsPage() {
 
   // Usar React Query para cargar los datos
   // Pasar también el rol y el ID del usuario para las verificaciones de seguridad
-  const { data, isLoading, isError, error } = useReports(userCompanyId, {}, profile?.role, uid);
+  const { data, isLoading, isError, error } = useReports(userCompanyId, {}, profile?.role, profile?.uid);
   
   // Estado para los reportes filtrados y seleccionados
   const [filteredReports, setFilteredReports] = useState<Report[]>([]);
