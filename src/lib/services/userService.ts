@@ -77,6 +77,45 @@ export interface UserProfile {
    */
   export async function getUserProfileById(companyId: string, userId: string) {
     try {
+      // DIAGNÓSTICO DE USER PROFILES
+      console.log(`
+      📊📊📊 DIAGNÓSTICO getUserProfileById 📊📊📊
+      UserId: ${userId}
+      CompanyId recibido: ${companyId}
+      Hostname: ${typeof window !== 'undefined' ? window.location.hostname : 'N/A'}
+      Path: ${typeof window !== 'undefined' ? window.location.pathname : 'N/A'}
+      📊📊📊 FIN DIAGNÓSTICO 📊📊📊
+      `);
+
+      // PASO 1: SIEMPRE verificar primero si hay un perfil en la colección mvc para este usuario
+      // Esto es una solución específica para el caso del usuario mvc
+      console.log(`Verificando primero si existe un perfil en la compañía mvc (independientemente del companyId)`);
+      const mvcUserRef = doc(db, `companies/mvc/users`, userId);
+      const mvcUserSnap = await getDoc(mvcUserRef);
+
+      if (mvcUserSnap.exists()) {
+        console.log(`🔍 HALLAZGO: Se encontró un perfil para el usuario ${userId} en la compañía mvc`);
+
+        // Si el usuario tiene un perfil en mvc pero estamos usando otro companyId,
+        // y estamos en el subdominio mvc, usar mvc
+        if (companyId !== 'mvc') {
+          if (typeof window !== 'undefined') {
+            const hostname = window.location.hostname;
+            const subdomain = hostname.split('.')[0];
+
+            if (subdomain === 'mvc') {
+              console.log(`⚠️ Estamos en subdominio mvc pero usando companyId=${companyId}, forzando a mvc`);
+              return {
+                success: true,
+                userId,
+                profile: mvcUserSnap.data() as UserProfile,
+                companyId: 'mvc'
+              };
+            }
+          }
+        }
+      }
+
       // Caso especial para mvc: Verificar primero si estamos en la URL de mvc
       // Esta es una solución de emergencia hasta que se solucione el problema de manera permanente
       if (typeof window !== 'undefined') {
@@ -149,8 +188,27 @@ export interface UserProfile {
         };
       }
 
-      // Caso especial para mvc: Verificar primero si estamos en la URL de mvc
-      // Esta es una solución de emergencia hasta que se solucione el problema de manera permanente
+      // SOLUCIÓN PERMANENTE PARA MVC
+      // Si el email es mvc@canaletica.cl, SIEMPRE buscar en la compañía mvc
+      // Esto corrige el problema de autenticación para este usuario específico
+      // mientras se resuelve el problema más general de multi-tenancy
+      if (email.toLowerCase() === 'mvc@canaletica.cl') {
+        // Loguear información para diagnóstico
+        console.log(`
+        🚨🚨🚨 IMPORTANTE 🚨🚨🚨
+        Email detectado: mvc@canaletica.cl
+        CompanyId recibido: ${companyId}
+        Forzando companyId=mvc
+        Hostname: ${typeof window !== 'undefined' ? window.location.hostname : 'N/A'}
+        Ruta: ${typeof window !== 'undefined' ? window.location.pathname : 'N/A'}
+        🚨🚨🚨 FIN INFORMACIÓN 🚨🚨🚨
+        `);
+
+        // Siempre usar mvc para este usuario específico
+        companyId = 'mvc';
+      }
+
+      // La solución anterior para subdominios se mantiene como respaldo
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         const hostParts = hostname.split('.');
