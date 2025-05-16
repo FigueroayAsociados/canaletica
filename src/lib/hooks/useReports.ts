@@ -159,10 +159,15 @@ export function useAssignReport() {
 /**
  * Hook para obtener usuarios por rol (ej. investigadores)
  */
-export function useUsersByRole(companyId: string, role: string) {
+export function useUsersByRole(
+  companyId: string,
+  role: string,
+  userRole?: string | null,
+  userId?: string | null
+) {
   return useQuery({
-    queryKey: ['users', companyId, role],
-    queryFn: () => getUsersByRole(companyId, role),
+    queryKey: ['users', companyId, role, userRole],
+    queryFn: () => getUsersByRole(companyId, role, userRole, userId),
     enabled: !!companyId && !!role,
   });
 }

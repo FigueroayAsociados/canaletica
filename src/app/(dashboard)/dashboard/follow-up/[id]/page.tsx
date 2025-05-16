@@ -53,7 +53,7 @@ export default function FollowUpDetailPage() {
           setError(null);
           
           // Obtener la lista de investigadores para el selector
-          const investigatorsResult = await getUsersByRole(companyId, 'investigator');
+          const investigatorsResult = await getUsersByRole(companyId, 'investigator', profile?.role, profile?.uid);
           if (investigatorsResult.success) {
             setInvestigators(investigatorsResult.users || []);
           }

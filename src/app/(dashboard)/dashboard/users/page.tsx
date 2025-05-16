@@ -40,7 +40,7 @@ export default function UsersPage() {
       try {
         setLoading(true);
 
-        const result = await getAllActiveUsers(userCompanyId);
+        const result = await getAllActiveUsers(userCompanyId, profile?.role, profile?.uid);
         
         if (result.success) {
           setUsers(result.users);

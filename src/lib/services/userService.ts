@@ -353,7 +353,35 @@ export interface UserProfile {
   /**
    * Obtiene todos los usuarios activos de una empresa
    */
-  export async function getAllActiveUsers(companyId: string) {
+  export async function getAllActiveUsers(
+  companyId: string,
+  userRole?: string | null,
+  userId?: string | null
+) {
+  // Verificar aislamiento de datos para usuarios no super_admin
+  if (userRole && userRole !== 'super_admin' && userId) {
+    try {
+      const userRef = doc(db, `companies/${companyId}/users/${userId}`);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+
+        // Verificar que el usuario pertenezca a esta compañía
+        if (userData.company && userData.company !== companyId) {
+          console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} intentó acceder a usuarios de compañía ${companyId} pero pertenece a ${userData.company}`);
+          return {
+            success: false,
+            error: 'No tiene permiso para acceder a los usuarios de esta compañía',
+            users: []
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error al verificar el perfil del usuario:', error);
+      console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
+    }
+  }
     try {
       const usersRef = collection(db, `companies/${companyId}/users`);
       const q = query(usersRef, where('isActive', '==', true));
@@ -380,7 +408,36 @@ export interface UserProfile {
   /**
    * Obtiene todos los usuarios con un rol específico
    */
-  export async function getUsersByRole(companyId: string, role: string) {
+  export async function getUsersByRole(
+  companyId: string,
+  role: string,
+  userRole?: string | null,
+  userId?: string | null
+) {
+  // Verificar aislamiento de datos para usuarios no super_admin
+  if (userRole && userRole !== 'super_admin' && userId) {
+    try {
+      const userRef = doc(db, `companies/${companyId}/users/${userId}`);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+
+        // Verificar que el usuario pertenezca a esta compañía
+        if (userData.company && userData.company !== companyId) {
+          console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} intentó acceder a usuarios por rol en compañía ${companyId} pero pertenece a ${userData.company}`);
+          return {
+            success: false,
+            error: 'No tiene permiso para acceder a los usuarios de esta compañía',
+            users: []
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error al verificar el perfil del usuario:', error);
+      console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
+    }
+  }
     try {
       const usersRef = collection(db, `companies/${companyId}/users`);
       const q = query(

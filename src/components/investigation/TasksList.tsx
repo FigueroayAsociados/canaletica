@@ -57,35 +57,36 @@ export const TasksList: React.FC<TasksListProps> = ({
     const loadInvestigators = async () => {
       try {
         const companyId = userCompanyId;
+        const userRole = profile?.role || null;
 
         // Cargar tanto investigadores como administradores que pueden ser asignados a tareas
-        const investigatorsResult = await getUsersByRole(companyId, UserRole.INVESTIGATOR);
-        const adminsResult = await getUsersByRole(companyId, UserRole.ADMIN);
-        
+        const investigatorsResult = await getUsersByRole(companyId, UserRole.INVESTIGATOR, userRole, uid);
+        const adminsResult = await getUsersByRole(companyId, UserRole.ADMIN, userRole, uid);
+
         let availableUsers = [];
-        
+
         if (investigatorsResult.success && investigatorsResult.users) {
           availableUsers = [...availableUsers, ...investigatorsResult.users];
         }
-        
+
         if (adminsResult.success && adminsResult.users) {
           availableUsers = [...availableUsers, ...adminsResult.users];
         }
-        
+
         // Eliminar posibles duplicados (por ID)
         const uniqueUsers = Array.from(
           new Map(availableUsers.map(user => [user.id, user])).values()
         );
-        
+
         setInvestigators(uniqueUsers);
       } catch (error) {
         console.error('Error al cargar investigadores:', error);
         setError('No se pudieron cargar los investigadores');
       }
     };
-    
+
     loadInvestigators();
-  }, []);
+  }, [uid, profile]);
 
   // Valores iniciales para el formulario
   const initialValues = {
