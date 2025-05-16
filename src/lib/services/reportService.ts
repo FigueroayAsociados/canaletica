@@ -420,8 +420,46 @@ export async function uploadEvidence(
 }
   
   // Buscar denuncia por código
-export async function getReportByCode(companyId: string, reportCode: string) {
+export async function getReportByCode(
+  companyId: string,
+  reportCode: string,
+  userRole?: string | null,
+  userId?: string | null
+) {
   try {
+    if (!companyId || !reportCode) {
+      return {
+        success: false,
+        error: 'Parámetros incompletos'
+      };
+    }
+
+    // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
+    // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
+    if (userRole === 'admin' && userId) {
+      // Obtener el perfil del usuario para verificar a qué compañía pertenece
+      try {
+        const userRef = doc(db, `companies/${companyId}/users/${userId}`);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+
+          // Si el usuario pertenece a otra compañía, bloquear el acceso
+          if (userData.company && userData.company !== companyId) {
+            console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a denuncia por código en compañía ${companyId} pero pertenece a ${userData.company}`);
+            return {
+              success: false,
+              error: 'No tiene permiso para acceder a los datos de esta compañía'
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error al verificar el perfil del usuario:', error);
+        console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
+      }
+    }
+
     const reportsRef = collection(db, `companies/${companyId}/reports`);
     const q = query(reportsRef, where('code', '==', reportCode));
     const querySnapshot = await getDocs(q);
@@ -476,10 +514,12 @@ export async function getReportByCode(companyId: string, reportCode: string) {
 export async function getReportByCodeAndAccessCode(
   companyId: string,
   reportCode: string,
-  accessCode: string
+  accessCode: string,
+  userRole?: string | null,
+  userId?: string | null
 ) {
   try {
-    const result = await getReportByCode(companyId, reportCode);
+    const result = await getReportByCode(companyId, reportCode, userRole, userId);
 
     if (!result.success) {
       return result;
@@ -939,8 +979,45 @@ export async function addCommunicationByCode(
   /**
    * Obtiene estadísticas de las denuncias
    */
-  export async function getReportStatistics(companyId: string) {
+  export async function getReportStatistics(
+    companyId: string,
+    userRole?: string | null,
+    userId?: string | null
+  ) {
     try {
+      if (!companyId) {
+        return {
+          success: false,
+          error: 'ID de compañía no válido'
+        };
+      }
+
+      // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
+      // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
+      if (userRole === 'admin' && userId) {
+        // Obtener el perfil del usuario para verificar a qué compañía pertenece
+        try {
+          const userRef = doc(db, `companies/${companyId}/users/${userId}`);
+          const userSnap = await getDoc(userRef);
+
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+
+            // Si el usuario pertenece a otra compañía, bloquear el acceso
+            if (userData.company && userData.company !== companyId) {
+              console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a estadísticas de compañía ${companyId} pero pertenece a ${userData.company}`);
+              return {
+                success: false,
+                error: 'No tiene permiso para acceder a los datos de esta compañía'
+              };
+            }
+          }
+        } catch (error) {
+          console.error('Error al verificar el perfil del usuario:', error);
+          console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
+        }
+      }
+
       // Referencia a las estadísticas (doc único)
       const statsRef = doc(db, `companies/${companyId}/stats/reports`);
       const statsSnap = await getDoc(statsRef);
@@ -3060,8 +3137,48 @@ export async function closeKarinCase(
  * @param companyId ID de la compañía
  * @returns Lista de denuncias de Ley Karin
  */
-export async function getKarinReports(companyId: string) {
+export async function getKarinReports(
+  companyId: string,
+  userRole?: string | null,
+  userId?: string | null
+) {
   try {
+    if (!companyId) {
+      console.error('getKarinReports: companyId is empty');
+      return {
+        success: false,
+        error: 'ID de compañía no válido',
+        reports: []
+      };
+    }
+
+    // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
+    // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
+    if (userRole === 'admin' && userId) {
+      // Obtener el perfil del usuario para verificar a qué compañía pertenece
+      try {
+        const userRef = doc(db, `companies/${companyId}/users/${userId}`);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+
+          // Si el usuario pertenece a otra compañía, bloquear el acceso
+          if (userData.company && userData.company !== companyId) {
+            console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a denuncias Karin de compañía ${companyId} pero pertenece a ${userData.company}`);
+            return {
+              success: false,
+              error: 'No tiene permiso para acceder a los datos de esta compañía',
+              reports: []
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error al verificar el perfil del usuario:', error);
+        console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
+      }
+    }
+
     // Obtener todas las denuncias de Ley Karin
     const reportsRef = collection(db, `companies/${companyId}/reports`);
     const q = query(reportsRef, where('isKarinLaw', '==', true), orderBy('createdAt', 'desc'));
