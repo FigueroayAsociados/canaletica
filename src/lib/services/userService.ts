@@ -77,16 +77,52 @@ export interface UserProfile {
    */
   export async function getUserProfileById(companyId: string, userId: string) {
     try {
+      // Caso especial para mvc: Verificar primero si estamos en la URL de mvc
+      // Esta es una solución de emergencia hasta que se solucione el problema de manera permanente
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        const hostParts = hostname.split('.');
+        const subdomain = hostParts[0];
+
+        // Si estamos en el subdominio mvc pero no estamos usando companyId="mvc"
+        if (subdomain === 'mvc' && companyId !== 'mvc') {
+          console.log(`*** HOTFIX [getUserProfileById]: Detectado subdominio mvc pero companyId=${companyId}, forzando companyId=mvc ***`);
+          companyId = 'mvc'; // Forzar el uso de la compañía "mvc"
+        }
+      }
+
+      console.log(`[getUserProfileById] Buscando usuario con ID ${userId} en compañía ${companyId}`);
       const userRef = doc(db, `companies/${companyId}/users`, userId);
       const userSnap = await getDoc(userRef);
-      
+
       if (userSnap.exists()) {
+        console.log(`[getUserProfileById] Usuario con ID ${userId} encontrado en compañía ${companyId}`);
         return {
           success: true,
           userId,
           profile: userSnap.data() as UserProfile,
+          companyId
         };
       } else {
+        console.log(`[getUserProfileById] Usuario con ID ${userId} no encontrado en compañía ${companyId}`);
+
+        // Si el ID de compañía no es "mvc", intentar buscar específicamente en "mvc"
+        if (companyId !== 'mvc') {
+          console.log(`[getUserProfileById] Intentando buscar usuario en compañía "mvc"`);
+          const mvcUserRef = doc(db, `companies/mvc/users`, userId);
+          const mvcUserSnap = await getDoc(mvcUserRef);
+
+          if (mvcUserSnap.exists()) {
+            console.log(`[getUserProfileById] Usuario encontrado en compañía "mvc"`);
+            return {
+              success: true,
+              userId,
+              profile: mvcUserSnap.data() as UserProfile,
+              companyId: 'mvc'
+            };
+          }
+        }
+
         return {
           success: false,
           error: 'Usuario no encontrado',

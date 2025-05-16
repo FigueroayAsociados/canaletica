@@ -53,15 +53,31 @@ export function useCurrentUser(): CurrentUser {
         return;
       }
 
+      let targetCompanyId = companyId;
+
+      // Caso especial para mvc: Verificar primero si estamos en la URL de mvc
+      // Esta es una solución de emergencia hasta que se solucione el problema de manera permanente
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        const hostParts = hostname.split('.');
+        const subdomain = hostParts[0];
+
+        // Si estamos en el subdominio mvc pero no estamos usando companyId="mvc"
+        if (subdomain === 'mvc' && companyId !== 'mvc') {
+          console.log(`*** HOTFIX [useCurrentUser]: Detectado subdominio mvc pero companyId=${companyId}, forzando companyId=mvc ***`);
+          targetCompanyId = 'mvc'; // Forzar el uso de la compañía "mvc"
+        }
+      }
+
       try {
         // Primero verificar si es un super admin
         const superAdminRef = doc(db, `super_admins/${currentUser.uid}`);
         const superAdminSnap = await getDoc(superAdminRef);
-        
+
         if (superAdminSnap.exists()) {
           // Es un super admin
           setIsSuperAdmin(true);
-          
+
           // Crear un perfil con todos los privilegios
           setProfile({
             displayName: currentUser.displayName || 'Super Administrador',
@@ -71,19 +87,36 @@ export function useCurrentUser(): CurrentUser {
             permissions: ['*'], // El comodín indica acceso total
             createdAt: new Date()  // Usar Date en lugar de serverTimestamp para el perfil local
           });
-          
+
           setIsLoading(false);
           return;
         }
-        
+
         // Si no es super admin, obtener perfil normal
-        const result = await getUserProfileById(companyId, currentUser.uid);
-        
+        console.log(`[useCurrentUser] Buscando perfil para UID ${currentUser.uid} en compañía ${targetCompanyId}`);
+        const result = await getUserProfileById(targetCompanyId, currentUser.uid);
+
         if (result.success && result.profile) {
+          console.log(`[useCurrentUser] Perfil encontrado para ${currentUser.uid} en compañía ${targetCompanyId}`);
           setProfile(result.profile);
           setIsSuperAdmin(false);
         } else {
-          setError('No se pudo cargar el perfil de usuario');
+          console.log(`[useCurrentUser] No se encontró perfil para ${currentUser.uid} en compañía ${targetCompanyId}`);
+
+          // Si no se encuentra en targetCompanyId, intentar en mvc específicamente
+          if (targetCompanyId !== 'mvc') {
+            console.log(`[useCurrentUser] Intentando buscar en mvc como último recurso`);
+            const mvcResult = await getUserProfileById('mvc', currentUser.uid);
+
+            if (mvcResult.success && mvcResult.profile) {
+              console.log(`[useCurrentUser] Encontrado perfil en compañía mvc`);
+              setProfile(mvcResult.profile);
+              setIsSuperAdmin(false);
+              return;
+            }
+          }
+
+          setError('Usuario no tiene perfil en el sistema. Contacte al administrador.');
           setProfile(null);
           setIsSuperAdmin(false);
         }
