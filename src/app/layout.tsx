@@ -26,11 +26,11 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${inter.variable} antialiased`}>
         <ReactQueryProvider>
-          <AuthProvider>
-            <CompanyProvider>
+          <CompanyProvider>
+            <AuthProvider>
               {children}
-            </CompanyProvider>
-          </AuthProvider>
+            </AuthProvider>
+          </CompanyProvider>
         </ReactQueryProvider>
       </body>
     </html>

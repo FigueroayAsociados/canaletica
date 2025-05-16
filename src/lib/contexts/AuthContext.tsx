@@ -58,16 +58,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Obtener el companyId del CompanyContext
-  const companyContext = useCompany();
+  // Obtener el companyId del CompanyContext, manejando el caso en que no esté disponible
+  let companyContext;
+  try {
+    companyContext = useCompany();
+    logger.info(`AuthContext: CompanyContext disponible, companyId = ${companyContext?.companyId || 'no definido'}`, null, { prefix: 'AuthContext' });
+  } catch (error) {
+    logger.error('Error al acceder a CompanyContext:', error);
+    companyContext = null;
+  }
 
   // Intentar recuperar la empresa seleccionada, con prioridad:
   // 1. El ID de la compañía detectado por CompanyContext
   // 2. localStorage (para super admin que ha cambiado manualmente)
   // 3. DEFAULT_COMPANY_ID como último recurso
   const initialCompanyId = typeof window !== 'undefined'
-    ? companyContext.companyId || localStorage.getItem('selectedCompanyId') || DEFAULT_COMPANY_ID
+    ? (companyContext?.companyId || localStorage.getItem('selectedCompanyId') || DEFAULT_COMPANY_ID)
     : DEFAULT_COMPANY_ID;
+
+  logger.info(`AuthContext: initialCompanyId = ${initialCompanyId}`, null, { prefix: 'AuthContext' });
 
   const [companyId, setCompanyId] = useState<string>(initialCompanyId);
 
@@ -75,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Usar el companyId actual del CompanyContext al iniciar sesión
       // Esto asegura que siempre usemos el ID correcto detectado del subdominio
-      const loginCompanyId = companyContext.companyId || companyId;
+      const loginCompanyId = companyContext?.companyId || companyId;
 
       logger.info(`Intentando login con email: ${email} en compañía: ${loginCompanyId}`, null,
         { prefix: 'AuthContext.login' });
@@ -195,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Asegurarnos de usar el companyId más actualizado
       // Prioridad: CompanyContext > estado local
-      const refreshCompanyId = companyContext.companyId || companyId;
+      const refreshCompanyId = companyContext?.companyId || companyId;
 
       logger.info(`Recargando perfil para ${currentUser.email} en compañía ${refreshCompanyId}`, null,
         { prefix: 'AuthContext', userId: currentUser?.uid });
@@ -242,12 +251,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   // Efecto para actualizar el companyId cuando cambia en CompanyContext
   useEffect(() => {
-    if (companyContext.companyId && companyContext.companyId !== companyId) {
+    if (companyContext && companyContext.companyId && companyContext.companyId !== companyId) {
       logger.info(`Actualizando companyId en AuthContext de ${companyId} a ${companyContext.companyId}`, null,
         { prefix: 'AuthContext' });
       setCompanyId(companyContext.companyId);
     }
-  }, [companyContext.companyId, companyId]);
+  }, [companyContext, companyContext?.companyId, companyId]);
 
   useEffect(() => {
     // Verificar si el modo demo está activo
