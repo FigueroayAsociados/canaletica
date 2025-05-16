@@ -30,7 +30,9 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   // Asegurar que solo se puedan ver métricas de la compañía del usuario
-  const userCompanyId = profile?.company || companyId;
+  // Los super admin pueden ver cualquier compañía (la que esté en el contexto)
+  // Los admin regulares sólo pueden ver la compañía de su perfil
+  const userCompanyId = profile?.role === 'super_admin' ? companyId : (profile?.company || companyId);
 
   const fetchMetrics = async () => {
     try {

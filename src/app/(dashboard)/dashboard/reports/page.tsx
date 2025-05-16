@@ -60,8 +60,9 @@ export default function ReportsPage() {
   });
 
   // Asegurar que el usuario solo pueda ver denuncias de su compañía
-  // Usar el company del perfil del usuario o el companyId del contexto
-  const userCompanyId = profile?.company || companyId;
+  // Los super admin pueden ver cualquier compañía (la que esté en el contexto)
+  // Los admin regulares sólo pueden ver la compañía de su perfil
+  const userCompanyId = profile?.role === 'super_admin' ? companyId : (profile?.company || companyId);
 
   // Usar React Query para cargar los datos
   const { data, isLoading, isError, error } = useReports(userCompanyId);

@@ -23,7 +23,10 @@ export default function DeleteReportsPage() {
   // Asegurar que solo podamos ver/eliminar denuncias de la compañía actual
   // Si se intenta manipular la URL para acceder a otra compañía, se usará
   // la compañía del perfil del usuario
-  const userCompanyId = profile?.company || companyId;
+  const userCompanyId = isSuperAdmin ? companyId : (profile?.company || companyId);
+
+  // Superadmin usa el companyId del contexto (puede cambiar entre compañías)
+  // Admin regular usa su compañía fija (no puede ver otras compañías)
 
   // Usar React Query para cargar los datos
   const { data, isLoading, isError, error } = useReports(userCompanyId);
