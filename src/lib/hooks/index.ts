@@ -20,4 +20,4 @@ export * from './useConfig';
 export * from './useDocuments';
 
 // Hook adaptador para CompanyContext
-// export * from './useCompany'; // Importar directamente
+export * from './useCompany'; // Restaurado por compatibilidad

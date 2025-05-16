@@ -21,6 +21,7 @@ import { DEFAULT_COMPANY_ID, UserRole, ADMIN_UIDS } from '@/lib/utils/constants/
 import { UserProfile } from '@/lib/services/userService';
 import { logger } from '@/lib/utils/logger';
 import { CompanyContext } from './CompanyContext';
+import { useCompanyDetection } from '@/lib/utils/companyDetection';
 
 type AuthContextType = {
   currentUser: User | null;
@@ -58,32 +59,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Obtener el companyId del CompanyContext, manejando el caso en que no esté disponible
-  let companyContext;
-  try {
-    companyContext = useContext(CompanyContext);
-    logger.info(`AuthContext: CompanyContext disponible, companyId = ${companyContext?.companyId || 'no definido'}`, null, { prefix: 'AuthContext' });
-  } catch (error) {
-    logger.error('Error al acceder a CompanyContext:', error);
-    companyContext = null;
-  }
+  // Obtener la información de la empresa desde el contexto
+  const companyContext = useContext(CompanyContext);
+  
+  // Usar el hook de detección de compañía como respaldo
+  // (cuando estamos en un Provider que no puede acceder a CompanyContext)
+  const { normalizedId: detectedCompanyId } = useCompanyDetection();
 
-  // Intentar recuperar la empresa seleccionada, con prioridad:
-  // 1. El ID de la compañía detectado por CompanyContext
-  // 2. localStorage (para super admin que ha cambiado manualmente)
-  // 3. DEFAULT_COMPANY_ID como último recurso
+  // Determinar el companyId actual
+  // Prioridad: context > localStorage > detectado > default
   const initialCompanyId = typeof window !== 'undefined'
-    ? (companyContext?.companyId || localStorage.getItem('selectedCompanyId') || DEFAULT_COMPANY_ID)
+    ? (companyContext?.companyId || localStorage.getItem('selectedCompanyId') || detectedCompanyId || DEFAULT_COMPANY_ID)
     : DEFAULT_COMPANY_ID;
 
   logger.info(`AuthContext: initialCompanyId = ${initialCompanyId}`, null, { prefix: 'AuthContext' });
-
+  
   const [companyId, setCompanyId] = useState<string>(initialCompanyId);
 
   async function login(email: string, password: string) {
     try {
-      // Usar el companyId actual del CompanyContext al iniciar sesión
-      // Esto asegura que siempre usemos el ID correcto detectado del subdominio
+      // Usar el companyId actual del contexto o del estado
       const loginCompanyId = companyContext?.companyId || companyId;
 
       logger.info(`Intentando login con email: ${email} en compañía: ${loginCompanyId}`, null,
@@ -92,7 +87,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await signInWithEmailAndPassword(auth, email, password);
 
       // Obtener el perfil del usuario y actualizar el último inicio de sesión
-      // Usamos explícitamente el companyId de CompanyContext para la búsqueda
       const userProfileResult = await getUserProfileByEmail(loginCompanyId, email);
 
       if (userProfileResult.success && userProfileResult.profile) {
@@ -203,7 +197,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // Asegurarnos de usar el companyId más actualizado
-      // Prioridad: CompanyContext > estado local
       const refreshCompanyId = companyContext?.companyId || companyId;
 
       logger.info(`Recargando perfil para ${currentUser.email} en compañía ${refreshCompanyId}`, null,
@@ -256,7 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         { prefix: 'AuthContext' });
       setCompanyId(companyContext.companyId);
     }
-  }, [companyContext, companyContext?.companyId, companyId]);
+  }, [companyContext, companyId]);
 
   useEffect(() => {
     // Verificar si el modo demo está activo
@@ -355,7 +348,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [companyId]);
+  }, [companyId, DEMO_MODE]);
 
   const value = {
     currentUser,
