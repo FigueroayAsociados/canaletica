@@ -4,12 +4,11 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-// Eliminada la dependencia de authentication
 import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants/index';
-import { normalizeCompanyId } from '@/lib/utils/helpers';
 import { logger } from '@/lib/utils/logger';
+import { useCompanyDetection } from '@/lib/utils/companyDetection';
 
 interface CompanyContextType {
   companyId: string;
@@ -32,137 +31,15 @@ const defaultContextValue: CompanyContextType = {
 
 const CompanyContext = createContext<CompanyContextType>(defaultContextValue);
 
-// Mapeo de dominios personalizados a IDs de empresa (para clientes premium)
-// Esto podría cargarse desde la base de datos en una implementación real
-const domainMapping: Record<string, string> = {
-  'denuncias.empresa1.com': 'empresa1',
-  'canal.acme.com': 'acme'
-  // Añadir más mapeos según sea necesario
-};
-
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [companyData, setCompanyData] = useState<CompanyContextType>(defaultContextValue);
-  const [isInitialized, setIsInitialized] = useState(false);
   const pathname = usePathname();
-
-  // Función para detectar el ID de la compañía de forma independiente
-  const detectCompanyId = () => {
-    // Implementación para multi-tenant
-    let extractedId = DEFAULT_COMPANY_ID;
-    let detectionMethod = 'default';
-
-    try {
-      // 1. Intentar recuperar de localStorage primero (como una caché)
-      if (typeof window !== 'undefined') {
-        try {
-          const cachedId = localStorage.getItem('detectedCompanyId');
-          const timestamp = localStorage.getItem('detectionTimestamp');
-
-          if (cachedId && timestamp) {
-            // Verificar si el cache es reciente (menos de 1 hora)
-            const cacheTime = new Date(timestamp).getTime();
-            const now = new Date().getTime();
-            const cacheAgeMs = now - cacheTime;
-
-            if (cacheAgeMs < 3600000) { // 1 hora en ms
-              logger.info(`🔄 Usando companyId en caché: ${cachedId} (${Math.round(cacheAgeMs/1000)}s)`, null, { prefix: 'CompanyContext' });
-              extractedId = cachedId;
-              detectionMethod = 'cached';
-            }
-          }
-        } catch (e) {
-          // Ignorar errores de localStorage
-          logger.warn(`Error al leer caché: ${e}`, null, { prefix: 'CompanyContext' });
-        }
-      }
-
-      // 2. Verificar rutas (/empresa/[companyId]/...)
-      if (pathname) {
-        const pathParts = pathname.split('/');
-        if (pathParts.length > 2 && pathParts[1] === 'empresa' && pathParts[2]) {
-          extractedId = pathParts[2];
-          detectionMethod = 'route';
-          logger.info(`🛣️ ID detectado en ruta: ${extractedId}`, null, { prefix: 'CompanyContext' });
-        }
-      }
-
-      // 3. Verificar subdominios y dominios personalizados
-      if (typeof window !== 'undefined' && detectionMethod === 'default' || detectionMethod === 'cached') {
-        const hostname = window.location.hostname;
-        logger.info(`🔍 Analizando hostname: ${hostname}`, null, { prefix: 'CompanyContext' });
-
-        // Verificar si es un dominio personalizado
-        if (domainMapping[hostname]) {
-          extractedId = domainMapping[hostname];
-          detectionMethod = 'custom-domain';
-          logger.info(`🏢 Dominio personalizado detectado: ${hostname} -> ${extractedId}`, null, { prefix: 'CompanyContext' });
-        }
-        // Verificar si es un subdominio
-        else {
-          const hostParts = hostname.split('.');
-          const subdomain = hostParts[0]?.toLowerCase();
-
-          // Es un subdominio que no es www ni localhost ni el dominio principal
-          if (subdomain &&
-              hostname !== 'localhost' &&
-              subdomain !== 'www' &&
-              subdomain !== 'canaletic' &&
-              subdomain !== 'canaletica' &&
-              hostParts.length > 1) {
-
-            logger.info(`✅ Subdominio válido detectado: ${subdomain}`, null, { prefix: 'CompanyContext' });
-
-            // Solo sobrescribir el ID si no lo obtuvimos de una fuente más confiable
-            if (detectionMethod === 'default' || detectionMethod === 'cached') {
-              extractedId = subdomain;
-              detectionMethod = 'subdomain';
-
-              // Persistir para ayudar en debug y recuperación
-              try {
-                localStorage.setItem('detectedCompanyId', subdomain);
-                localStorage.setItem('detectionTimestamp', new Date().toISOString());
-                logger.info(`💾 Guardado en localStorage: ${subdomain}`, null, { prefix: 'CompanyContext' });
-              } catch (e) {
-                logger.warn(`Error al guardar en localStorage: ${e}`, null, { prefix: 'CompanyContext' });
-              }
-            }
-          } else {
-            // 4. Verificar parámetros de URL como última opción
-            try {
-              const urlParams = new URLSearchParams(window.location.search);
-              const companyParam = urlParams.get('company');
-              if (companyParam) {
-                extractedId = companyParam;
-                detectionMethod = 'query-param';
-                logger.info(`🔗 ID detectado en parámetro URL: ${companyParam}`, null, { prefix: 'CompanyContext' });
-              }
-            } catch (e) {
-              logger.warn(`Error al leer parámetros URL: ${e}`, null, { prefix: 'CompanyContext' });
-            }
-          }
-        }
-      }
-    } catch (error) {
-      logger.error(`❌ Error en detección de compañía: ${error}`, null, { prefix: 'CompanyContext' });
-    }
-
-    // Guardar el ID original y normalizado
-    const originalId = extractedId;
-    const normalizedId = normalizeCompanyId(extractedId);
-
-    if (normalizedId !== originalId) {
-      logger.info(`🔄 ID normalizado: ${originalId} -> ${normalizedId}`, null, { prefix: 'CompanyContext' });
-    }
-
-    logger.info(`🏢 Company ID final: ${normalizedId} (original: ${originalId}, método: ${detectionMethod})`, null, { prefix: 'CompanyContext' });
-    return { normalizedId, originalId };
-  };
+  
+  // Usar el hook de detección de compañía que extrajimos
+  const { normalizedId, originalId } = useCompanyDetection();
 
   useEffect(() => {
-    // Cargar inmediatamente datos de la empresa sin depender de autenticación
-
-    // Usar la nueva función detectCompanyId que no depende de autenticación
-
+    // Cargar datos de la empresa sin depender de autenticación
     const loadCompanyData = async (id: string, originalId: string) => {
       try {
         // Intentar cargar la configuración de la empresa
@@ -230,10 +107,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const { normalizedId, originalId } = detectCompanyId();
     console.log(`CompanyContext: Cargando datos para compañía. ID normalizado: "${normalizedId}", ID original: "${originalId}"`);
     loadCompanyData(normalizedId, originalId);
-  }, [pathname]);
+  }, [pathname, normalizedId, originalId]);
 
   return (
     <CompanyContext.Provider value={companyData}>
@@ -267,7 +143,6 @@ export function useCompany() {
 
           // Si el context.companyId no coincide con el subdominio, aplicar corrección de seguridad
           if (context.companyId !== subdomain &&
-              context.companyId !== normalizeCompanyId(subdomain) &&
               context.originalCompanyId !== subdomain) {
 
             logger.warn(`🔐 CORRECCIÓN DE SEGURIDAD: Detectado subdominio ${subdomain} pero context.companyId=${context.companyId}. ¡Aplicando restricción!`, null, { prefix: 'useCompany' });
@@ -326,3 +201,6 @@ export function useCompany() {
     return defaultContextValue;
   }
 }
+
+// Exportar el contexto para que pueda ser usado en AuthContext y otros componentes
+export { CompanyContext };

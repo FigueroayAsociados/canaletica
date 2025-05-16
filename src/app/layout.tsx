@@ -3,9 +3,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from '@/lib/contexts/AuthContext';
-import { CompanyProvider } from '@/lib/contexts/CompanyContext';
-import { ReactQueryProvider } from '@/lib/contexts/ReactQueryProvider';
+import { AppProviders } from '@/lib/contexts/AppProviders';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,13 +23,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${inter.variable} antialiased`}>
-        <ReactQueryProvider>
-          <CompanyProvider>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
-          </CompanyProvider>
-        </ReactQueryProvider>
+        <AppProviders>
+          {children}
+        </AppProviders>
       </body>
     </html>
   );
