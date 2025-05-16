@@ -1,7 +1,7 @@
 // src/lib/hooks/useAlerts.ts
 
-import { useState, useCallback, useEffect } from 'react';
-import { useCompany } from '@/lib/hooks';
+import { useState, useCallback, useEffect, useContext } from 'react';
+import { CompanyContext } from '@/lib/contexts/CompanyContext';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import alertService, { 
@@ -16,7 +16,8 @@ import alertService, {
  * Hook personalizado para la gestión de alertas inteligentes
  */
 export function useAlerts() {
-  const { companyId } = useCompany();
+  const companyContext = useContext(CompanyContext);
+  const { companyId } = companyContext;
   const { isEnabled } = useFeatureFlags();
   const { profile } = useCurrentUser();
   

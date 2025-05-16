@@ -1,12 +1,13 @@
 // src/lib/hooks/useFeatureFlags.ts
 
-import { useState, useEffect, useCallback } from 'react';
-import { useCompany } from '@/lib/hooks';
+import { useState, useEffect, useCallback, useContext } from 'react';
+import { CompanyContext } from '@/lib/contexts/CompanyContext';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { FeatureFlags, getFeatureFlags, updateFeatureFlag } from '@/lib/services/featureFlagService';
 
 export function useFeatureFlags() {
-  const { companyId } = useCompany();
+  const companyContext = useContext(CompanyContext);
+  const { companyId } = companyContext;
   // Usar useAuth en lugar de useCurrentUser para evitar dependencia circular
   const { currentUser, isSuperAdmin } = useAuth();
   const [features, setFeatures] = useState<FeatureFlags | null>(null);

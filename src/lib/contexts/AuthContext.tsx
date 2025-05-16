@@ -20,7 +20,8 @@ import { getUserProfileByEmail, updateLastLogin } from '@/lib/services/userServi
 import { DEFAULT_COMPANY_ID, UserRole, ADMIN_UIDS } from '@/lib/utils/constants/index';
 import { UserProfile } from '@/lib/services/userService';
 import { logger } from '@/lib/utils/logger';
-import { useCompany } from './CompanyContext';
+import { useContext } from 'react';
+import { CompanyContext } from './CompanyContext';
 
 type AuthContextType = {
   currentUser: User | null;
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Obtener el companyId del CompanyContext, manejando el caso en que no esté disponible
   let companyContext;
   try {
-    companyContext = useCompany();
+    companyContext = useContext(CompanyContext);
     logger.info(`AuthContext: CompanyContext disponible, companyId = ${companyContext?.companyId || 'no definido'}`, null, { prefix: 'AuthContext' });
   } catch (error) {
     logger.error('Error al acceder a CompanyContext:', error);

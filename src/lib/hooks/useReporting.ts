@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useCompany } from '@/lib/hooks';
+import { useState, useCallback, useEffect, useContext } from 'react';
+import { CompanyContext } from '@/lib/contexts/CompanyContext';
 import { 
   getReportingSummary, 
   getReportTrends,
@@ -13,7 +13,8 @@ import {
 } from '@/lib/services/reportingService';
 
 export function useReporting() {
-  const { companyId } = useCompany();
+  const companyContext = useContext(CompanyContext);
+  const { companyId } = companyContext;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportingSummary, setReportingSummary] = useState<ReportingSummary | null>(null);

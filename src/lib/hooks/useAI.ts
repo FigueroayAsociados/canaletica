@@ -1,7 +1,7 @@
 // src/lib/hooks/useAI.ts
 
-import { useState, useCallback } from 'react';
-import { useCompany } from '@/lib/hooks';
+import { useState, useCallback, useContext } from 'react';
+import { CompanyContext } from '@/lib/contexts/CompanyContext';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import aiService, {
   RiskAnalysisParams,
@@ -23,7 +23,7 @@ import aiService, {
  * React, gestionando estados de carga, errores y resultados.
  */
 export function useAI() {
-  const { companyId } = useCompany();
+  const { companyId } = useContext(CompanyContext);
   const { isEnabled } = useFeatureFlags();
   
   // Estado para análisis de riesgo

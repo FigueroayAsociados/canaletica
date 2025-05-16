@@ -1,9 +1,9 @@
 // src/lib/hooks/useCurrentUser.ts
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getUserProfileById } from '@/lib/services/userService';
-import { useCompany } from '@/lib/hooks';
+import { CompanyContext } from '@/lib/contexts/CompanyContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 
@@ -39,10 +39,10 @@ interface CurrentUser {
 export function useCurrentUser(): CurrentUser {
   const { currentUser } = useAuth();
   
-  // Obtener la compañía de forma segura con manejo de errores
+  // Obtener la compañía directamente del contexto con manejo de errores
   let companyIdFromContext = 'default';
   try {
-    const companyContext = useCompany();
+    const companyContext = useContext(CompanyContext);
     companyIdFromContext = companyContext?.companyId || 'default';
     console.log(`[useCurrentUser] Obtenido companyId desde Context: ${companyIdFromContext}`);
   } catch (error) {
