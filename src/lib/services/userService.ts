@@ -112,18 +112,32 @@ export interface UserProfile {
           error: 'Email no proporcionado',
         };
       }
-      
+
+      // Caso especial para mvc: Verificar primero si estamos en la URL de mvc
+      // Esta es una solución de emergencia hasta que se solucione el problema de manera permanente
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        const hostParts = hostname.split('.');
+        const subdomain = hostParts[0];
+
+        // Si estamos en el subdominio mvc pero no estamos usando companyId="mvc"
+        if (subdomain === 'mvc' && companyId !== 'mvc') {
+          console.log(`*** HOTFIX: Detectado subdominio mvc pero companyId=${companyId}, forzando companyId=mvc ***`);
+          companyId = 'mvc'; // Forzar el uso de la compañía "mvc"
+        }
+      }
+
       // Verificar primero si existe la colección de super_admins
       try {
         // Buscar si el usuario es super admin
         const superAdminsRef = collection(db, 'super_admins');
         const superAdminQ = query(superAdminsRef, where('email', '==', email));
         const superAdminSnapshot = await getDocs(superAdminQ);
-        
+
         if (!superAdminSnapshot.empty) {
           const superAdminDoc = superAdminSnapshot.docs[0];
           const superAdminData = superAdminDoc.data();
-          
+
           // Crear un perfil especial para super admin
           return {
             success: true,
@@ -144,14 +158,16 @@ export interface UserProfile {
         console.warn('Error al verificar super_admins:', superAdminError);
         // Continuar con la búsqueda normal si falla la verificación de super_admin
       }
-      
+
       // Buscar en la compañía actual
+      console.log(`Buscando usuario ${email} en compañía ${companyId}`);
       const usersRef = collection(db, `companies/${companyId}/users`);
       const q = query(usersRef, where('email', '==', email));
       const querySnapshot = await getDocs(q);
-      
+
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
+        console.log(`Usuario ${email} encontrado en compañía ${companyId}`);
         return {
           success: true,
           userId: userDoc.id,
@@ -159,19 +175,19 @@ export interface UserProfile {
         };
       } else {
         console.log(`Usuario con email ${email} no encontrado en compañía ${companyId}`);
-        
+
         // Intentar buscar en todas las compañías
         const companiesRef = collection(db, 'companies');
         const companiesSnapshot = await getDocs(companiesRef);
-        
+
         for (const companyDoc of companiesSnapshot.docs) {
           const otherCompanyId = companyDoc.id;
           if (otherCompanyId === companyId) continue;
-          
+
           const otherUsersRef = collection(db, `companies/${otherCompanyId}/users`);
           const otherQ = query(otherUsersRef, where('email', '==', email));
           const otherQuerySnapshot = await getDocs(otherQ);
-          
+
           if (!otherQuerySnapshot.empty) {
             const userDoc = otherQuerySnapshot.docs[0];
             console.log(`Usuario encontrado en otra compañía: ${otherCompanyId}`);
@@ -183,7 +199,7 @@ export interface UserProfile {
             };
           }
         }
-        
+
         return {
           success: false,
           error: 'Usuario no encontrado en ninguna compañía',
