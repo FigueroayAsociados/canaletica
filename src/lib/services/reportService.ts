@@ -22,14 +22,16 @@ import {
   import { v4 as uuidv4 } from 'uuid';
   import { ReportFormValues, KarinProcessStage } from '@/types/report';
   import { getUserProfileById } from './userService';
-  import { 
-    notifyReportCreated, 
-    notifyAdminsNewReport, 
-    notifyInvestigatorAssigned, 
+  import {
+    notifyReportCreated,
+    notifyAdminsNewReport,
+    notifyInvestigatorAssigned,
     notifyRecommendationDueSoon,
     notifyReportClosed,
     createNotification
   } from './notificationService';
+  // Importar utilidades de control de acceso para centralizar verificaciones de seguridad
+  import { verifyCompanyAccess } from '@/lib/utils/accessControl';
   // Importación que funciona tanto en SSR como en cliente
 // No importamos directamente para evitar errores durante el SSR
 let PDFDocument = null;
@@ -434,30 +436,14 @@ export async function getReportByCode(
       };
     }
 
-    // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
-    // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
-    if (userRole === 'admin' && userId) {
-      // Obtener el perfil del usuario para verificar a qué compañía pertenece
-      try {
-        const userRef = doc(db, `companies/${companyId}/users/${userId}`);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-
-          // Si el usuario pertenece a otra compañía, bloquear el acceso
-          if (userData.company && userData.company !== companyId) {
-            console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a denuncia por código en compañía ${companyId} pero pertenece a ${userData.company}`);
-            return {
-              success: false,
-              error: 'No tiene permiso para acceder a los datos de esta compañía'
-            };
-          }
-        }
-      } catch (error) {
-        console.error('Error al verificar el perfil del usuario:', error);
-        console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
-      }
+    // Verificación centralizada de acceso multi-tenant
+    const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+    if (!accessCheck.success) {
+      console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a denuncia por código ${reportCode} de compañía ${companyId}`);
+      return {
+        success: false,
+        error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía'
+      };
     }
 
     const reportsRef = collection(db, `companies/${companyId}/reports`);
@@ -563,32 +549,15 @@ export async function getReportByCodeAndAccessCode(
         };
       }
 
-      // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
-      // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
-      if (userRole === 'admin' && userId) {
-        // Obtener el perfil del usuario para verificar a qué compañía pertenece
-        try {
-          const userRef = doc(db, `companies/${companyId}/users/${userId}`);
-          const userSnap = await getDoc(userRef);
-
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-
-            // Si el usuario pertenece a otra compañía, bloquear el acceso
-            if (userData.company && userData.company !== companyId) {
-              console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a compañía ${companyId} pero pertenece a ${userData.company}`);
-              return {
-                success: false,
-                error: 'No tiene permiso para acceder a los datos de esta compañía',
-                reports: []
-              };
-            }
-          }
-        } catch (error) {
-          console.error('Error al verificar el perfil del usuario:', error);
-          // En caso de error, permitimos continuar pero con un warning
-          console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
-        }
+      // Verificación centralizada de acceso multi-tenant
+      const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+      if (!accessCheck.success) {
+        console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a todos los reportes de compañía ${companyId}`);
+        return {
+          success: false,
+          error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía',
+          reports: []
+        };
       }
 
       console.log(`Buscando denuncias en: companies/${companyId}/reports`);
@@ -655,31 +624,14 @@ export async function getReportByCodeAndAccessCode(
     userId?: string | null
   ) {
     try {
-      // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
-      // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
-      if (userRole === 'admin' && userId) {
-        // Obtener el perfil del usuario para verificar a qué compañía pertenece
-        try {
-          const userRef = doc(db, `companies/${companyId}/users/${userId}`);
-          const userSnap = await getDoc(userRef);
-
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-
-            // Si el usuario pertenece a otra compañía, bloquear el acceso
-            if (userData.company && userData.company !== companyId) {
-              console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a compañía ${companyId} pero pertenece a ${userData.company}`);
-              return {
-                success: false,
-                error: 'No tiene permiso para acceder a los datos de esta compañía'
-              };
-            }
-          }
-        } catch (error) {
-          console.error('Error al verificar el perfil del usuario:', error);
-          // En caso de error, permitimos continuar pero con un warning
-          console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
-        }
+      // Verificación centralizada de acceso multi-tenant
+      const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+      if (!accessCheck.success) {
+        console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder al reporte ${reportId} de compañía ${companyId}`);
+        return {
+          success: false,
+          error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía'
+        };
       }
 
       const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
@@ -992,30 +944,14 @@ export async function addCommunicationByCode(
         };
       }
 
-      // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
-      // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
-      if (userRole === 'admin' && userId) {
-        // Obtener el perfil del usuario para verificar a qué compañía pertenece
-        try {
-          const userRef = doc(db, `companies/${companyId}/users/${userId}`);
-          const userSnap = await getDoc(userRef);
-
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-
-            // Si el usuario pertenece a otra compañía, bloquear el acceso
-            if (userData.company && userData.company !== companyId) {
-              console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a estadísticas de compañía ${companyId} pero pertenece a ${userData.company}`);
-              return {
-                success: false,
-                error: 'No tiene permiso para acceder a los datos de esta compañía'
-              };
-            }
-          }
-        } catch (error) {
-          console.error('Error al verificar el perfil del usuario:', error);
-          console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
-        }
+      // Verificación centralizada de acceso multi-tenant
+      const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+      if (!accessCheck.success) {
+        console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a estadísticas de compañía ${companyId}`);
+        return {
+          success: false,
+          error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía'
+        };
       }
 
       // Referencia a las estadísticas (doc único)
@@ -3152,31 +3088,15 @@ export async function getKarinReports(
       };
     }
 
-    // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
-    // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
-    if (userRole === 'admin' && userId) {
-      // Obtener el perfil del usuario para verificar a qué compañía pertenece
-      try {
-        const userRef = doc(db, `companies/${companyId}/users/${userId}`);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-
-          // Si el usuario pertenece a otra compañía, bloquear el acceso
-          if (userData.company && userData.company !== companyId) {
-            console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a denuncias Karin de compañía ${companyId} pero pertenece a ${userData.company}`);
-            return {
-              success: false,
-              error: 'No tiene permiso para acceder a los datos de esta compañía',
-              reports: []
-            };
-          }
-        }
-      } catch (error) {
-        console.error('Error al verificar el perfil del usuario:', error);
-        console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
-      }
+    // Verificación centralizada de acceso multi-tenant
+    const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+    if (!accessCheck.success) {
+      console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a reportes Karin de compañía ${companyId}`);
+      return {
+        success: false,
+        error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía',
+        reports: []
+      };
     }
 
     // Obtener todas las denuncias de Ley Karin
@@ -5494,34 +5414,14 @@ export async function deleteReport(
       };
     }
 
-    // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
-    // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
-    if (userRole === 'admin' && userId) {
-      // Obtener el perfil del usuario para verificar a qué compañía pertenece
-      try {
-        const userRef = doc(db, `companies/${companyId}/users/${userId}`);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-
-          // Si el usuario pertenece a otra compañía, bloquear el acceso
-          if (userData.company && userData.company !== companyId) {
-            console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó eliminar denuncia de compañía ${companyId} pero pertenece a ${userData.company}`);
-            return {
-              success: false,
-              error: 'No tiene permiso para eliminar datos de esta compañía'
-            };
-          }
-        }
-      } catch (error) {
-        console.error('Error al verificar el perfil del usuario:', error);
-        // En caso de error, RECHAZAMOS LA OPERACIÓN por seguridad
-        return {
-          success: false,
-          error: 'Error de seguridad al verificar permisos. Operación abortada.'
-        };
-      }
+    // Verificación centralizada de acceso multi-tenant
+    const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+    if (!accessCheck.success) {
+      console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó eliminar denuncia ${reportId} de compañía ${companyId}`);
+      return {
+        success: false,
+        error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía'
+      };
     }
 
     console.log(`Intentando eliminar denuncia: companies/${companyId}/reports/${reportId}`);

@@ -87,11 +87,15 @@ export default function AdminLeyKarinPage() {
     }
   });
   
-  const { 
-    data: reportsData, 
-    isLoading: isLoadingReports, 
-    error: reportsError 
-  } = useKarinReports(companyId);
+  // Extraer uid y role para verificaciones de seguridad
+  const uid = profile?.uid;
+  const userRole = profile?.role;
+
+  const {
+    data: reportsData,
+    isLoading: isLoadingReports,
+    error: reportsError
+  } = useKarinReports(companyId, userRole, uid);
   
   const updateStageMutation = useUpdateKarinStage();
   

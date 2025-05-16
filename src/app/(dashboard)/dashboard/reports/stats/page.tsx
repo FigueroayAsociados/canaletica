@@ -23,8 +23,10 @@ export default function ReportsStatsPage() {
       try {
         setLoading(true);
 
-        const result = await getReportStatistics(userCompanyId);
-        
+        // Pasar userRole y userId para la verificación de seguridad multi-tenant
+        const userRole = profile?.role;
+        const result = await getReportStatistics(userCompanyId, userRole, uid);
+
         if (result.success) {
           setStats(result.stats);
         } else {
@@ -39,7 +41,7 @@ export default function ReportsStatsPage() {
     }
 
     fetchStats();
-  }, [userCompanyId]);
+  }, [userCompanyId, uid, profile?.role]);
   
   if (!isAdmin) {
     return (

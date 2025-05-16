@@ -82,15 +82,24 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         else {
           const hostParts = hostname.split('.');
           const subdomain = hostParts[0];
-          
+
+          console.log(`CompanyContext: Detectando subdominio. Hostname: "${hostname}", Partes: [${hostParts.join(', ')}], Subdomain: "${subdomain}"`);
+
           // Es un subdominio que no es www ni localhost
-          if (hostname !== 'localhost' && 
-              subdomain !== 'www' && 
-              subdomain !== 'canaletic' && 
+          if (hostname !== 'localhost' &&
+              subdomain !== 'www' &&
+              subdomain !== 'canaletic' &&
               subdomain !== 'canaletica' &&
               hostParts.length > 1) {
             extractedId = subdomain;
             detectionMethod = 'subdomain';
+            console.log(`CompanyContext: Subdominio válido detectado: "${subdomain}" - FIJANDO COMPANY ID = ${subdomain}`);
+
+            // Guardar en localStorage para debug y recuperación
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('lastDetectedSubdomain', subdomain);
+              localStorage.setItem('lastDetectedTimestamp', new Date().toISOString());
+            }
           }
           // Verificar parámetros de URL como última opción
           else {
@@ -186,6 +195,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     };
 
     const { normalizedId, originalId } = extractCompanyId();
+    console.log(`CompanyContext: Cargando datos para compañía. ID normalizado: "${normalizedId}", ID original: "${originalId}"`);
     loadCompanyData(normalizedId, originalId);
   }, [pathname, isAuthenticated]);
 

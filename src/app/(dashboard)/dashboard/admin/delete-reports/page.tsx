@@ -28,8 +28,10 @@ export default function DeleteReportsPage() {
   // Superadmin usa el companyId del contexto (puede cambiar entre compañías)
   // Admin regular usa su compañía fija (no puede ver otras compañías)
 
-  // Usar React Query para cargar los datos
-  const { data, isLoading, isError, error } = useReports(userCompanyId);
+  // Usar React Query para cargar los datos con parámetros de seguridad
+  const uid = profile?.uid;
+  const userRole = profile?.role;
+  const { data, isLoading, isError, error } = useReports(userCompanyId, {}, userRole, uid);
   
   // Estado para los reportes procesados
   const [reports, setReports] = useState<any[]>([]);

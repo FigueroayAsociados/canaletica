@@ -55,17 +55,21 @@ export function useCurrentUser(): CurrentUser {
 
       let targetCompanyId = companyId;
 
-      // Caso especial para mvc: Verificar primero si estamos en la URL de mvc
-      // Esta es una solución de emergencia hasta que se solucione el problema de manera permanente
+      // Verificar si estamos en una subdomain específica y usamos el companyId equivocado
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         const hostParts = hostname.split('.');
-        const subdomain = hostParts[0];
+        const subdomain = hostParts[0].toLowerCase();
 
-        // Si estamos en el subdominio mvc pero no estamos usando companyId="mvc"
-        if (subdomain === 'mvc' && companyId !== 'mvc') {
-          console.log(`*** HOTFIX [useCurrentUser]: Detectado subdominio mvc pero companyId=${companyId}, forzando companyId=mvc ***`);
-          targetCompanyId = 'mvc'; // Forzar el uso de la compañía "mvc"
+        // Si el subdomain es un nombre de empresa pero no coincide con el companyId actual
+        if (subdomain !== 'www' &&
+            subdomain !== 'localhost' &&
+            subdomain !== 'canaletica' &&
+            subdomain !== 'canaletic' &&
+            subdomain !== 'default' &&
+            subdomain !== targetCompanyId) {
+          console.warn(`*** CORRECCIÓN DE SEGURIDAD: Detectado posible mismatch entre subdominio ${subdomain} y companyId=${targetCompanyId}, priorizando subdominio ***`);
+          targetCompanyId = subdomain;
         }
       }
 
