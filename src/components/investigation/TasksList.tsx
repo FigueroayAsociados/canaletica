@@ -13,7 +13,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { addTask, updateTaskStatus } from '@/lib/services/investigationService';
 import { getUsersByRole } from '@/lib/services/userService';
-import { UserRole, DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
+import { UserRole } from '@/lib/utils/constants';
+import { useCompany } from '@/lib/hooks';
 import { formatChileanDate } from '@/lib/utils/dateUtils';
 
 // Esquema de validación para tareas
@@ -41,6 +42,7 @@ export const TasksList: React.FC<TasksListProps> = ({
   onTasksUpdated,
 }) => {
   const { uid, profile } = useCurrentUser();
+  const { companyId } = useCompany();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,7 +54,7 @@ export const TasksList: React.FC<TasksListProps> = ({
   useEffect(() => {
     const loadInvestigators = async () => {
       try {
-        const companyId = DEFAULT_COMPANY_ID; // En un sistema multi-tenant, esto vendría de un contexto o URL
+        // Usar el companyId del contexto (obtenido de useCompany)
         
         // Cargar tanto investigadores como administradores que pueden ser asignados a tareas
         const investigatorsResult = await getUsersByRole(companyId, UserRole.INVESTIGATOR);
@@ -100,7 +102,7 @@ export const TasksList: React.FC<TasksListProps> = ({
     setError(null);
     
     try {
-      const companyId = DEFAULT_COMPANY_ID; // En un sistema multi-tenant, esto vendría de un contexto o URL
+      // Usar el companyId del contexto (obtenido de useCompany)
       
       const result = await addTask(
         companyId,
@@ -141,7 +143,7 @@ export const TasksList: React.FC<TasksListProps> = ({
     setError(null);
     
     try {
-      const companyId = DEFAULT_COMPANY_ID;
+      // Usar el companyId del contexto
       
       const result = await updateTaskStatus(
         companyId,
