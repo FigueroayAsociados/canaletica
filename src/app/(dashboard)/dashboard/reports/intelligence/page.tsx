@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 
 export default function IntelligentReportsPage() {
   const { companyId } = useCompany();

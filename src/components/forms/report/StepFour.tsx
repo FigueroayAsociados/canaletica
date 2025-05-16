@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { getCompanyConfig, CompanyConfig, FormOptionValue, getFormOptions } from '@/lib/services/configService';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface StepFourProps {

@@ -2,7 +2,7 @@
 
 // src/components/ui/environment-indicator-client.tsx
 import { useEffect, useState } from 'react';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { getEnvironmentConfig } from '@/lib/services/environmentService';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { SafeRender } from './safe-render';

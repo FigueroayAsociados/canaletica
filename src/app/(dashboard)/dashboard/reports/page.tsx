@@ -13,7 +13,7 @@ import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useReports } from '@/lib/hooks/useReports';
 import { Spinner } from '@/components/ui/spinner';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 
 // Tipos para los filtros y denuncias
 interface ReportFilters {

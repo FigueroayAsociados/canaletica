@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getCategories, getSubcategories, Category, Subcategory } from '@/lib/services/configService';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 
 interface StepTwoProps {
   formikProps: FormikProps<ReportFormValues>;

@@ -1,7 +1,7 @@
 // src/lib/hooks/useAI.ts
 
 import { useState, useCallback } from 'react';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import aiService, {
   RiskAnalysisParams,

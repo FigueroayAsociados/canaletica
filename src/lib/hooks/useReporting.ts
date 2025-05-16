@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { 
   getReportingSummary, 
   getReportTrends,

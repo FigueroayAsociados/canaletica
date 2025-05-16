@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { Lightbulb, TrendingUp, AlertTriangle, Zap, Calendar, Info } from 'lucide-react';
 import InsightsDashboard from '@/components/ai/InsightsDashboard';
 import Link from 'next/link';

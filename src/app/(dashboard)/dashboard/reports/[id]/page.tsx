@@ -17,7 +17,7 @@ import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import ExportReportPDF from '@/components/reports/ExportReportPDF';
 import RiskAnalysisCard from '@/components/ai/RiskAnalysisCard';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { useAI } from '@/lib/hooks/useAI';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { Spinner } from '@/components/ui/spinner';

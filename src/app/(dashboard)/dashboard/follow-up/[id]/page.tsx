@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { getReportById } from '@/lib/services/reportService';
 import RecommendationsList from '@/components/investigation/RecommendationsList';
 import { Alert } from '@/components/ui/alert';

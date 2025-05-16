@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import Link from 'next/link';
 import { getDashboardMetrics } from '@/lib/services/dashboardService';
 // Removida importación de iconos no utilizados

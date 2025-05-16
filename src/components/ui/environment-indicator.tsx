@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { getEnvironmentConfig } from '@/lib/services/environmentService';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { initializeImpactTypes, initializeReportingChannels } from '@/lib/services/setupService';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 
 export default function InitializeFormOptionsPage() {
   const { isSuperAdmin, isAdmin } = useCurrentUser();

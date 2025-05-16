@@ -1,7 +1,7 @@
 // src/lib/hooks/useFeatureFlags.ts
 
 import { useState, useEffect, useCallback } from 'react';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { FeatureFlags, getFeatureFlags, updateFeatureFlag } from '@/lib/services/featureFlagService';
 

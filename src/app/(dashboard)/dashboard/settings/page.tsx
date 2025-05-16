@@ -29,7 +29,7 @@ import FormOptionsManager from '@/components/settings/FormOptionsManager';
 import RiskQuestionManager from '@/components/settings/RiskQuestionManager';
 import VideosManager from '@/components/settings/VideosManager';
 import { LegalDocumentsManager } from '@/components/settings/LegalDocumentsManager';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 
 export default function SettingsPage() {
   const { uid, isAdmin, isSuperAdmin } = useCurrentUser();

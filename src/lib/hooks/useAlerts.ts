@@ -1,7 +1,7 @@
 // src/lib/hooks/useAlerts.ts
 
 import { useState, useCallback, useEffect } from 'react';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import alertService, { 

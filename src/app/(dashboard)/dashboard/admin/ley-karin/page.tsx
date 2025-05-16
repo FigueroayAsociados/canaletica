@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useCompany } from '@/lib/hooks';
 import { ensureKarinCategoryExists } from '@/lib/services/setupService';
 import { getKarinReports } from '@/lib/services/reportService';
 import { KarinProcessStage, DEFAULT_PRECAUTIONARY_MEASURES, KARIN_RISK_QUESTIONS } from '@/types/report';
