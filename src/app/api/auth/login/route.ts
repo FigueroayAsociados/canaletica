@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth } from '@/lib/firebase/admin';
 import { getAdminFirestore } from '@/lib/firebase/admin';
-import { ADMIN_UIDS, UserRole } from '@/lib/utils/constants/index';
+import { ADMIN_UIDS, UserRole, DEFAULT_COMPANY_ID } from '@/lib/utils/constants/index';
 import { cookies } from 'next/headers';
+import { getCompanyIdFromRequest, getCompanyIdForEmail } from '@/lib/utils/serverSubdomainDetector';
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,15 +71,19 @@ export async function POST(request: NextRequest) {
     
     // Si no es superadmin, verificamos en la colección de usuarios normal
     if (!isSuperAdmin) {
-      // Verificar en la colección de companies/default/users
-      const userRef = db.doc(`companies/default/users/${decodedToken.uid}`);
+      // Detectar el ID de la compañía desde el subdominio
+      const companyId = getCompanyIdFromRequest(request);
+      console.log(`[login] Detectado companyId: ${companyId} para usuario: ${decodedToken.uid}`);
+
+      // Verificar en la colección de companies/[companyId]/users
+      const userRef = db.doc(`companies/${companyId}/users/${decodedToken.uid}`);
       const userDoc = await userRef.get();
-      
+
       if (userDoc.exists) {
         const userData = userDoc.data();
         userRole = userData.role;
         isActive = userData.isActive === true;
-        
+
         // Si el usuario no está activo, rechazar el inicio de sesión
         if (!isActive) {
           return NextResponse.json(
@@ -86,11 +91,21 @@ export async function POST(request: NextRequest) {
             { status: 403 }
           );
         }
+
+        // Guardar en una cookie el companyId detectado
+        const cookieStore = await cookies();
+        await cookieStore.set('company_id', companyId, {
+          maxAge: 60 * 60 * 24 * 5, // 5 días
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+        });
       } else {
         // Si no existe el perfil en Firestore, pero está autenticado,
         // podemos crear un perfil básico o rechazar el inicio de sesión
+        console.log(`[login] No se encontró perfil para usuario ${decodedToken.uid} en compañía ${companyId}`);
         return NextResponse.json(
-          { error: 'Usuario no tiene perfil en el sistema. Contacte al administrador.' },
+          { error: `Usuario no tiene perfil en esta empresa. Contacte al administrador.` },
           { status: 403 }
         );
       }
@@ -121,7 +136,12 @@ export async function POST(request: NextRequest) {
     // Actualizar último inicio de sesión (solo para usuarios regulares, no para superadmins)
     if (!isSuperAdmin && userRole && decodedToken.uid) {
       try {
-        await db.doc(`companies/default/users/${decodedToken.uid}`).update({
+        // Obtener el companyId de la cookie que establecimos anteriormente
+        const cookieStore = await cookies();
+        const companyId = cookieStore.get('company_id')?.value || DEFAULT_COMPANY_ID;
+
+        console.log(`[login] Actualizando último login para usuario ${decodedToken.uid} en compañía ${companyId}`);
+        await db.doc(`companies/${companyId}/users/${decodedToken.uid}`).update({
           lastLogin: new Date()
         });
       } catch (updateError) {
