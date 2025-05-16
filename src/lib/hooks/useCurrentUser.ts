@@ -71,13 +71,32 @@ export function useCurrentUser(): CurrentUser {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true; // Flag para evitar actualizaciones en componentes desmontados
+
     async function fetchUserProfile() {
-      if (!currentUser) {
-        setProfile(null);
-        setIsSuperAdmin(false);
-        setIsLoading(false);
-        return;
-      }
+      try {
+        // Verificar si hay un usuario autenticado
+        if (!currentUser) {
+          console.log('[useCurrentUser] No hay usuario autenticado');
+          if (isMounted) {
+            setProfile(null);
+            setIsSuperAdmin(false);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        // Verificar que el currentUser tenga un uid válido
+        if (!currentUser.uid) {
+          console.error('[useCurrentUser] Usuario autenticado sin UID válido');
+          if (isMounted) {
+            setError('Error de autenticación: ID de usuario no disponible');
+            setProfile(null);
+            setIsSuperAdmin(false);
+            setIsLoading(false);
+          }
+          return;
+        }
 
       let targetCompanyId = companyId;
 
@@ -106,19 +125,21 @@ export function useCurrentUser(): CurrentUser {
 
         if (superAdminSnap.exists()) {
           // Es un super admin
-          setIsSuperAdmin(true);
+          if (isMounted) {
+            setIsSuperAdmin(true);
 
-          // Crear un perfil con todos los privilegios
-          setProfile({
-            displayName: currentUser.displayName || 'Super Administrador',
-            email: currentUser.email || '',
-            role: 'super_admin',
-            isActive: true,
-            permissions: ['*'], // El comodín indica acceso total
-            createdAt: new Date()  // Usar Date en lugar de serverTimestamp para el perfil local
-          });
+            // Crear un perfil con todos los privilegios
+            setProfile({
+              displayName: currentUser.displayName || 'Super Administrador',
+              email: currentUser.email || '',
+              role: 'super_admin',
+              isActive: true,
+              permissions: ['*'], // El comodín indica acceso total
+              createdAt: new Date()  // Usar Date en lugar de serverTimestamp para el perfil local
+            });
 
-          setIsLoading(false);
+            setIsLoading(false);
+          }
           return;
         }
 
@@ -128,8 +149,10 @@ export function useCurrentUser(): CurrentUser {
 
         if (result.success && result.profile) {
           console.log(`[useCurrentUser] Perfil encontrado para ${currentUser.uid} en compañía ${targetCompanyId}`);
-          setProfile(result.profile);
-          setIsSuperAdmin(false);
+          if (isMounted) {
+            setProfile(result.profile);
+            setIsSuperAdmin(false);
+          }
         } else {
           console.log(`[useCurrentUser] No se encontró perfil para ${currentUser.uid} en compañía ${targetCompanyId}`);
 
@@ -140,27 +163,40 @@ export function useCurrentUser(): CurrentUser {
 
             if (mvcResult.success && mvcResult.profile) {
               console.log(`[useCurrentUser] Encontrado perfil en compañía mvc`);
-              setProfile(mvcResult.profile);
-              setIsSuperAdmin(false);
+              if (isMounted) {
+                setProfile(mvcResult.profile);
+                setIsSuperAdmin(false);
+              }
               return;
             }
           }
 
-          setError('Usuario no tiene perfil en el sistema. Contacte al administrador.');
-          setProfile(null);
-          setIsSuperAdmin(false);
+          if (isMounted) {
+            setError('Usuario no tiene perfil en el sistema. Contacte al administrador.');
+            setProfile(null);
+            setIsSuperAdmin(false);
+          }
         }
       } catch (error) {
         console.error('Error al cargar perfil de usuario:', error);
-        setError('Error al cargar perfil de usuario');
-        setProfile(null);
-        setIsSuperAdmin(false);
+        if (isMounted) {
+          setError('Error al cargar perfil de usuario');
+          setProfile(null);
+          setIsSuperAdmin(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     fetchUserProfile();
+
+    // Función de limpieza para el efecto
+    return () => {
+      isMounted = false;
+    };
   }, [currentUser, companyId]);
 
   // Determinar los roles del usuario
@@ -184,9 +220,12 @@ export function useCurrentUser(): CurrentUser {
     return profile.permissions?.includes(permission) ?? false;
   };
 
+  // Asegurar que uid no sea undefined
+  const safeUid = currentUser ? currentUser.uid : '';
+
   return {
-    uid: currentUser?.uid || '',
-    email: currentUser?.email,
+    uid: safeUid,
+    email: currentUser?.email || null,
     profile,
     isAdmin,
     isInvestigator,
