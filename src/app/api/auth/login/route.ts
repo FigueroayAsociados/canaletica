@@ -70,15 +70,61 @@ export async function POST(request: NextRequest) {
     
     // Si no es superadmin, verificamos en la colección de usuarios normal
     if (!isSuperAdmin) {
-      // Verificar en la colección de companies/default/users
-      const userRef = db.doc(`companies/default/users/${decodedToken.uid}`);
-      const userDoc = await userRef.get();
-      
+      let companyId = 'default';
+
+      // SOLUCIÓN ESPECÍFICA PARA MVC USER
+      if (decodedToken.email?.toLowerCase() === 'mvc@canaletica.cl') {
+        console.log(`🚨 API LOGIN: Detección de usuario mvc@canaletica.cl, forzando companyId=mvc`);
+        companyId = 'mvc';
+      } else {
+        // Extracción de companyId basado en HTTP HOST (similar a la lógica de frontend)
+        const host = request.headers.get('host') || '';
+
+        // Verificar si estamos en un subdominio
+        if (host && host !== 'localhost' && !host.startsWith('www.')) {
+          const hostParts = host.split('.');
+          if (hostParts.length > 1) {
+            const subdomain = hostParts[0];
+
+            // Verificar si el subdominio no es www, canaletic o canaletica
+            if (subdomain !== 'www' &&
+                subdomain !== 'canaletic' &&
+                subdomain !== 'canaletica') {
+              companyId = subdomain;
+              console.log(`🔍 API LOGIN: Detectado companyId=${companyId} del subdominio`);
+            }
+          }
+        }
+      }
+
+      // DIAGNÓSTICO DE USUARIO
+      console.log(`
+      📊📊📊 DIAGNÓSTICO API LOGIN 📊📊📊
+      UID: ${decodedToken.uid}
+      Email: ${decodedToken.email}
+      CompanyId detectado: ${companyId}
+      Host: ${request.headers.get('host')}
+      📊📊📊 FIN DIAGNÓSTICO 📊📊📊
+      `);
+
+      // SIEMPRE intentar primero en la compañía detectada
+      let userRef = db.doc(`companies/${companyId}/users/${decodedToken.uid}`);
+      let userDoc = await userRef.get();
+
+      // Si no existe en la compañía detectada y no es mvc, intentar en mvc como respaldo
+      if (!userDoc.exists && companyId !== 'mvc' && decodedToken.email?.toLowerCase() === 'mvc@canaletica.cl') {
+        console.log(`🔎 API LOGIN: Usuario no encontrado en ${companyId}, intentando en mvc como respaldo`);
+        companyId = 'mvc';
+        userRef = db.doc(`companies/mvc/users/${decodedToken.uid}`);
+        userDoc = await userRef.get();
+      }
+
       if (userDoc.exists) {
+        console.log(`✅ API LOGIN: Usuario encontrado en compañía ${companyId}`);
         const userData = userDoc.data();
         userRole = userData.role;
         isActive = userData.isActive === true;
-        
+
         // Si el usuario no está activo, rechazar el inicio de sesión
         if (!isActive) {
           return NextResponse.json(
@@ -87,6 +133,7 @@ export async function POST(request: NextRequest) {
           );
         }
       } else {
+        console.log(`❌ API LOGIN: Usuario no encontrado en ninguna compañía`);
         // Si no existe el perfil en Firestore, pero está autenticado,
         // podemos crear un perfil básico o rechazar el inicio de sesión
         return NextResponse.json(
@@ -121,11 +168,13 @@ export async function POST(request: NextRequest) {
     // Actualizar último inicio de sesión (solo para usuarios regulares, no para superadmins)
     if (!isSuperAdmin && userRole && decodedToken.uid) {
       try {
-        await db.doc(`companies/default/users/${decodedToken.uid}`).update({
+        // Usar el companyId detectado para actualizar lastLogin
+        await db.doc(`companies/${companyId}/users/${decodedToken.uid}`).update({
           lastLogin: new Date()
         });
+        console.log(`✍️ API LOGIN: Actualizado lastLogin para usuario en compañía ${companyId}`);
       } catch (updateError) {
-        console.warn('Error al actualizar último login:', updateError);
+        console.warn(`Error al actualizar último login en compañía ${companyId}:`, updateError);
         // No bloqueamos la autenticación si esto falla
       }
     }
