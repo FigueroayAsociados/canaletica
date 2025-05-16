@@ -1,12 +1,16 @@
 // src/lib/utils/subdomainDetector.ts
+import { DEFAULT_COMPANY_ID } from './constants/index';
+import { normalizeCompanyId } from './helpers';
+import { logger } from './logger';
 
 /**
- * Utilidad para detectar el subdominio actual de forma segura
- * Utilizada como fallback cuando el CompanyContext falla
+ * Detector robusto de ID de compañía basado en subdominio
+ * Esta utilidad funciona independientemente de React Context y autenticación
+ * Es fundamental para asegurar el aislamiento multi-tenant
  */
 
 /**
- * Detecta el subdominio a partir del hostname
+ * Detecta el subdominio a partir del hostname actual
  * @returns Subdominio detectado o 'default' si no hay un subdominio válido
  */
 export function detectSubdomain(): string {
@@ -14,59 +18,160 @@ export function detectSubdomain(): string {
     return 'default'; // En SSR retornamos default
   }
 
-  const hostname = window.location.hostname;
-  if (!hostname || hostname === 'localhost') {
+  try {
+    const hostname = window.location.hostname;
+
+    // Si es localhost o el dominio principal, no hay subdominio específico
+    if (!hostname ||
+        hostname === 'localhost' ||
+        hostname === 'canaletic.app' ||
+        hostname === 'canaletica.app' ||
+        hostname === 'canaletic.com' ||
+        hostname === 'canaletica.com') {
+      return 'default';
+    }
+
+    // Extraer el primer segmento como subdominio
+    const hostParts = hostname.split('.');
+    if (hostParts.length <= 1) {
+      return 'default';
+    }
+
+    const subdomain = hostParts[0]?.toLowerCase();
+
+    // Verificar si es un subdominio válido (no www)
+    if (subdomain &&
+        subdomain !== 'www' &&
+        subdomain !== 'canaletic' &&
+        subdomain !== 'canaletica') {
+
+      logger.info(`✅ Subdominio detectado: ${subdomain}`, null, { prefix: 'SubdomainDetector' });
+      return subdomain;
+    }
+
+    return 'default';
+  } catch (error) {
+    logger.error(`Error al detectar subdominio: ${error}`, null, { prefix: 'SubdomainDetector' });
     return 'default';
   }
-
-  const hostParts = hostname.split('.');
-  if (hostParts.length <= 1) {
-    return 'default';
-  }
-
-  const subdomain = hostParts[0].toLowerCase();
-  
-  // Verificar si es un subdominio válido (no es www, canaletic, canaletica)
-  if (subdomain === 'www' || 
-      subdomain === 'canaletic' || 
-      subdomain === 'canaletica') {
-    return 'default';
-  }
-
-  // Si llegamos aquí, tenemos un subdominio válido
-  console.log(`[subdomainDetector] Detectado subdominio: ${subdomain}`);
-  return subdomain;
 }
 
 /**
- * Obtiene el ID de compañía correcto basado en el subdominio actual
- * Guarda en localStorage para referencia futura
+ * Obtiene el ID de compañía desde el subdominio actual
+ * @returns ID de compañía normalizado
  */
 export function getCompanyIdFromSubdomain(): string {
   const subdomain = detectSubdomain();
-  
-  // Guardar en localStorage para debug y recuperación
-  if (typeof window !== 'undefined' && subdomain !== 'default') {
-    localStorage.setItem('lastDetectedSubdomain', subdomain);
-    localStorage.setItem('lastDetectedTimestamp', new Date().toISOString());
+  const normalizedId = normalizeCompanyId(subdomain);
+
+  // Si no es el default, persistir para debug y recuperación futura
+  if (subdomain !== 'default' && typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('lastDetectedSubdomain', subdomain);
+      localStorage.setItem('lastDetectedCompanyId', normalizedId);
+      localStorage.setItem('lastDetectionTimestamp', new Date().toISOString());
+    } catch (e) {
+      // Ignorar errores de localStorage
+    }
   }
-  
-  return subdomain;
+
+  return normalizedId;
 }
 
 /**
- * Verifica si el companyId dado corresponde al subdominio actual
- * @param companyId ID de compañía a verificar
- * @returns true si coincide, false si no coincide
+ * Verifica que el ID de compañía proporcionado coincida con el del subdominio actual
+ * Es una verificación crítica de seguridad para prevenir acceso entre compañías
+ *
+ * @param companyId ID de compañía a validar
+ * @returns true si coincide o es un caso especial, false si hay discrepancia
  */
 export function validateCompanyId(companyId: string): boolean {
-  const subdomain = detectSubdomain();
-  
-  // Si estamos en 'default', cualquier companyId es válido
-  if (subdomain === 'default') {
+  // Si es DEFAULT_COMPANY_ID o estamos en desarrollo, siempre es válido
+  if (companyId === DEFAULT_COMPANY_ID ||
+      process.env.NODE_ENV === 'development' ||
+      companyId === 'default') {
     return true;
   }
-  
-  // Si estamos en un subdominio específico, el companyId debe coincidir
-  return companyId === subdomain;
+
+  const subdomainCompanyId = getCompanyIdFromSubdomain();
+
+  // Si subdomainCompanyId es 'default', permitimos cualquier companyId
+  if (subdomainCompanyId === 'default' || subdomainCompanyId === DEFAULT_COMPANY_ID) {
+    return true;
+  }
+
+  // Caso crítico: discrepancia entre subdominio y companyId solicitado
+  const isValid = companyId === subdomainCompanyId;
+
+  if (!isValid) {
+    logger.error(
+      `⚠️ ALERTA DE SEGURIDAD: Intento de acceder a compañía ${companyId} desde subdominio ${subdomainCompanyId}`,
+      null,
+      { prefix: 'SubdomainDetector' }
+    );
+
+    // Registrar intento para auditoría (solo en cliente)
+    if (typeof window !== 'undefined') {
+      try {
+        const securityEvents = JSON.parse(localStorage.getItem('securityEvents') || '[]');
+        securityEvents.push({
+          timestamp: new Date().toISOString(),
+          type: 'company_mismatch',
+          requestedCompany: companyId,
+          subdomainCompany: subdomainCompanyId,
+          url: window.location.href
+        });
+        localStorage.setItem('securityEvents', JSON.stringify(securityEvents.slice(-20)));
+      } catch (e) {
+        // Ignorar errores de localStorage
+      }
+    }
+  }
+
+  return isValid;
+}
+
+/**
+ * Obtiene el URL base correcto para una compañía específica
+ * @param companyId ID de la compañía
+ * @returns URL base (con protocolo y dominio)
+ */
+export function getCompanyBaseUrl(companyId: string): string {
+  const normalizedId = normalizeCompanyId(companyId);
+
+  // En desarrollo usamos localhost
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+
+  // Para la compañía por defecto usamos el dominio principal
+  if (normalizedId === DEFAULT_COMPANY_ID) {
+    return 'https://canaletic.app';
+  }
+
+  // Para otras compañías, usamos subdominio
+  return `https://${normalizedId}.canaletic.app`;
+}
+
+/**
+ * Redirige al usuario al subdominio correcto si es necesario
+ * @param currentCompanyId ID de compañía actual
+ * @param targetCompanyId ID de compañía a la que debería estar
+ * @returns true si se realizó una redirección, false si no fue necesario
+ */
+export function redirectToCorrectSubdomain(currentCompanyId: string, targetCompanyId: string): boolean {
+  if (typeof window === 'undefined' || process.env.NODE_ENV === 'development') {
+    return false; // No redirigir en SSR o desarrollo
+  }
+
+  // No redirigir si la compañía es la misma o es la default
+  if (currentCompanyId === targetCompanyId || targetCompanyId === DEFAULT_COMPANY_ID) {
+    return false;
+  }
+
+  const targetUrl = getCompanyBaseUrl(targetCompanyId) + window.location.pathname + window.location.search;
+
+  logger.info(`Redirigiendo a usuario al subdominio correcto: ${targetUrl}`, null, { prefix: 'SubdomainDetector' });
+  window.location.href = targetUrl;
+  return true;
 }

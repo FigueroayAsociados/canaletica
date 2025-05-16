@@ -6,9 +6,10 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { usePathname } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+// Eliminada la dependencia de authentication
 import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants/index';
 import { normalizeCompanyId } from '@/lib/utils/helpers';
+import { logger } from '@/lib/utils/logger';
 
 interface CompanyContextType {
   companyId: string;
@@ -41,91 +42,126 @@ const domainMapping: Record<string, string> = {
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [companyData, setCompanyData] = useState<CompanyContextType>(defaultContextValue);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const pathname = usePathname();
-  const auth = getAuth();
 
-  // Verificar estado de autenticación
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuthenticated(!!user);
-    });
-    
-    return () => unsubscribe();
-  }, [auth]);
+  // Función para detectar el ID de la compañía de forma independiente
+  const detectCompanyId = () => {
+    // Implementación para multi-tenant
+    let extractedId = DEFAULT_COMPANY_ID;
+    let detectionMethod = 'default';
 
-  useEffect(() => {
-    // Solo intentar cargar datos de la empresa si conocemos el estado de autenticación
-    if (isAuthenticated === null) return;
+    try {
+      // 1. Intentar recuperar de localStorage primero (como una caché)
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedId = localStorage.getItem('detectedCompanyId');
+          const timestamp = localStorage.getItem('detectionTimestamp');
 
-    const extractCompanyId = () => {
-      // Implementación para multi-tenant
-      let extractedId = DEFAULT_COMPANY_ID;
-      let detectionMethod = 'default';
-      
-      // Primero verificar rutas (/empresa/[companyId]/...)
-      const pathParts = pathname.split('/');
-      if (pathParts.length > 2 && pathParts[1] === 'empresa' && pathParts[2]) {
-        extractedId = pathParts[2];
-        detectionMethod = 'route';
+          if (cachedId && timestamp) {
+            // Verificar si el cache es reciente (menos de 1 hora)
+            const cacheTime = new Date(timestamp).getTime();
+            const now = new Date().getTime();
+            const cacheAgeMs = now - cacheTime;
+
+            if (cacheAgeMs < 3600000) { // 1 hora en ms
+              logger.info(`🔄 Usando companyId en caché: ${cachedId} (${Math.round(cacheAgeMs/1000)}s)`, null, { prefix: 'CompanyContext' });
+              extractedId = cachedId;
+              detectionMethod = 'cached';
+            }
+          }
+        } catch (e) {
+          // Ignorar errores de localStorage
+          logger.warn(`Error al leer caché: ${e}`, null, { prefix: 'CompanyContext' });
+        }
       }
-      // Luego verificar subdominios y dominios personalizados
-      else if (typeof window !== 'undefined') {
+
+      // 2. Verificar rutas (/empresa/[companyId]/...)
+      if (pathname) {
+        const pathParts = pathname.split('/');
+        if (pathParts.length > 2 && pathParts[1] === 'empresa' && pathParts[2]) {
+          extractedId = pathParts[2];
+          detectionMethod = 'route';
+          logger.info(`🛣️ ID detectado en ruta: ${extractedId}`, null, { prefix: 'CompanyContext' });
+        }
+      }
+
+      // 3. Verificar subdominios y dominios personalizados
+      if (typeof window !== 'undefined' && detectionMethod === 'default' || detectionMethod === 'cached') {
         const hostname = window.location.hostname;
-        
+        logger.info(`🔍 Analizando hostname: ${hostname}`, null, { prefix: 'CompanyContext' });
+
         // Verificar si es un dominio personalizado
         if (domainMapping[hostname]) {
           extractedId = domainMapping[hostname];
           detectionMethod = 'custom-domain';
+          logger.info(`🏢 Dominio personalizado detectado: ${hostname} -> ${extractedId}`, null, { prefix: 'CompanyContext' });
         }
         // Verificar si es un subdominio
         else {
           const hostParts = hostname.split('.');
-          const subdomain = hostParts[0];
+          const subdomain = hostParts[0]?.toLowerCase();
 
-          console.log(`CompanyContext: Detectando subdominio. Hostname: "${hostname}", Partes: [${hostParts.join(', ')}], Subdomain: "${subdomain}"`);
-
-          // Es un subdominio que no es www ni localhost
-          if (hostname !== 'localhost' &&
+          // Es un subdominio que no es www ni localhost ni el dominio principal
+          if (subdomain &&
+              hostname !== 'localhost' &&
               subdomain !== 'www' &&
               subdomain !== 'canaletic' &&
               subdomain !== 'canaletica' &&
               hostParts.length > 1) {
-            extractedId = subdomain;
-            detectionMethod = 'subdomain';
-            console.log(`CompanyContext: Subdominio válido detectado: "${subdomain}" - FIJANDO COMPANY ID = ${subdomain}`);
 
-            // Guardar en localStorage para debug y recuperación
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('lastDetectedSubdomain', subdomain);
-              localStorage.setItem('lastDetectedTimestamp', new Date().toISOString());
+            logger.info(`✅ Subdominio válido detectado: ${subdomain}`, null, { prefix: 'CompanyContext' });
+
+            // Solo sobrescribir el ID si no lo obtuvimos de una fuente más confiable
+            if (detectionMethod === 'default' || detectionMethod === 'cached') {
+              extractedId = subdomain;
+              detectionMethod = 'subdomain';
+
+              // Persistir para ayudar en debug y recuperación
+              try {
+                localStorage.setItem('detectedCompanyId', subdomain);
+                localStorage.setItem('detectionTimestamp', new Date().toISOString());
+                logger.info(`💾 Guardado en localStorage: ${subdomain}`, null, { prefix: 'CompanyContext' });
+              } catch (e) {
+                logger.warn(`Error al guardar en localStorage: ${e}`, null, { prefix: 'CompanyContext' });
+              }
             }
-          }
-          // Verificar parámetros de URL como última opción
-          else {
-            const urlParams = new URLSearchParams(window.location.search);
-            const companyParam = urlParams.get('company');
-            if (companyParam) {
-              extractedId = companyParam;
-              detectionMethod = 'query-param';
+          } else {
+            // 4. Verificar parámetros de URL como última opción
+            try {
+              const urlParams = new URLSearchParams(window.location.search);
+              const companyParam = urlParams.get('company');
+              if (companyParam) {
+                extractedId = companyParam;
+                detectionMethod = 'query-param';
+                logger.info(`🔗 ID detectado en parámetro URL: ${companyParam}`, null, { prefix: 'CompanyContext' });
+              }
+            } catch (e) {
+              logger.warn(`Error al leer parámetros URL: ${e}`, null, { prefix: 'CompanyContext' });
             }
           }
         }
       }
-      
-      console.log(`CompanyContext: ID detectado "${extractedId}" mediante ${detectionMethod}`);
-      
-      // Guardar el ID original antes de normalizar
-      const originalId = extractedId;
-      
-      // Normalizar el ID para entorno de desarrollo/pruebas
-      const normalizedId = normalizeCompanyId(extractedId);
-      if (normalizedId !== extractedId) {
-        console.log(`CompanyContext: ID normalizado de "${extractedId}" a "${normalizedId}"`);
-      }
-      
-      return { normalizedId, originalId };
-    };
+    } catch (error) {
+      logger.error(`❌ Error en detección de compañía: ${error}`, null, { prefix: 'CompanyContext' });
+    }
+
+    // Guardar el ID original y normalizado
+    const originalId = extractedId;
+    const normalizedId = normalizeCompanyId(extractedId);
+
+    if (normalizedId !== originalId) {
+      logger.info(`🔄 ID normalizado: ${originalId} -> ${normalizedId}`, null, { prefix: 'CompanyContext' });
+    }
+
+    logger.info(`🏢 Company ID final: ${normalizedId} (original: ${originalId}, método: ${detectionMethod})`, null, { prefix: 'CompanyContext' });
+    return { normalizedId, originalId };
+  };
+
+  useEffect(() => {
+    // Cargar inmediatamente datos de la empresa sin depender de autenticación
+
+    // Usar la nueva función detectCompanyId que no depende de autenticación
 
     const loadCompanyData = async (id: string, originalId: string) => {
       try {
@@ -194,10 +230,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const { normalizedId, originalId } = extractCompanyId();
+    const { normalizedId, originalId } = detectCompanyId();
     console.log(`CompanyContext: Cargando datos para compañía. ID normalizado: "${normalizedId}", ID original: "${originalId}"`);
     loadCompanyData(normalizedId, originalId);
-  }, [pathname, isAuthenticated]);
+  }, [pathname]);
 
   return (
     <CompanyContext.Provider value={companyData}>
@@ -207,33 +243,86 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 }
 
 export function useCompany() {
-  const context = useContext(CompanyContext);
+  try {
+    const context = useContext(CompanyContext);
 
-  // Detección robusta de subdominios para agregar una capa adicional de seguridad
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    if (hostname && hostname !== 'localhost') {
-      const hostParts = hostname.split('.');
-      const subdomain = hostParts[0].toLowerCase();
+    // Verificar si el contexto está definido
+    if (!context) {
+      throw new Error('useCompany debe ser usado dentro de un CompanyProvider');
+    }
 
-      // Si es un subdominio válido (no es www, canaletic, canaletica)
-      if (subdomain !== 'www' &&
-          subdomain !== 'canaletic' &&
-          subdomain !== 'canaletica' &&
-          hostParts.length > 1 &&
-          (context.companyId === DEFAULT_COMPANY_ID || !context.companyId)) {
+    // Detección robusta de subdominios como capa adicional de seguridad
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname && hostname !== 'localhost') {
+        const hostParts = hostname.split('.');
+        const subdomain = hostParts[0]?.toLowerCase();
 
-        console.warn(`*** CORRECCIÓN PREVENTIVA: Detectado subdominio ${subdomain} pero context.companyId=${context.companyId}. Corrigiendo... ***`);
+        // Si es un subdominio válido (no es www, canaletic, canaletica)
+        if (subdomain &&
+            subdomain !== 'www' &&
+            subdomain !== 'canaletic' &&
+            subdomain !== 'canaletica' &&
+            hostParts.length > 1) {
 
-        // Crear una copia del contexto pero con el companyId correcto
-        return {
-          ...context,
-          companyId: subdomain,
-          originalCompanyId: context.companyId
-        };
+          // Si el context.companyId no coincide con el subdominio, aplicar corrección de seguridad
+          if (context.companyId !== subdomain &&
+              context.companyId !== normalizeCompanyId(subdomain) &&
+              context.originalCompanyId !== subdomain) {
+
+            logger.warn(`🔐 CORRECCIÓN DE SEGURIDAD: Detectado subdominio ${subdomain} pero context.companyId=${context.companyId}. ¡Aplicando restricción!`, null, { prefix: 'useCompany' });
+
+            // Guardar el intento de acceso incorrecto para auditoría de seguridad
+            try {
+              const prevAccesses = JSON.parse(localStorage.getItem('securityCorrections') || '[]');
+              prevAccesses.push({
+                timestamp: new Date().toISOString(),
+                subdomain,
+                incorrectCompanyId: context.companyId,
+                path: window.location.pathname
+              });
+              localStorage.setItem('securityCorrections', JSON.stringify(prevAccesses.slice(-10)));
+            } catch (e) {
+              // Ignorar errores de localStorage
+            }
+
+            // Crear una copia del contexto pero con el companyId correcto
+            return {
+              ...context,
+              companyId: subdomain,
+              originalCompanyId: context.companyId
+            };
+          }
+        }
       }
     }
-  }
 
-  return context;
+    // Última verificación: si de alguna forma el contexto tiene un companyId inválido
+    if (!context.companyId || context.companyId === 'undefined' || context.companyId === 'null') {
+      logger.error('🚫 CompanyId inválido en contexto', null, { prefix: 'useCompany' });
+
+      // Intentar recuperar de localStorage como último recurso
+      try {
+        const savedId = localStorage.getItem('detectedCompanyId');
+        if (savedId) {
+          logger.info(`♻️ Recuperando companyId desde localStorage: ${savedId}`, null, { prefix: 'useCompany' });
+          return {
+            ...context,
+            companyId: savedId,
+            originalCompanyId: context.companyId
+          };
+        }
+      } catch (e) {
+        // Ignorar errores de localStorage
+      }
+    }
+
+    return context;
+  } catch (error) {
+    // Capturar cualquier error inesperado
+    logger.error(`Error en useCompany: ${error}`, null, { prefix: 'useCompany' });
+
+    // Proporcionar un valor predeterminado seguro para evitar errores en cascada
+    return defaultContextValue;
+  }
 }
