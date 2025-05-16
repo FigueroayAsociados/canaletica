@@ -9,6 +9,7 @@ import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCompany } from '@/lib/hooks';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { getReportById } from '@/lib/services/reportService';
 import RecommendationsList from '@/components/investigation/RecommendationsList';
 import { Alert } from '@/components/ui/alert';
@@ -23,7 +24,12 @@ export default function FollowUpDetailPage() {
   const params = useParams();
   const reportId = params.id as string; // Esto es seguro en el lado del cliente
   
-  const { companyId } = useCompany();
+  const { companyId: contextCompanyId } = useCompany();
+  const { profile } = useCurrentUser();
+
+  // Determinar el ID de la compañía correcta
+  // Solo los super_admin pueden ver datos de cualquier compañía
+  const companyId = profile?.role === 'super_admin' ? contextCompanyId : (profile?.company || contextCompanyId);
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

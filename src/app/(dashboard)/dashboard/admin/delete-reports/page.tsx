@@ -71,7 +71,8 @@ export default function DeleteReportsPage() {
 
       console.log(`Intentando eliminar denuncia ${reportId} de la compañía ${userCompanyId}`);
       // Usar el ID de compañía del usuario para eliminar la denuncia
-      const result = await deleteReport(userCompanyId, reportId);
+      // Pasar también el rol y el ID del usuario para las verificaciones de seguridad
+      const result = await deleteReport(userCompanyId, reportId, profile?.role, uid);
 
       if (result.success) {
         setSuccess('Denuncia eliminada correctamente');

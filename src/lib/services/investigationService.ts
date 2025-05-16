@@ -1713,25 +1713,55 @@ export async function updateTaskStatus(
  */
 export async function getAssignedReports(
   companyId: string,
-  investigatorId: string
+  investigatorId: string,
+  userRole?: string | null
 ) {
   try {
     // Validar datos de entrada
     if (!companyId) {
       console.error('getAssignedReports: companyId is empty');
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: 'ID de compañía no válido',
-        reports: [] 
+        reports: []
       };
     }
 
-    console.log(`Ejecutando getAssignedReports - companyId: ${companyId}, investigatorId: ${investigatorId}`);
-    
-    // Usar correctamente las utilidades de roles
-    const isSuperAdminUser = isSuperAdmin(null, investigatorId);
-    const isUserAdmin = isSuperAdminUser || isAdmin(null);
+    console.log(`Ejecutando getAssignedReports - companyId: ${companyId}, investigatorId: ${investigatorId}, userRole: ${userRole}`);
+
+    // ¡IMPORTANTE! Solo el super_admin puede ver todos los reportes
+    // Para otros roles, se aplican restricciones según corresponda
+    const isSuperAdminUser = userRole === 'super_admin';
+    const isUserAdmin = isSuperAdminUser || userRole === 'admin';
     console.log(`Tipo de usuario - isAdmin: ${isUserAdmin}, isSuperAdmin: ${isSuperAdminUser}`);
+
+    // VERIFICACIÓN CRÍTICA DE AISLAMIENTO DE DATOS:
+    // Si es admin pero NO super_admin, SOLO puede ver su propia compañía
+    if (isUserAdmin && !isSuperAdminUser && userRole === 'admin') {
+      // Obtener el perfil del usuario para verificar a qué compañía pertenece
+      try {
+        const userRef = doc(db, `companies/${companyId}/users/${investigatorId}`);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+
+          // Si el usuario pertenece a otra compañía, bloquear el acceso
+          if (userData.company && userData.company !== companyId) {
+            console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario admin ${investigatorId} intentó acceder a compañía ${companyId} pero pertenece a ${userData.company}`);
+            return {
+              success: false,
+              error: 'No tiene permiso para acceder a los datos de esta compañía',
+              reports: []
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error al verificar el perfil del usuario:', error);
+        // En caso de error, permitimos continuar pero con un warning
+        console.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
+      }
+    }
 
     const reportsRef = collection(db, `companies/${companyId}/reports`);
     let q;

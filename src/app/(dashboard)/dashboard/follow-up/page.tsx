@@ -17,7 +17,9 @@ import { getReportsInFollowUp } from '@/lib/services/reportService';
 export default function FollowUpPage() {
   const { isAdmin, isInvestigator, isSuperAdmin, uid, profile } = useCurrentUser();
   const { companyId: contextCompanyId } = useCompany();
-  const userCompanyId = profile?.company || contextCompanyId;
+  // Determinar el ID de la compañía correcta
+  // Solo los super_admin pueden ver datos de cualquier compañía
+  const userCompanyId = profile?.role === 'super_admin' ? contextCompanyId : (profile?.company || contextCompanyId);
   
   // Estados para filtros
   const [filter, setFilter] = useState({
@@ -37,7 +39,8 @@ export default function FollowUpPage() {
       try {
         setLoading(true);
 
-        const result = await getReportsInFollowUp(userCompanyId);
+        // Pasar también el rol y el ID del usuario para las verificaciones de seguridad
+        const result = await getReportsInFollowUp(userCompanyId, profile?.role, uid);
         
         if (result.success) {
           setReports(result.reports);

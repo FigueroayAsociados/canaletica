@@ -51,7 +51,8 @@ export default function InvestigationDetailPage() {
   const { generateLegalDocument, isGeneratingDocument, generatedDocument, error: aiError } = useAI();
 
   // Determinar el ID de la compañía correcta
-  const userCompanyId = profile?.company || contextCompanyId;
+  // Solo los super_admin pueden ver datos de cualquier compañía
+  const userCompanyId = profile?.role === 'super_admin' ? contextCompanyId : (profile?.company || contextCompanyId);
 
   // Estados
   const [investigation, setInvestigation] = useState<any>(null);

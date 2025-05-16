@@ -16,10 +16,15 @@ import { getUsersByRole } from '@/lib/services/userService';
 /**
  * Hook para obtener un reporte por su ID
  */
-export function useReport(companyId: string, reportId: string) {
+export function useReport(
+  companyId: string,
+  reportId: string,
+  userRole?: string | null,
+  userId?: string | null
+) {
   return useQuery({
-    queryKey: ['reports', companyId, reportId],
-    queryFn: () => getReportById(companyId, reportId),
+    queryKey: ['reports', companyId, reportId, userRole],
+    queryFn: () => getReportById(companyId, reportId, userRole, userId),
     enabled: !!reportId && !!companyId,
   });
 }
@@ -27,10 +32,15 @@ export function useReport(companyId: string, reportId: string) {
 /**
  * Hook para obtener todos los reportes
  */
-export function useReports(companyId: string, filters = {}) {
+export function useReports(
+  companyId: string,
+  filters = {},
+  userRole?: string | null,
+  userId?: string | null
+) {
   return useQuery({
-    queryKey: ['reports', companyId, filters],
-    queryFn: () => getAllReports(companyId),
+    queryKey: ['reports', companyId, filters, userRole],
+    queryFn: () => getAllReports(companyId, userRole, userId),
     enabled: !!companyId,
   });
 }
@@ -38,10 +48,14 @@ export function useReports(companyId: string, filters = {}) {
 /**
  * Hook para obtener reportes específicos de Ley Karin
  */
-export function useKarinReports(companyId: string) {
+export function useKarinReports(
+  companyId: string,
+  userRole?: string | null,
+  userId?: string | null
+) {
   return useQuery({
-    queryKey: ['karinReports', companyId],
-    queryFn: () => getKarinReports(companyId),
+    queryKey: ['karinReports', companyId, userRole],
+    queryFn: () => getKarinReports(companyId, userRole, userId),
     enabled: !!companyId,
   });
 }

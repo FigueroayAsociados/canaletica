@@ -31,7 +31,8 @@ export default function InvestigationPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Determinar el ID de la compañía correcta
-  const userCompanyId = profile?.company || contextCompanyId;
+  // Solo los super_admin pueden ver datos de cualquier compañía
+  const userCompanyId = profile?.role === 'super_admin' ? contextCompanyId : (profile?.company || contextCompanyId);
 
   // Cargar las denuncias asignadas
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function InvestigationPage() {
 
       try {
         setLoading(true);
-        const result = await getAssignedReports(userCompanyId, uid);
+        const result = await getAssignedReports(userCompanyId, uid, profile?.role);
 
         if (result.success) {
           console.log('Denuncias asignadas:', result.reports); // Para depuración
