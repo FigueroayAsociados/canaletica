@@ -77,65 +77,38 @@ export interface UserProfile {
    */
   export async function getUserProfileById(companyId: string, userId: string) {
     try {
-      // DIAGNÓSTICO DE USER PROFILES
-      console.log(`
-      📊📊📊 DIAGNÓSTICO getUserProfileById 📊📊📊
-      UserId: ${userId}
-      CompanyId recibido: ${companyId}
-      Hostname: ${typeof window !== 'undefined' ? window.location.hostname : 'N/A'}
-      Path: ${typeof window !== 'undefined' ? window.location.pathname : 'N/A'}
-      📊📊📊 FIN DIAGNÓSTICO 📊📊📊
-      `);
-
-      // PASO 1: SIEMPRE verificar primero si hay un perfil en la colección mvc para este usuario
-      // Esto es una solución específica para el caso del usuario mvc
-      console.log(`Verificando primero si existe un perfil en la compañía mvc (independientemente del companyId)`);
-      const mvcUserRef = doc(db, `companies/mvc/users`, userId);
-      const mvcUserSnap = await getDoc(mvcUserRef);
-
-      if (mvcUserSnap.exists()) {
-        console.log(`🔍 HALLAZGO: Se encontró un perfil para el usuario ${userId} en la compañía mvc`);
-
-        // Si el usuario tiene un perfil en mvc pero estamos usando otro companyId,
-        // y estamos en el subdominio mvc, usar mvc
-        if (companyId !== 'mvc') {
-          if (typeof window !== 'undefined') {
-            const hostname = window.location.hostname;
-            const subdomain = hostname.split('.')[0];
-
-            if (subdomain === 'mvc') {
-              console.log(`⚠️ Estamos en subdominio mvc pero usando companyId=${companyId}, forzando a mvc`);
-              return {
-                success: true,
-                userId,
-                profile: mvcUserSnap.data() as UserProfile,
-                companyId: 'mvc'
-              };
-            }
-          }
-        }
-      }
-
-      // Caso especial para mvc: Verificar primero si estamos en la URL de mvc
-      // Esta es una solución de emergencia hasta que se solucione el problema de manera permanente
+      // Caso 1: Verificación subdominio mvc
+      let subdomain = '';
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
-        const hostParts = hostname.split('.');
-        const subdomain = hostParts[0];
-
+        subdomain = hostname.split('.')[0];
+        
         // Si estamos en el subdominio mvc pero no estamos usando companyId="mvc"
         if (subdomain === 'mvc' && companyId !== 'mvc') {
-          console.log(`*** HOTFIX [getUserProfileById]: Detectado subdominio mvc pero companyId=${companyId}, forzando companyId=mvc ***`);
           companyId = 'mvc'; // Forzar el uso de la compañía "mvc"
         }
       }
-
-      console.log(`[getUserProfileById] Buscando usuario con ID ${userId} en compañía ${companyId}`);
+      
+      // Caso 2: Verificación para usuarios con perfiles en mvc
+      if (subdomain === 'mvc') {
+        const mvcUserRef = doc(db, `companies/mvc/users`, userId);
+        const mvcUserSnap = await getDoc(mvcUserRef);
+        
+        if (mvcUserSnap.exists() && companyId !== 'mvc') {
+          return {
+            success: true,
+            userId,
+            profile: mvcUserSnap.data() as UserProfile,
+            companyId: 'mvc'
+          };
+        }
+      }
+      
+      // Buscar en la compañía solicitada
       const userRef = doc(db, `companies/${companyId}/users`, userId);
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        console.log(`[getUserProfileById] Usuario con ID ${userId} encontrado en compañía ${companyId}`);
         return {
           success: true,
           userId,
@@ -143,16 +116,12 @@ export interface UserProfile {
           companyId
         };
       } else {
-        console.log(`[getUserProfileById] Usuario con ID ${userId} no encontrado en compañía ${companyId}`);
-
         // Si el ID de compañía no es "mvc", intentar buscar específicamente en "mvc"
         if (companyId !== 'mvc') {
-          console.log(`[getUserProfileById] Intentando buscar usuario en compañía "mvc"`);
           const mvcUserRef = doc(db, `companies/mvc/users`, userId);
           const mvcUserSnap = await getDoc(mvcUserRef);
 
           if (mvcUserSnap.exists()) {
-            console.log(`[getUserProfileById] Usuario encontrado en compañía "mvc"`);
             return {
               success: true,
               userId,
@@ -188,36 +157,18 @@ export interface UserProfile {
         };
       }
 
-      // SOLUCIÓN PERMANENTE PARA MVC
-      // Si el email es mvc@canaletica.cl, SIEMPRE buscar en la compañía mvc
-      // Esto corrige el problema de autenticación para este usuario específico
-      // mientras se resuelve el problema más general de multi-tenancy
+      // Caso especial: Si el email es mvc@canaletica.cl, buscar siempre en compañía mvc
       if (email.toLowerCase() === 'mvc@canaletica.cl') {
-        // Loguear información para diagnóstico
-        console.log(`
-        🚨🚨🚨 IMPORTANTE 🚨🚨🚨
-        Email detectado: mvc@canaletica.cl
-        CompanyId recibido: ${companyId}
-        Forzando companyId=mvc
-        Hostname: ${typeof window !== 'undefined' ? window.location.hostname : 'N/A'}
-        Ruta: ${typeof window !== 'undefined' ? window.location.pathname : 'N/A'}
-        🚨🚨🚨 FIN INFORMACIÓN 🚨🚨🚨
-        `);
-
-        // Siempre usar mvc para este usuario específico
         companyId = 'mvc';
       }
-
-      // La solución anterior para subdominios se mantiene como respaldo
+      
+      // Verificación de subdominio mvc
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
-        const hostParts = hostname.split('.');
-        const subdomain = hostParts[0];
-
-        // Si estamos en el subdominio mvc pero no estamos usando companyId="mvc"
+        const subdomain = hostname.split('.')[0];
+        
         if (subdomain === 'mvc' && companyId !== 'mvc') {
-          console.log(`*** HOTFIX: Detectado subdominio mvc pero companyId=${companyId}, forzando companyId=mvc ***`);
-          companyId = 'mvc'; // Forzar el uso de la compañía "mvc"
+          companyId = 'mvc';
         }
       }
 
@@ -227,11 +178,11 @@ export interface UserProfile {
         const superAdminsRef = collection(db, 'super_admins');
         const superAdminQ = query(superAdminsRef, where('email', '==', email));
         const superAdminSnapshot = await getDocs(superAdminQ);
-
+        
         if (!superAdminSnapshot.empty) {
           const superAdminDoc = superAdminSnapshot.docs[0];
           const superAdminData = superAdminDoc.data();
-
+          
           // Crear un perfil especial para super admin
           return {
             success: true,
@@ -252,39 +203,34 @@ export interface UserProfile {
         console.warn('Error al verificar super_admins:', superAdminError);
         // Continuar con la búsqueda normal si falla la verificación de super_admin
       }
-
+      
       // Buscar en la compañía actual
-      console.log(`Buscando usuario ${email} en compañía ${companyId}`);
       const usersRef = collection(db, `companies/${companyId}/users`);
       const q = query(usersRef, where('email', '==', email));
       const querySnapshot = await getDocs(q);
-
+      
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
-        console.log(`Usuario ${email} encontrado en compañía ${companyId}`);
         return {
           success: true,
           userId: userDoc.id,
           profile: userDoc.data() as UserProfile,
         };
       } else {
-        console.log(`Usuario con email ${email} no encontrado en compañía ${companyId}`);
-
         // Intentar buscar en todas las compañías
         const companiesRef = collection(db, 'companies');
         const companiesSnapshot = await getDocs(companiesRef);
-
+        
         for (const companyDoc of companiesSnapshot.docs) {
           const otherCompanyId = companyDoc.id;
           if (otherCompanyId === companyId) continue;
-
+          
           const otherUsersRef = collection(db, `companies/${otherCompanyId}/users`);
           const otherQ = query(otherUsersRef, where('email', '==', email));
           const otherQuerySnapshot = await getDocs(otherQ);
-
+          
           if (!otherQuerySnapshot.empty) {
             const userDoc = otherQuerySnapshot.docs[0];
-            console.log(`Usuario encontrado en otra compañía: ${otherCompanyId}`);
             return {
               success: true,
               userId: userDoc.id,
@@ -293,7 +239,7 @@ export interface UserProfile {
             };
           }
         }
-
+        
         return {
           success: false,
           error: 'Usuario no encontrado en ninguna compañía',
