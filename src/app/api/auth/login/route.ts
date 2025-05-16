@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     let isSuperAdmin = false;
     let userRole: string | null = null;
     let isActive = false;
+    let companyId = 'default'; // Inicializar companyId con valor por defecto
     
     // Verificar en la colección super_admins
     try {
@@ -199,8 +200,28 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error: any) {
-    console.error('Error durante el inicio de sesión:', error);
-    
+    // Registrar error de forma más detallada para diagnóstico
+    console.error('Error durante el inicio de sesión:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+      errorObject: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+      time: new Date().toISOString()
+    });
+
+    // Agregar scope del error
+    let errorScope = 'unknown';
+    try {
+      if (error.stack) {
+        if (error.stack.includes('companyId')) errorScope = 'company-detection';
+        else if (error.stack.includes('verifyIdToken')) errorScope = 'token-verification';
+        else if (error.stack.includes('userRef')) errorScope = 'user-profile';
+        else if (error.stack.includes('createSessionCookie')) errorScope = 'cookie-creation';
+      }
+    } catch (e) {
+      console.error('Error al analizar el scope del error:', e);
+    }
+
     // Manejar errores específicos de Firebase Auth
     if (error.code === 'auth/id-token-expired') {
       return NextResponse.json(
@@ -218,7 +239,22 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-    
+
+    // Devolver un mensaje de error más detallado en desarrollo
+    if (process.env.NODE_ENV !== 'production') {
+      return NextResponse.json({
+        error: `Error al iniciar sesión: ${error.message || 'Error desconocido'}`,
+        details: {
+          code: error.code,
+          scope: errorScope,
+          message: error.message,
+          // Evitar exponer stack en producción
+          ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+        }
+      }, { status: 500 });
+    }
+
+    // Mensaje genérico en producción
     return NextResponse.json(
       { error: 'Error al iniciar sesión. Por favor, inténtelo de nuevo.' },
       { status: 500 }
