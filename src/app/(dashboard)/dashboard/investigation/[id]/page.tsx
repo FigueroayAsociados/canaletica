@@ -27,7 +27,7 @@ import AuthorityNotificationForm from '@/components/investigation/AuthorityNotif
 import LegalDocumentGenerator from '@/components/ai/LegalDocumentGenerator';
 import LegalDocumentViewer from '@/components/ai/LegalDocumentViewer';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/hooks/useCompany';
+import { useCompany } from '@/lib/hooks';
 import { useAI } from '@/lib/hooks/useAI';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { 

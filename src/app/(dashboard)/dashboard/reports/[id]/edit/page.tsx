@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/hooks/useCompany';
+import { useCompany } from '@/lib/hooks';
 import { getReportById, updateReport } from '@/lib/services/reportService';
 
 // Esquema de validación para la edición de denuncias

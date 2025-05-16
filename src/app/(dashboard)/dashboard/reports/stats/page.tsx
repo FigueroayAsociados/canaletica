@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getReportStatistics } from '@/lib/services/reportService';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/hooks/useCompany';
+import { useCompany } from '@/lib/hooks';
 
 export default function ReportsStatsPage() {
   const [stats, setStats] = useState<any>(null);

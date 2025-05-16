@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/hooks/useCompany';
+import { useCompany } from '@/lib/hooks';
 import { getReportsInFollowUp } from '@/lib/services/reportService';
 
 export default function FollowUpPage() {

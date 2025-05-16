@@ -16,7 +16,7 @@ import SuccessStep from '@/components/forms/report/SuccessStep';
 import { createReport, uploadEvidence } from '@/lib/services/reportService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
-import { useCompany } from '@/lib/hooks/useCompany';
+import { useCompany } from '@/lib/hooks';
 
 // Validación para cada paso del formulario
 const validationSchemas = [

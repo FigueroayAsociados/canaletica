@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/hooks/useCompany';
+import { useCompany } from '@/lib/hooks';
 import { addTask, updateTaskStatus } from '@/lib/services/investigationService';
 import { getUsersByRole } from '@/lib/services/userService';
 import { UserRole, DEFAULT_COMPANY_ID } from '@/lib/utils/constants';

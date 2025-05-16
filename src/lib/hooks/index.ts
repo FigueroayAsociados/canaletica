@@ -14,3 +14,6 @@ export * from './useConfig';
 
 // Hooks de documentos
 export * from './useDocuments';
+
+// Hook adaptador para CompanyContext
+export * from './useCompany';

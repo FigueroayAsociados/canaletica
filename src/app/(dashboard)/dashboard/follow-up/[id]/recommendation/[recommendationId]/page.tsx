@@ -18,7 +18,7 @@ import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import { SafeRender } from '@/components/ui/safe-render';
 import { getReportById, updateRecommendation } from '@/lib/services/reportService';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
-import { useCompany } from '@/lib/hooks/useCompany';
+import { useCompany } from '@/lib/hooks';
 import { getUserProfileById } from '@/lib/services/userService';
 import { doc, getDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
