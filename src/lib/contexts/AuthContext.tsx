@@ -20,7 +20,6 @@ import { getUserProfileByEmail, updateLastLogin } from '@/lib/services/userServi
 import { DEFAULT_COMPANY_ID, UserRole, ADMIN_UIDS } from '@/lib/utils/constants/index';
 import { UserProfile } from '@/lib/services/userService';
 import { logger } from '@/lib/utils/logger';
-import { useContext } from 'react';
 import { CompanyContext } from './CompanyContext';
 
 type AuthContextType = {
