@@ -1,28 +1,51 @@
 // functions/src/index.ts
 
-import * as functions from 'firebase-functions/v1';
+// Importaciones para Functions v2
+import * as functions from 'firebase-functions';
+import { onCall, onRequest } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { defineSecret, defineString } from 'firebase-functions/params';
+
+// Otras importaciones
 import * as admin from 'firebase-admin';
 import * as nodemailer from 'nodemailer';
-import * as logger from "firebase-functions/logger";
+import * as logger from 'firebase-functions/logger';
 
 // Inicializar la aplicación de Firebase Admin
 admin.initializeApp();
 
-// Configurar transporte de nodemailer (en producción usarías un servicio SMTP real)
-// Ejemplo con Gmail. En producción, es recomendable usar servicios como SendGrid, Mailgun, etc.
+// Definir secretos y variables de entorno
+const emailUser = defineString('EMAIL_USER', { default: 'notificaciones@canaletica.cl' });
+const emailPassword = defineSecret('EMAIL_PASSWORD'); 
+const adminUids = defineString('ADMIN_UIDS', { default: 'gQcbPQTW03MlhRXquvkH6YHO4Pp2,M4K2AxpY8kOGjnUvvUYgfWfgalF3' });
+
+// Variable para almacenar el transporte de correo
 let mailTransport: nodemailer.Transporter;
 
-try {
-  mailTransport = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: functions.config().email?.user,
-      pass: functions.config().email?.password
-    }
-  });
-  logger.info("Transporte de correo configurado correctamente");
-} catch (error) {
-  logger.error("Error al configurar el transporte de correo:", error);
+/**
+ * Función interna para configurar el transporte de correo
+ */
+function setupMailTransport() {
+  try {
+    // Usar variables de entorno
+    const user = emailUser.value();
+    const password = emailPassword.value();
+    
+    mailTransport = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: user,
+        pass: password
+      }
+    });
+    logger.info("Transporte de correo configurado correctamente");
+    logger.info(`Usando cuenta de correo: ${user}`);
+    return true;
+  } catch (error) {
+    logger.error("Error al configurar el transporte de correo:", error);
+    return false;
+  }
 }
 
 /**
@@ -45,8 +68,8 @@ async function sendEmailInternal(data: EmailData) {
       return { success: false, error: 'Datos incompletos' };
     }
 
-    // Verificar si el transporte de correo está configurado
-    if (!mailTransport) {
+    // Configurar el transporte de correo si no está configurado
+    if (!mailTransport && !setupMailTransport()) {
       logger.error("Transporte de correo no configurado");
       return { success: false, error: 'Servicio de correo no configurado' };
     }
@@ -83,7 +106,7 @@ async function sendEmailInternal(data: EmailData) {
     
     // Configurar el correo
     const mailOptions = {
-      from: `"${company?.name || 'Canal de Denuncias'}" <${functions.config().email?.user}>`,
+      from: `"${company?.name || 'Canal de Denuncias'}" <${emailUser.value()}>`,
       to: notification.recipient,
       subject: notification.title,
       html: `
@@ -141,19 +164,30 @@ async function sendEmailInternal(data: EmailData) {
  * Función para enviar un correo electrónico basado en una notificación de Firestore
  * Expuesta como función HTTP callable
  */
-export const sendEmail = functions
-  .region('southamerica-east1')
-  .https.onCall(async (data: EmailData, context) => {
+export const sendEmail = onCall(
+  { 
+    secrets: [emailPassword],
+    region: 'southamerica-east1',
+  }, 
+  async (request) => {
+    const data = request.data as EmailData;
     return sendEmailInternal(data);
-  });
+  }
+);
 
 /**
  * Función programada para verificar recomendaciones próximas a vencer diariamente
  */
-export const checkRecommendationsDueSoon = functions.region('southamerica-east1').pubsub
-  .schedule('0 9 * * *') // 9 AM todos los días
-  .timeZone('America/Santiago') // Hora de Chile
-  .onRun(async (context) => {
+export const checkRecommendationsDueSoon = onSchedule(
+  {
+    schedule: '0 9 * * *', // 9 AM todos los días
+    timeZone: 'America/Santiago', // Hora de Chile
+    secrets: [emailPassword],
+    region: 'southamerica-east1',
+  },
+  async (event) => {
+    // Asegurarse de cargar las variables de entorno
+    logger.info("Iniciando verificación de recomendaciones próximas a vencer");
     try {
       const db = admin.firestore();
       const companies = await db.collection('companies').get();
@@ -161,7 +195,6 @@ export const checkRecommendationsDueSoon = functions.region('southamerica-east1'
 
       for (const company of companies.docs) {
         const companyId = company.id;
-        const companyData = company.data();
         logger.info(`Procesando compañía: ${companyId}`);
 
         // Buscar todas las recomendaciones con estado pendiente o en progreso
@@ -201,6 +234,10 @@ export const checkRecommendationsDueSoon = functions.region('southamerica-east1'
             }
             
             const userData = userSnap.data();
+            if (!userData) {
+              logger.warn(`Datos de usuario no encontrados para ${recommendation.assignedTo}`);
+              continue;
+            }
             
             // Extraer ID del reporte de la ruta
             const reportIdMatch = recPath.match(/reports\/([^\/]+)/);
@@ -219,6 +256,10 @@ export const checkRecommendationsDueSoon = functions.region('southamerica-east1'
             }
             
             const reportData = reportSnap.data();
+            if (!reportData) {
+              logger.warn(`Datos de reporte no encontrados para ${reportId}`);
+              continue;
+            }
             
             // Crear notificación de recordatorio
             const notificationRef = db.collection(`companies/${companyId}/notifications`).doc();
@@ -261,20 +302,25 @@ export const checkRecommendationsDueSoon = functions.region('southamerica-east1'
       }
       
       logger.info("Verificación de recomendaciones próximas a vencer completada");
-      return null;
     } catch (error) {
       logger.error("Error al verificar recomendaciones próximas a vencer:", error);
-      return null;
     }
-  });
+  }
+);
 
 /**
  * Función programada para verificar recomendaciones vencidas diariamente
  */
-export const checkOverdueRecommendations = functions.region('southamerica-east1').pubsub
-  .schedule('0 10 * * *') // 10 AM todos los días
-  .timeZone('America/Santiago') // Hora de Chile
-  .onRun(async (context) => {
+export const checkOverdueRecommendations = onSchedule(
+  {
+    schedule: '0 10 * * *', // 10 AM todos los días
+    timeZone: 'America/Santiago', // Hora de Chile
+    secrets: [emailPassword],
+    region: 'southamerica-east1',
+  },
+  async (event) => {
+    // Asegurarse de cargar las variables de entorno
+    logger.info("Iniciando verificación de recomendaciones vencidas");
     try {
       const db = admin.firestore();
       const companies = await db.collection('companies').get();
@@ -323,6 +369,10 @@ export const checkOverdueRecommendations = functions.region('southamerica-east1'
               }
               
               const userData = userSnap.data();
+              if (!userData) {
+                logger.warn(`Datos de usuario no encontrados para ${recommendation.assignedTo}`);
+                continue;
+              }
               
               // Extraer ID del reporte de la ruta
               const reportIdMatch = recPath.match(/reports\/([^\/]+)/);
@@ -341,6 +391,10 @@ export const checkOverdueRecommendations = functions.region('southamerica-east1'
               }
               
               const reportData = reportSnap.data();
+              if (!reportData) {
+                logger.warn(`Datos de reporte no encontrados para ${reportId}`);
+                continue;
+              }
               
               // 1. Notificar al responsable
               const notificationRef = db.collection(`companies/${companyId}/notifications`).doc();
@@ -387,6 +441,10 @@ export const checkOverdueRecommendations = functions.region('southamerica-east1'
               
               for (const adminDoc of usersSnapshot.docs) {
                 const adminData = adminDoc.data();
+                if (!adminData) {
+                  logger.warn(`Datos de administrador no encontrados para ${adminDoc.id}`);
+                  continue;
+                }
                 
                 const adminNotificationRef = db.collection(`companies/${companyId}/notifications`).doc();
                 await adminNotificationRef.set({
@@ -399,7 +457,7 @@ export const checkOverdueRecommendations = functions.region('southamerica-east1'
                       <li>Recomendación: ${recommendation.action}</li>
                       <li>Código de denuncia: ${reportData.code}</li>
                       <li>Fecha límite: <strong>${dueDate.toLocaleDateString('es-CL')}</strong> (vencida hace ${daysOverdue} días)</li>
-                      <li>Responsable: ${userData.displayName}</li>
+                      <li>Responsable: ${userData.displayName || 'No especificado'}</li>
                     </ul>
                     <p>Se ha notificado al responsable, pero puede ser necesaria su intervención.</p>
                   `,
@@ -428,30 +486,39 @@ export const checkOverdueRecommendations = functions.region('southamerica-east1'
       }
       
       logger.info("Verificación de recomendaciones vencidas completada");
-      return null;
     } catch (error) {
       logger.error("Error al verificar recomendaciones vencidas:", error);
-      return null;
     }
-  });
+  }
+);
 
 /**
  * Función para enviar notificación cuando se crea una nueva denuncia
  */
-export const onReportCreated = functions.region('southamerica-east1').firestore
-  .document('companies/{companyId}/reports/{reportId}')
-  .onCreate(async (snapshot, context) => {
+export const onReportCreated = onDocumentCreated(
+  {
+    document: 'companies/{companyId}/reports/{reportId}',
+    secrets: [emailPassword],
+    region: 'southamerica-west1',
+  },
+  async (event) => {
     try {
+      const snapshot = event.data;
+      if (!snapshot) {
+        logger.error("No hay datos del documento creado");
+        return;
+      }
+
       const reportData = snapshot.data();
-      const companyId = context.params.companyId;
-      const reportId = context.params.reportId;
+      const companyId = event.params.companyId;
+      const reportId = event.params.reportId;
       
       logger.info(`Nueva denuncia creada: ${reportId}`, { companyId });
       
       // Si no hay código, no podemos enviar notificación
       if (!reportData.code) {
         logger.error('Reporte creado sin código:', reportId);
-        return null;
+        return;
       }
       
       // 1. Notificar al denunciante (si no es anónimo y proporcionó correo)
@@ -543,25 +610,32 @@ export const onReportCreated = functions.region('southamerica-east1').firestore
           }
         }
       }
-      
-      return null;
     } catch (error) {
       logger.error('Error en onReportCreated:', error);
-      return null;
     }
-  });
+  }
+);
 
 /**
  * Función para enviar notificación cuando se asigna un investigador a una denuncia
  */
-export const onReportAssigned = functions.region('southamerica-east1').firestore
-  .document('companies/{companyId}/reports/{reportId}')
-  .onUpdate(async (change, context) => {
+export const onReportAssigned = onDocumentUpdated(
+  {
+    document: 'companies/{companyId}/reports/{reportId}',
+    secrets: [emailPassword],
+    region: 'southamerica-east1',
+  },
+  async (event) => {
     try {
-      const beforeData = change.before.data();
-      const afterData = change.after.data();
-      const companyId = context.params.companyId;
-      const reportId = context.params.reportId;
+      if (!event.data) {
+        logger.error("No hay datos del documento actualizado");
+        return;
+      }
+      
+      const beforeData = event.data.before.data();
+      const afterData = event.data.after.data();
+      const companyId = event.params.companyId;
+      const reportId = event.params.reportId;
       
       // Verificar si se ha asignado o cambiado el investigador
       if (afterData.assignedTo && beforeData.assignedTo !== afterData.assignedTo) {
@@ -576,10 +650,14 @@ export const onReportAssigned = functions.region('southamerica-east1').firestore
         
         if (!userSnap.exists) {
           logger.error('Investigador no encontrado:', afterData.assignedTo);
-          return null;
+          return;
         }
         
         const userData = userSnap.data();
+        if (!userData) {
+          logger.error('Datos de investigador no encontrados:', afterData.assignedTo);
+          return;
+        }
         
         // Título especial para Ley Karin por su urgencia
         const title = afterData.isKarinLaw 
@@ -621,19 +699,21 @@ export const onReportAssigned = functions.region('southamerica-east1').firestore
           logger.error('Error al enviar notificación al investigador:', error);
         }
       }
-      
-      return null;
     } catch (error) {
       logger.error('Error en onReportAssigned:', error);
-      return null;
     }
-  });
+  }
+);
 
 /**
  * Función de inicialización que se ejecuta cuando se accede a la primera página
  * Esta función asegura que la estructura básica de datos esté en su lugar
  */
-export const initializeDefaultStructure = functions.region('southamerica-east1').https.onRequest(async (request, response) => {
+export const initializeDefaultStructure = onRequest(
+  {
+    region: 'southamerica-east1'
+  }, 
+  async (request, response) => {
   try {
     logger.info("Inicializando estructura de datos por defecto");
     
@@ -746,182 +826,191 @@ export const initializeDefaultStructure = functions.region('southamerica-east1')
   }
 });
 
-export const deleteCompanyAndData = functions.region('southamerica-east1').https.onCall(async (data, context) => {
-  try {
-    // Verificar autenticación
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        'unauthenticated',
-        'El usuario debe estar autenticado para realizar esta operación'
-      );
-    }
+/**
+ * Función para eliminar una empresa y todos sus datos
+ */
+export const deleteCompanyAndData = onCall(
+  {
+    secrets: [emailPassword],
+    region: 'southamerica-east1',
+  },
+  async (request) => {
+    try {
+      // Verificar autenticación
+      if (!request.auth) {
+        throw new functions.https.HttpsError(
+          'unauthenticated',
+          'El usuario debe estar autenticado para realizar esta operación'
+        );
+      }
 
-    // Verificar datos
-    const { companyId } = data;
-    if (!companyId) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'Se requiere el ID de la empresa a eliminar'
-      );
-    }
+      // Verificar datos
+      const { companyId } = request.data;
+      if (!companyId) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'Se requiere el ID de la empresa a eliminar'
+        );
+      }
 
-    logger.info(`Iniciando eliminación de la empresa ${companyId}`);
+      logger.info(`Iniciando eliminación de la empresa ${companyId}`);
 
-    // Verificar que el usuario es superadmin
-    const callerUid = context.auth.uid;
-    const adminEnv = functions.config().admin?.uids || '';
-    const adminUids = adminEnv.split(',');
+      // Verificar que el usuario es superadmin
+      const callerUid = request.auth.uid;
+      const adminUidsValue = adminUids.value();
+      const adminUidsArray = adminUidsValue.split(',');
 
-    if (!adminUids.includes(callerUid)) {
-      throw new functions.https.HttpsError(
-        'permission-denied',
-        'Solo los administradores super_admin pueden eliminar empresas'
-      );
-    }
+      if (!adminUidsArray.includes(callerUid)) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Solo los administradores super_admin pueden eliminar empresas'
+        );
+      }
 
-    // Verificar que la empresa existe
-    const companyRef = admin.firestore().collection('companies').doc(companyId);
-    const company = await companyRef.get();
+      // Verificar que la empresa existe
+      const companyRef = admin.firestore().collection('companies').doc(companyId);
+      const company = await companyRef.get();
 
-    if (!company.exists) {
-      throw new functions.https.HttpsError(
-        'not-found',
-        'La empresa no existe'
-      );
-    }
+      if (!company.exists) {
+        throw new functions.https.HttpsError(
+          'not-found',
+          'La empresa no existe'
+        );
+      }
 
-    // Comprobar si la empresa está activa
-    const companyData = company.data();
-    if (companyData?.isActive) {
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        'La empresa debe estar desactivada antes de eliminarla'
-      );
-    }
+      // Comprobar si la empresa está activa
+      const companyData = company.data();
+      if (companyData?.isActive) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          'La empresa debe estar desactivada antes de eliminarla'
+        );
+      }
 
-    // Lista de colecciones a eliminar
-    const collectionsToDelete = [
-      'users',
-      'reports',
-      'categories',
-      'subcategories',
-      'messageTemplates',
-      'roles',
-      'integrations',
-      'notifications',
-      'investigations',
-      'findings',
-      'recommendations',
-      'tasks'
-    ];
+      // Lista de colecciones a eliminar
+      const collectionsToDelete = [
+        'users',
+        'reports',
+        'categories',
+        'subcategories',
+        'messageTemplates',
+        'roles',
+        'integrations',
+        'notifications',
+        'investigations',
+        'findings',
+        'recommendations',
+        'tasks'
+      ];
 
-    // Añadir settings y sus documentos
-    collectionsToDelete.push('settings');
+      // Añadir settings y sus documentos
+      collectionsToDelete.push('settings');
 
-    // Eliminar todas las subcollecciones
-    for (const collectionName of collectionsToDelete) {
-      const collection = admin.firestore().collection(`companies/${companyId}/${collectionName}`);
-      const documents = await collection.get();
+      // Eliminar todas las subcollecciones
+      for (const collectionName of collectionsToDelete) {
+        const collection = admin.firestore().collection(`companies/${companyId}/${collectionName}`);
+        const documents = await collection.get();
 
-      logger.info(`Eliminando ${documents.size} documentos de ${collectionName}`);
+        logger.info(`Eliminando ${documents.size} documentos de ${collectionName}`);
 
-      // Batch delete - permite eliminar hasta 500 documentos por lote
-      const batchSize = 450; // límite de seguridad
-      const batches = [];
-      let batch = admin.firestore().batch();
-      let operationCount = 0;
+        // Batch delete - permite eliminar hasta 500 documentos por lote
+        const batchSize = 450; // límite de seguridad
+        const batches = [];
+        let batch = admin.firestore().batch();
+        let operationCount = 0;
 
-      for (const doc of documents.docs) {
-        // Para documentos de report, eliminar también sus subcollecciones
-        if (collectionName === 'reports') {
-          // Eliminar mensajes del reporte
-          const messagesCol = admin.firestore()
-            .collection(`companies/${companyId}/reports/${doc.id}/messages`);
-          const messages = await messagesCol.get();
-          
-          for (const msgDoc of messages.docs) {
-            batch.delete(msgDoc.ref);
-            operationCount++;
+        for (const doc of documents.docs) {
+          // Para documentos de report, eliminar también sus subcollecciones
+          if (collectionName === 'reports') {
+            // Eliminar mensajes del reporte
+            const messagesCol = admin.firestore()
+              .collection(`companies/${companyId}/reports/${doc.id}/messages`);
+            const messages = await messagesCol.get();
             
-            if (operationCount >= batchSize) {
-              batches.push(batch);
-              batch = admin.firestore().batch();
-              operationCount = 0;
+            for (const msgDoc of messages.docs) {
+              batch.delete(msgDoc.ref);
+              operationCount++;
+              
+              if (operationCount >= batchSize) {
+                batches.push(batch);
+                batch = admin.firestore().batch();
+                operationCount = 0;
+              }
+            }
+
+            // Eliminar archivos del reporte
+            const filesCol = admin.firestore()
+              .collection(`companies/${companyId}/reports/${doc.id}/files`);
+            const files = await filesCol.get();
+            
+            for (const fileDoc of files.docs) {
+              batch.delete(fileDoc.ref);
+              operationCount++;
+              
+              if (operationCount >= batchSize) {
+                batches.push(batch);
+                batch = admin.firestore().batch();
+                operationCount = 0;
+              }
+            }
+
+            // Eliminar recomendaciones del reporte
+            const recommCol = admin.firestore()
+              .collection(`companies/${companyId}/reports/${doc.id}/recommendations`);
+            const recommendations = await recommCol.get();
+            
+            for (const recDoc of recommendations.docs) {
+              batch.delete(recDoc.ref);
+              operationCount++;
+              
+              if (operationCount >= batchSize) {
+                batches.push(batch);
+                batch = admin.firestore().batch();
+                operationCount = 0;
+              }
             }
           }
 
-          // Eliminar archivos del reporte
-          const filesCol = admin.firestore()
-            .collection(`companies/${companyId}/reports/${doc.id}/files`);
-          const files = await filesCol.get();
+          // Eliminar el documento principal
+          batch.delete(doc.ref);
+          operationCount++;
           
-          for (const fileDoc of files.docs) {
-            batch.delete(fileDoc.ref);
-            operationCount++;
-            
-            if (operationCount >= batchSize) {
-              batches.push(batch);
-              batch = admin.firestore().batch();
-              operationCount = 0;
-            }
-          }
-
-          // Eliminar recomendaciones del reporte
-          const recommCol = admin.firestore()
-            .collection(`companies/${companyId}/reports/${doc.id}/recommendations`);
-          const recommendations = await recommCol.get();
-          
-          for (const recDoc of recommendations.docs) {
-            batch.delete(recDoc.ref);
-            operationCount++;
-            
-            if (operationCount >= batchSize) {
-              batches.push(batch);
-              batch = admin.firestore().batch();
-              operationCount = 0;
-            }
+          if (operationCount >= batchSize) {
+            batches.push(batch);
+            batch = admin.firestore().batch();
+            operationCount = 0;
           }
         }
 
-        // Eliminar el documento principal
-        batch.delete(doc.ref);
-        operationCount++;
-        
-        if (operationCount >= batchSize) {
+        // Ejecutar el último batch si tiene operaciones
+        if (operationCount > 0) {
           batches.push(batch);
-          batch = admin.firestore().batch();
-          operationCount = 0;
+        }
+
+        // Ejecutar todos los batches
+        for (const currentBatch of batches) {
+          await currentBatch.commit();
         }
       }
 
-      // Ejecutar el último batch si tiene operaciones
-      if (operationCount > 0) {
-        batches.push(batch);
+      // Finalmente eliminar el documento de la empresa
+      await companyRef.delete();
+      logger.info(`Empresa ${companyId} eliminada con éxito`);
+
+      return { success: true, message: 'Empresa eliminada con éxito' };
+    } catch (error) {
+      logger.error('Error al eliminar empresa:', error);
+
+      // Si el error ya es un HttpsError, lo pasamos directamente
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
       }
 
-      // Ejecutar todos los batches
-      for (const currentBatch of batches) {
-        await currentBatch.commit();
-      }
+      // De lo contrario, creamos un nuevo error
+      throw new functions.https.HttpsError(
+        'internal',
+        'Error al eliminar la empresa: ' + (error as Error).message
+      );
     }
-
-    // Finalmente eliminar el documento de la empresa
-    await companyRef.delete();
-    logger.info(`Empresa ${companyId} eliminada con éxito`);
-
-    return { success: true, message: 'Empresa eliminada con éxito' };
-  } catch (error) {
-    logger.error('Error al eliminar empresa:', error);
-
-    // Si el error ya es un HttpsError, lo pasamos directamente
-    if (error instanceof functions.https.HttpsError) {
-      throw error;
-    }
-
-    // De lo contrario, creamos un nuevo error
-    throw new functions.https.HttpsError(
-      'internal',
-      'Error al eliminar la empresa: ' + (error as Error).message
-    );
   }
-});
+);

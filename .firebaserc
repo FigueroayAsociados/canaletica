@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "canaletica-e0f81"
+  },
+  "functions": {
+    "memory": "256MB",
+    "runtime": "nodejs18",
+    "minInstances": 0,
+    "maxInstances": 10,
+    "v1": {
+      "region": "southamerica-east1"
+    }
   }
 }
