@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
+import { useCompany } from '@/lib/contexts/CompanyContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import FloatingAssistant from '@/components/ai/FloatingAssistant';
@@ -142,14 +143,14 @@ export default function DashboardLayout({
         <div className="p-6 flex items-center">
           <div className="h-8 w-8 relative mr-2">
             <Image 
-              src="/logo.png" 
-              alt="CanalEtica Logo" 
+              src={useCompany().companyLogo || "/logo.png"} 
+              alt={`${useCompany().companyName} Logo`} 
               fill 
               style={{ objectFit: 'contain' }} 
               priority
             />
           </div>
-          <span className="font-bold text-xl text-neutral-900">CanalEtica</span>
+          <span className="font-bold text-xl text-neutral-900">{useCompany().companyName}</span>
         </div>
         <nav className="mt-5 px-4 space-y-2">
           <Link 
@@ -367,14 +368,14 @@ export default function DashboardLayout({
                 <Link href="/dashboard" className="flex items-center ml-2">
                   <div className="h-8 w-8 relative mr-2">
                     <Image 
-                      src="/logo.png" 
-                      alt="CanalEtica Logo" 
+                      src={useCompany().companyLogo || "/logo.png"} 
+                      alt={`${useCompany().companyName} Logo`} 
                       fill 
                       style={{ objectFit: 'contain' }} 
                       priority
                     />
                   </div>
-                  <span className="font-bold text-xl text-neutral-900">CanalEtica</span>
+                  <span className="font-bold text-xl text-neutral-900">{useCompany().companyName}</span>
                 </Link>
               </div>
               <div className="flex items-center space-x-1">

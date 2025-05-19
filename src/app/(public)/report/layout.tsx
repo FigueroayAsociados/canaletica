@@ -4,6 +4,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useCompany } from '@/lib/contexts/CompanyContext';
 
 export default function ReportLayout({
   children,
@@ -18,14 +19,14 @@ export default function ReportLayout({
           <Link href="/" className="flex items-center">
             <div className="h-10 w-10 relative mr-3">
               <Image 
-                src="/logo.png" 
-                alt="CanalEtica Logo" 
+                src={useCompany().companyLogo || "/logo.png"} 
+                alt={`${useCompany().companyName} Logo`} 
                 fill 
                 style={{ objectFit: 'contain' }} 
                 priority
               />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">CanalEtica</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{useCompany().companyName}</h1>
           </Link>
           <div className="flex space-x-4">
             <Link href="/">
