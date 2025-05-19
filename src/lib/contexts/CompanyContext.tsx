@@ -18,6 +18,7 @@ interface CompanyContextType {
   secondaryColor: string;
   isLoading: boolean;
   originalCompanyId?: string; // ID original antes de normalización
+  refreshCompanyData: () => void; // Función para refrescar los datos del contexto
 }
 
 // Valor predeterminado del contexto
@@ -26,7 +27,8 @@ const defaultContextValue: CompanyContextType = {
   companyName: 'CanalEtica',
   primaryColor: '#1976d2',
   secondaryColor: '#dc004e',
-  isLoading: true
+  isLoading: true,
+  refreshCompanyData: () => {} // Función vacía por defecto
 };
 
 const CompanyContext = createContext<CompanyContextType>(defaultContextValue);
@@ -34,82 +36,108 @@ const CompanyContext = createContext<CompanyContextType>(defaultContextValue);
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [companyData, setCompanyData] = useState<CompanyContextType>(defaultContextValue);
   const pathname = usePathname();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Usar el hook de detección de compañía que extrajimos
   const { normalizedId, originalId } = useCompanyDetection();
 
-  useEffect(() => {
-    // Cargar datos de la empresa sin depender de autenticación
-    const loadCompanyData = async (id: string, originalId: string) => {
-      try {
-        // Intentar cargar la configuración de la empresa
-        const configRef = doc(db, `companies/${id}/settings/general`);
-        let configSnap = await getDoc(configRef);
+  // Función para forzar la recarga de los datos
+  const refreshCompanyData = () => {
+    setRefreshTrigger(prev => prev + 1);
+    console.log("CompanyContext: Refrescando datos de la compañía por solicitud explícita");
+  };
 
-        // Si no existe configuración pero tenemos un ID original diferente, intentar con ese
-        if (!configSnap.exists() && id !== originalId) {
-          console.log(`CompanyContext: Configuración no encontrada con ID normalizado, intentando con ID original: ${originalId}`);
-          const originalConfigRef = doc(db, `companies/${originalId}/settings/general`);
-          const originalConfigSnap = await getDoc(originalConfigRef);
-          
-          if (originalConfigSnap.exists()) {
-            configSnap = originalConfigSnap;
-            id = originalId; // Usar el ID original si funciona
-            console.log(`CompanyContext: Usando ID original ${originalId} para cargar datos`);
-          }
-        }
+  // Cargar datos de la empresa sin depender de autenticación
+  const loadCompanyData = async (id: string, originalId: string) => {
+    try {
+      // Agregar un timestamp a la consulta para evitar caché de Firestore
+      const timestamp = Date.now();
+      
+      // Intentar cargar la configuración de la empresa
+      const configRef = doc(db, `companies/${id}/settings/general`);
+      let configSnap = await getDoc(configRef);
 
-        if (configSnap.exists()) {
-          const configData = configSnap.data();
-          setCompanyData({
-            companyId: id,
-            originalCompanyId: originalId !== id ? originalId : undefined,
-            companyName: configData.companyName || 'CanalEtica',
-            companyLogo: configData.logoUrl,
-            primaryColor: configData.primaryColor || '#1976d2',
-            secondaryColor: configData.secondaryColor || '#dc004e',
-            isLoading: false
-          });
-        } else {
-          // Si no encontramos configuración, verificar si la empresa existe
-          const companyRef = doc(db, `companies/${id}`);
-          const companySnap = await getDoc(companyRef);
-          
-          if (companySnap.exists()) {
-            const companyData = companySnap.data();
-            setCompanyData({
-              companyId: id,
-              originalCompanyId: originalId !== id ? originalId : undefined,
-              companyName: companyData.name || 'CanalEtica',
-              primaryColor: '#1976d2',
-              secondaryColor: '#dc004e',
-              isLoading: false
-            });
-          } else {
-            // Empresa no encontrada, usar valores predeterminados
-            console.log(`CompanyContext: No se encontró la empresa con ID ${id}, usando valores predeterminados`);
-            setCompanyData({
-              ...defaultContextValue,
-              companyId: id,
-              originalCompanyId: originalId !== id ? originalId : undefined,
-              isLoading: false
-            });
-          }
+      // Si no existe configuración pero tenemos un ID original diferente, intentar con ese
+      if (!configSnap.exists() && id !== originalId) {
+        console.log(`CompanyContext: Configuración no encontrada con ID normalizado, intentando con ID original: ${originalId}`);
+        const originalConfigRef = doc(db, `companies/${originalId}/settings/general`);
+        const originalConfigSnap = await getDoc(originalConfigRef);
+        
+        if (originalConfigSnap.exists()) {
+          configSnap = originalConfigSnap;
+          id = originalId; // Usar el ID original si funciona
+          console.log(`CompanyContext: Usando ID original ${originalId} para cargar datos`);
         }
-      } catch (error) {
-        console.error('Error al cargar datos de la empresa:', error);
-        setCompanyData({
-          ...defaultContextValue,
+      }
+
+      if (configSnap.exists()) {
+        const configData = configSnap.data();
+        let logoUrl = configData.logoUrl;
+        
+        // Si la URL del logo ya tiene un parámetro de timestamp, actualizarlo
+        if (logoUrl && logoUrl.includes('?t=')) {
+          logoUrl = logoUrl.split('?t=')[0] + `?t=${timestamp}`;
+        } else if (logoUrl) {
+          // Si no tiene timestamp, agregar uno
+          logoUrl = `${logoUrl}${logoUrl.includes('?') ? '&' : '?'}t=${timestamp}`;
+        }
+        
+        setCompanyData(prevData => ({
+          ...prevData,
           companyId: id,
           originalCompanyId: originalId !== id ? originalId : undefined,
-          isLoading: false
-        });
+          companyName: configData.companyName || 'CanalEtica',
+          companyLogo: logoUrl,
+          primaryColor: configData.primaryColor || '#1976d2',
+          secondaryColor: configData.secondaryColor || '#dc004e',
+          isLoading: false,
+          refreshCompanyData // Incluir la función de recarga
+        }));
+      } else {
+        // Si no encontramos configuración, verificar si la empresa existe
+        const companyRef = doc(db, `companies/${id}`);
+        const companySnap = await getDoc(companyRef);
+        
+        if (companySnap.exists()) {
+          const companyData = companySnap.data();
+          setCompanyData(prevData => ({
+            ...prevData,
+            companyId: id,
+            originalCompanyId: originalId !== id ? originalId : undefined,
+            companyName: companyData.name || 'CanalEtica',
+            primaryColor: '#1976d2',
+            secondaryColor: '#dc004e',
+            isLoading: false,
+            refreshCompanyData
+          }));
+        } else {
+          // Empresa no encontrada, usar valores predeterminados
+          console.log(`CompanyContext: No se encontró la empresa con ID ${id}, usando valores predeterminados`);
+          setCompanyData(prevData => ({
+            ...defaultContextValue,
+            companyId: id,
+            originalCompanyId: originalId !== id ? originalId : undefined,
+            isLoading: false,
+            refreshCompanyData
+          }));
+        }
       }
-    };
+    } catch (error) {
+      console.error('Error al cargar datos de la empresa:', error);
+      setCompanyData(prevData => ({
+        ...defaultContextValue,
+        companyId: id,
+        originalCompanyId: originalId !== id ? originalId : undefined,
+        isLoading: false,
+        refreshCompanyData
+      }));
+    }
+  };
 
+  useEffect(() => {
     console.log(`CompanyContext: Cargando datos para compañía. ID normalizado: "${normalizedId}", ID original: "${originalId}"`);
     loadCompanyData(normalizedId, originalId);
-  }, [pathname, normalizedId, originalId]);
+  }, [pathname, normalizedId, originalId, refreshTrigger]);
 
   return (
     <CompanyContext.Provider value={companyData}>

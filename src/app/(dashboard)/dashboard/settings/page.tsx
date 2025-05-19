@@ -33,7 +33,7 @@ import { useCompany } from '@/lib/hooks';
 
 export default function SettingsPage() {
   const { uid, isAdmin, isSuperAdmin } = useCurrentUser();
-  const { companyId } = useCompany(); // Usar el ID de empresa del contexto
+  const { companyId, refreshCompanyData } = useCompany(); // Usar el ID y la función de recarga del contexto
   const [activeTab, setActiveTab] = useState('general');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,6 +142,10 @@ export default function SettingsPage() {
 
       if (result.success && result.logoUrl) {
         setLogoUrl(result.logoUrl);
+        
+        // Refrescar el contexto para que se actualice el logo en toda la aplicación
+        console.log("Refrescando datos de la compañía después de subir un nuevo logo");
+        refreshCompanyData();
       } else {
         setError(result.error || 'Error al subir el logo');
       }
