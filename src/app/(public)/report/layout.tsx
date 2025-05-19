@@ -3,8 +3,7 @@
 // src/app/(public)/report/layout.tsx
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useCompany } from '@/lib/contexts/CompanyContext';
+import { CompanyLogo } from '@/components/ui/company-logo';
 
 export default function ReportLayout({
   children,
@@ -17,17 +16,7 @@ export default function ReportLayout({
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <Link href="/" className="flex items-center">
-            <div className="h-10 w-10 relative mr-3">
-              <Image 
-                src={useCompany().companyLogo || "/logo.png"} 
-                alt={`${useCompany().companyName} Logo`} 
-                fill 
-                style={{ objectFit: 'contain' }} 
-                priority
-                unoptimized={true} // Desactivar optimización de Next.js para evitar caché
-              />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">{useCompany().companyName}</h1>
+            <CompanyLogo size="medium" showName={true} />
           </Link>
           <div className="flex space-x-4">
             <Link href="/">

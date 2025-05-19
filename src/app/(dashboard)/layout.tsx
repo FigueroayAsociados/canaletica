@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import FloatingAssistant from '@/components/ai/FloatingAssistant';
 import SmartAlertSystem from '@/components/alerts/SmartAlertSystem';
 import EnvironmentIndicatorClient from '@/components/ui/environment-indicator-client';
+import { CompanyLogo } from '@/components/ui/company-logo';
 
 export default function DashboardLayout({
   children,
@@ -140,18 +141,8 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-neutral-100 flex">
       {/* Sidebar fija para escritorio */}
       <div className="hidden md:block w-64 bg-white shadow-sm overflow-y-auto h-screen fixed">
-        <div className="p-6 flex items-center">
-          <div className="h-8 w-8 relative mr-2">
-            <Image 
-              src={useCompany().companyLogo || "/logo.png"} 
-              alt={`${useCompany().companyName} Logo`} 
-              fill 
-              style={{ objectFit: 'contain' }} 
-              priority
-              unoptimized={true} // Desactivar optimización de Next.js para evitar caché
-            />
-          </div>
-          <span className="font-bold text-xl text-neutral-900">{useCompany().companyName}</span>
+        <div className="p-6">
+          <CompanyLogo size="medium" showName={true} />
         </div>
         <nav className="mt-5 px-4 space-y-2">
           <Link 
@@ -367,17 +358,7 @@ export default function DashboardLayout({
                   </svg>
                 </button>
                 <Link href="/dashboard" className="flex items-center ml-2">
-                  <div className="h-8 w-8 relative mr-2">
-                    <Image 
-                      src={useCompany().companyLogo || "/logo.png"} 
-                      alt={`${useCompany().companyName} Logo`} 
-                      fill 
-                      style={{ objectFit: 'contain' }} 
-                      priority
-                      unoptimized={true} // Desactivar optimización de Next.js para evitar caché
-                    />
-                  </div>
-                  <span className="font-bold text-xl text-neutral-900">{useCompany().companyName}</span>
+                  <CompanyLogo size="small" showName={true} />
                 </Link>
               </div>
               <div className="flex items-center space-x-1">

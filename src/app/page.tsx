@@ -14,6 +14,8 @@ import { VideoGallery } from '@/components/public/VideoGallery';
 import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
 import { getTermsDocument, getPrivacyDocument } from '@/lib/services/documentService';
 import { Spinner } from '@/components/ui/spinner';
+import { CompanyLogo, CompanyHero } from '@/components/ui/company-logo';
+import { useCompany } from '@/lib/contexts/CompanyContext';
 
 export default function Home() {
   const [showVideo, setShowVideo] = useState(true);
@@ -132,18 +134,7 @@ export default function Home() {
       {/* Header Section */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <div className="flex items-center">
-            <div className="h-10 w-10 relative mr-3">
-              <Image 
-                src="/logo.png" 
-                alt="CanalEtica Logo" 
-                fill 
-                style={{ objectFit: 'contain' }} 
-                priority
-              />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">CanalEtica</h1>
-          </div>
+          <CompanyLogo size="medium" showName={true} />
           <Link href="/login">
             <button className="btn-outline">Acceso Administración</button>
           </Link>
@@ -153,14 +144,9 @@ export default function Home() {
       {/* Hero Section */}
       <section className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-4xl font-extrabold text-gray-900 sm:text-5xl sm:tracking-tight lg:text-6xl">
-              Canal de Denuncias
-            </h2>
-            <p className="mt-5 max-w-xl mx-auto text-xl text-gray-500">
-              Una plataforma segura y confidencial para reportar conductas inapropiadas
-            </p>
-            <div className="mt-8 flex justify-center gap-4">
+          <CompanyHero subtitle="Una plataforma segura y confidencial para reportar conductas inapropiadas" />
+          <div className="text-center mt-8">
+            <div className="flex justify-center gap-4">
               <button 
                 className="btn-primary"
                 onClick={() => setShowTermsModal(true)}
