@@ -37,6 +37,10 @@ function setupMailTransport() {
       auth: {
         user: user,
         pass: password
+      },
+      // Configuración adicional para mayor compatibilidad con Gmail
+      tls: {
+        rejectUnauthorized: false
       }
     });
     logger.info("Transporte de correo configurado correctamente");
