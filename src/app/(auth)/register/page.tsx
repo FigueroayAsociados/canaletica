@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { createUserProfile } from '@/lib/services/userService';
+import { CompanyLogo } from '@/components/ui/company-logo';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -85,15 +86,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Link href="/" className="flex justify-center">
-          <div className="h-16 w-16 relative">
-            <Image 
-              src="/logo.png" 
-              alt="CanalEtica Logo" 
-              fill 
-              style={{ objectFit: 'contain' }} 
-              priority
-            />
-          </div>
+          <CompanyLogo size="large" showName={false} />
         </Link>
         <h2 className="mt-3 text-center text-3xl font-extrabold text-gray-900">
           CanalEtica
