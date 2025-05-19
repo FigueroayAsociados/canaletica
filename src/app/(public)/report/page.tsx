@@ -77,16 +77,29 @@ const validationSchemas = [
 
   // Paso 3: Datos del Denunciado
   Yup.object({
-    accusedPersons: Yup.array()
-      .min(1, 'Debe añadir al menos una persona denunciada')
-      .of(
-        Yup.object({
-          name: Yup.string().required('El nombre es obligatorio'),
-          position: Yup.string().required('El cargo es obligatorio'),
-          department: Yup.string().required('El departamento es obligatorio'),
-          relationship: Yup.string().required('La relación es obligatoria'),
-        })
-      ),
+    accusedPersons: Yup.array().when('isKarinLaw', {
+      is: true,
+      then: () => Yup.array()
+        .min(1, 'Para denuncias Ley Karin debe añadir al menos una persona denunciada')
+        .of(
+          Yup.object({
+            name: Yup.string().required('El nombre es obligatorio'),
+            position: Yup.string().required('El cargo es obligatorio'),
+            department: Yup.string().required('El departamento es obligatorio'),
+            relationship: Yup.string().required('La relación es obligatoria'),
+          })
+        ),
+      otherwise: () => Yup.array()
+        // No se requiere mínimo para denuncias que no son Ley Karin
+        .of(
+          Yup.object({
+            name: Yup.string().required('El nombre es obligatorio'),
+            position: Yup.string().required('El cargo es obligatorio'),
+            department: Yup.string().required('El departamento es obligatorio'),
+            relationship: Yup.string().required('La relación es obligatoria'),
+          })
+        ),
+    }),
   }),
 
   // Paso 4: Descripción Detallada
@@ -228,6 +241,14 @@ export default function ReportPage() {
         return "Las denuncias de Ley Karin no pueden ser anónimas. Por favor, regrese al Paso 1 y proporcione sus datos.";
       }
     }
+    
+    // Si estamos en el Paso 3 (Datos del Denunciado) y es una denuncia Ley Karin, verificar que haya al menos un denunciado
+    if (currentStep === 2 && values.isKarinLaw && (!values.accusedPersons || values.accusedPersons.length === 0)) {
+      return "Para denuncias relacionadas con Ley Karin, es obligatorio identificar al menos a una persona denunciada.";
+    }
+    
+    // No se requieren denunciados para denuncias que no son Ley Karin
+    // Eliminar la validación entre pasos para denuncias que no son Ley Karin
     
     // Verificación específica para el Paso 1
     if (currentStep === 0) {

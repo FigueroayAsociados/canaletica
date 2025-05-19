@@ -101,16 +101,25 @@ const StepThree: React.FC<StepThreeProps> = ({ formikProps }) => {
         <h3 className="text-lg font-medium text-gray-900 mb-2">
           Datos de la(s) Persona(s) Denunciada(s)
         </h3>
-        <p className="text-gray-600">
-          En esta sección debe proporcionar información sobre la(s) persona(s) involucrada(s) en
-          los hechos denunciados. Puede añadir tantas personas como sea necesario.
-        </p>
+        {values.isKarinLaw ? (
+          <p className="text-gray-600">
+            En esta sección debe proporcionar información sobre la(s) persona(s) involucrada(s) en
+            los hechos denunciados. Para denuncias relacionadas con Ley Karin, es obligatorio
+            identificar al menos a una persona denunciada. Puede añadir tantas personas como sea necesario.
+          </p>
+        ) : (
+          <p className="text-gray-600">
+            En esta sección puede proporcionar información sobre la(s) persona(s) involucrada(s) en
+            los hechos denunciados. Para este tipo de denuncia, añadir personas denunciadas es opcional.
+            Puede añadir tantas personas como sea necesario o dejar esta sección vacía.
+          </p>
+        )}
       </div>
 
-      {/* Lista de denunciados */}
-      {values.accusedPersons.length > 0 && (
-        <div className="mb-6">
-          <h4 className="font-medium text-gray-900 mb-3">Personas denunciadas</h4>
+      {/* Lista de denunciados o mensaje de lista vacía */}
+      <div className="mb-6">
+        <h4 className="font-medium text-gray-900 mb-3">Personas denunciadas</h4>
+        {values.accusedPersons.length > 0 ? (
           <div className="space-y-3">
             {values.accusedPersons.map((person) => (
               <Card key={person.id} className="bg-gray-50">
@@ -141,8 +150,21 @@ const StepThree: React.FC<StepThreeProps> = ({ formikProps }) => {
               </Card>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className={`p-4 border rounded-md ${values.isKarinLaw ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+            {values.isKarinLaw ? (
+              <p className="text-red-800 font-medium">
+                No ha añadido ninguna persona denunciada. Para denuncias de Ley Karin, es <strong>obligatorio</strong> identificar al menos a una persona.
+              </p>
+            ) : (
+              <p className="text-blue-800">
+                No ha añadido ninguna persona denunciada. Para este tipo de denuncia, esto es <strong>opcional</strong>. 
+                Si no conoce la identidad de la persona responsable, puede continuar sin añadir denunciados.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Formulario para agregar nuevo denunciado */}
       <div className="bg-white border border-gray-200 rounded-md p-5">
@@ -236,6 +258,42 @@ const StepThree: React.FC<StepThreeProps> = ({ formikProps }) => {
       {errors.accusedPersons && typeof errors.accusedPersons === 'string' && (
         <div className="text-error text-sm mt-3">
           {errors.accusedPersons}
+        </div>
+      )}
+      
+      {/* Instrucciones finales según tipo de denuncia */}
+      {values.accusedPersons.length === 0 && (
+        <div className={`mt-6 p-4 border rounded-md ${values.isKarinLaw ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+          {values.isKarinLaw ? (
+            <div className="flex items-start">
+              <svg className="h-5 w-5 text-red-600 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p className="text-sm text-red-800 font-medium">
+                  Debe agregar al menos una persona denunciada para continuar.
+                </p>
+                <p className="text-sm text-red-700 mt-1">
+                  Para las denuncias relacionadas con Ley Karin, la identificación del denunciado es un requisito legal.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start">
+              <svg className="h-5 w-5 text-blue-600 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm text-blue-800 font-medium">
+                  Puede continuar sin agregar personas denunciadas.
+                </p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Si no conoce la identidad de la persona responsable pero desea reportar el hecho, puede avanzar al siguiente paso.
+                  Su denuncia será igualmente investigada.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
