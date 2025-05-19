@@ -148,6 +148,7 @@ export default function DashboardLayout({
               fill 
               style={{ objectFit: 'contain' }} 
               priority
+              unoptimized={true} // Desactivar optimización de Next.js para evitar caché
             />
           </div>
           <span className="font-bold text-xl text-neutral-900">{useCompany().companyName}</span>
@@ -373,6 +374,7 @@ export default function DashboardLayout({
                       fill 
                       style={{ objectFit: 'contain' }} 
                       priority
+                      unoptimized={true} // Desactivar optimización de Next.js para evitar caché
                     />
                   </div>
                   <span className="font-bold text-xl text-neutral-900">{useCompany().companyName}</span>

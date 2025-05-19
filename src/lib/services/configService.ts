@@ -244,14 +244,20 @@ export async function uploadCompanyLogo(
   file: File
 ): Promise<{ success: boolean; logoUrl?: string; error?: string }> {
   try {
-    // Crear referencia en Storage
-    const logoRef = ref(storage, `companies/${companyId}/logo`);
+    // Crear referencia en Storage con timestamp para evitar caché
+    const timestamp = Date.now();
+    const logoRef = ref(storage, `companies/${companyId}/logo_${timestamp}`);
 
     // Subir archivo
     await uploadBytes(logoRef, file);
 
     // Obtener URL
-    const logoUrl = await getDownloadURL(logoRef);
+    let logoUrl = await getDownloadURL(logoRef);
+    
+    // Agregar un parámetro de consulta con timestamp para evitar caché del navegador
+    logoUrl = `${logoUrl}?t=${timestamp}`;
+    
+    console.log('Logo subido exitosamente, nueva URL:', logoUrl);
 
     // Guardar referencia en configuración
     const configRef = doc(db, `companies/${companyId}/settings/general`);

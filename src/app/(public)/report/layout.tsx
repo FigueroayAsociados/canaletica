@@ -24,6 +24,7 @@ export default function ReportLayout({
                 fill 
                 style={{ objectFit: 'contain' }} 
                 priority
+                unoptimized={true} // Desactivar optimización de Next.js para evitar caché
               />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">{useCompany().companyName}</h1>
