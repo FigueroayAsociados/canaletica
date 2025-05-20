@@ -46,7 +46,7 @@ const INITIAL_FORM_DATA: VideoFormData = {
 };
 
 export default function VideosManager() {
-  const { selectedCompany } = useCompany();
+  const { companyId } = useCompany();
   const [videos, setVideos] = useState<Video[]>([]);
   const [formData, setFormData] = useState<VideoFormData>(INITIAL_FORM_DATA);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export default function VideosManager() {
     const category = activeCategory === 'all' ? undefined : activeCategory;
     const { success, videos, error } = await getVideos(
       category, 
-      selectedCompany?.id
+      companyId
     );
     
     if (success && videos) {
@@ -69,7 +69,7 @@ export default function VideosManager() {
     } else if (error) {
       setError(error);
     }
-  }, [activeCategory, selectedCompany?.id]);
+  }, [activeCategory, companyId]);
 
   useEffect(() => {
     fetchVideos();
@@ -109,8 +109,8 @@ export default function VideosManager() {
       
       // Determine if we're creating a new video or updating an existing one
       if (!selectedVideo) {
-        // Usar 'default' como companyId si no hay uno seleccionado
-        const companyId = selectedCompany?.id || 'default';
+        // Usar el ID de la empresa del contexto
+        const videoCompanyId = companyId || 'default';
         
         // Creating a new video
         if (formData.platform === 'custom' && formData.videoFile) {
@@ -124,7 +124,7 @@ export default function VideosManager() {
               isActive: true,
               category: formData.category,
               position: videos.length,
-              companyId: companyId,
+              companyId: videoCompanyId,
               thumbnailUrl: ''
             },
             formData.thumbnailFile
@@ -139,7 +139,7 @@ export default function VideosManager() {
             isActive: true,
             category: formData.category,
             position: videos.length,
-            companyId: companyId
+            companyId: videoCompanyId
           });
         }
         

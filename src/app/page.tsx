@@ -18,6 +18,8 @@ import { CompanyLogo, CompanyHero } from '@/components/ui/company-logo';
 import { useCompany } from '@/lib/contexts/CompanyContext';
 
 export default function Home() {
+  // Obtener el ID de la empresa del contexto
+  const { companyId } = useCompany();
   const [showVideo, setShowVideo] = useState(true);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
@@ -51,7 +53,7 @@ export default function Home() {
         if (showTermsModal) {
           setIsLoadingTerms(true);
           try {
-            const termsDoc = await getTermsDocument(DEFAULT_COMPANY_ID);
+            const termsDoc = await getTermsDocument(companyId);
             
             if (termsDoc && termsDoc.fileURL) {
               // Intentar obtener el contenido del archivo
@@ -84,7 +86,7 @@ export default function Home() {
         if (showPrivacyModal) {
           setIsLoadingPrivacy(true);
           try {
-            const privacyDoc = await getPrivacyDocument(DEFAULT_COMPANY_ID);
+            const privacyDoc = await getPrivacyDocument(companyId);
             
             if (privacyDoc && privacyDoc.fileURL) {
               // Intentar obtener el contenido del archivo
@@ -233,7 +235,7 @@ export default function Home() {
             {/* Video Player Component */}
             <div className="mx-auto max-w-4xl">
               <VideoPlayer 
-                companyId={DEFAULT_COMPANY_ID} 
+                companyId={companyId} 
                 category="instructional"
                 showControls={true}
               />
@@ -257,7 +259,7 @@ export default function Home() {
           {/* Video Gallery Component */}
           <div className="mx-auto">
             <VideoGallery 
-              companyId={DEFAULT_COMPANY_ID} 
+              companyId={companyId} 
               category="ley-karin"
               maxInitialVideos={3}
             />
@@ -279,7 +281,7 @@ export default function Home() {
           
           {/* Componente de documentos corporativos */}
           <div className="mx-auto max-w-4xl">
-            <CorporateDocuments companyId={DEFAULT_COMPANY_ID} />
+            <CorporateDocuments companyId={companyId} />
           </div>
         </div>
       </section>

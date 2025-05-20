@@ -104,7 +104,24 @@ export function VideoGallery({
   }
   
   if (videos.length === 0) {
-    return null; // Don't show anything if there are no videos
+    return (
+      <div className="bg-gray-50 border border-gray-100 rounded-lg p-6 text-center">
+        <svg 
+          className="h-12 w-12 mx-auto text-gray-400 mb-2" 
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+        </svg>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          No hay videos disponibles
+        </h3>
+        <p className="text-sm text-gray-500 max-w-md mx-auto">
+          No se encontraron videos en esta categoría. Si necesita más información, póngase en contacto con el administrador.
+        </p>
+      </div>
+    );
   }
   
   return (

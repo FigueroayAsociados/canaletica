@@ -39,3 +39,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# firebase
+.firebase/
+.firebaserc
+firebase-debug.log
+ui-debug.log
+
+# vscode
+.vscode/
+
+# serviceAccountKey.json
+serviceAccountKey.json
+scripts/serviceAccountKey.json
+**/serviceAccountKey.json
+
+# temporary files
+*.tmp
