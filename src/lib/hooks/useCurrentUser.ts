@@ -159,26 +159,49 @@ export function useCurrentUser(): CurrentUser {
             setIsSuperAdmin(false);
           }
         } else {
-          // NO INTENTAMOS CON MVC - Esto genera problemas de seguridad
-          // Los usuarios deben estar en su propia compañía
+          // El perfil no se encuentra en esta compañía
+          // Buscar en qué compañía está el usuario para redirigir
           console.warn(`No se encontró perfil para UID ${currentUser.uid} en compañía ${targetCompanyId}`);
           
-          /* CÓDIGO ELIMINADO POR SEGURIDAD:
-          if (targetCompanyId !== 'mvc') {
-            const mvcResult = await getUserProfileById('mvc', currentUser.uid);
-            
-            if (mvcResult.success && mvcResult.profile) {
-              if (isMountedRef.current) {
-                setProfile(mvcResult.profile);
-                setIsSuperAdmin(false);
-              }
-              return;
-            }
-          } */
+          // Importar findUserCompany de forma dinámica para evitar problemas de dependencias circulares
+          const { findUserCompany } = await import('@/lib/services/userService');
           
-          // No se encontró perfil
+          // Buscar a qué compañía pertenece este usuario
+          const companyResult = await findUserCompany(currentUser.uid);
+          
+          if (companyResult.success && companyResult.companyId) {
+            // Si encontramos la compañía y estamos en el cliente, redirigir al subdominio correcto
+            if (typeof window !== 'undefined' && companyResult.companyId !== 'super_admin') {
+              const currentHostname = window.location.hostname;
+              
+              // Verificar si estamos en un subdominio que no coincide con la compañía del usuario
+              if (!currentHostname.startsWith(companyResult.companyId + '.')) {
+                // Mostrar mensaje más descriptivo
+                if (isMountedRef.current) {
+                  setError(`Redirigiendo al subdominio correcto: ${companyResult.companyId}.canaletic.app`);
+                }
+                
+                // Construir la URL del subdominio correcto
+                const protocol = window.location.protocol;
+                const path = window.location.pathname;
+                const search = window.location.search;
+                const newUrl = `${protocol}//${companyResult.companyId}.canaletic.app${path}${search}`;
+                
+                console.log(`🔄 Redirigiendo a: ${newUrl}`);
+                
+                // Redirigir después de un breve retraso para permitir que se muestre el mensaje
+                setTimeout(() => {
+                  window.location.href = newUrl;
+                }, 1500);
+                
+                return;
+              }
+            }
+          }
+          
+          // Si no se pudo redirigir o no se encontró la compañía, mostrar error
           if (isMountedRef.current) {
-            setError('Usuario no tiene perfil en el sistema');
+            setError('Usuario no tiene perfil en el sistema o está intentando acceder desde un dominio incorrecto');
             setProfile(null);
             setIsSuperAdmin(false);
           }

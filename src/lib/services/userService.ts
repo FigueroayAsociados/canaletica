@@ -499,3 +499,60 @@ export interface UserProfile {
       return false;
     }
   }
+  
+  /**
+   * Busca a qué compañía pertenece un usuario por su UID
+   * @param userId ID del usuario a buscar
+   * @returns Objeto con la información de la compañía encontrada o null si no se encuentra
+   */
+  export async function findUserCompany(userId: string): Promise<{ 
+    success: boolean; 
+    companyId?: string; 
+    companyName?: string;
+    error?: string;
+  }> {
+    try {
+      // Primero verificar si es super admin
+      const superAdminRef = doc(db, `super_admins/${userId}`);
+      const superAdminSnap = await getDoc(superAdminRef);
+      
+      if (superAdminSnap.exists()) {
+        return {
+          success: true,
+          companyId: 'super_admin'
+        };
+      }
+      
+      // Buscar en todas las compañías
+      const companiesRef = collection(db, 'companies');
+      const companiesSnapshot = await getDocs(companiesRef);
+      
+      for (const companyDoc of companiesSnapshot.docs) {
+        const companyId = companyDoc.id;
+        
+        // Buscar el usuario en esta compañía
+        const userRef = doc(db, `companies/${companyId}/users/${userId}`);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          return {
+            success: true,
+            companyId: companyId,
+            companyName: companyDoc.data().name || companyId
+          };
+        }
+      }
+      
+      // Si no se encontró en ninguna compañía
+      return {
+        success: false,
+        error: 'Usuario no encontrado en ninguna compañía'
+      };
+    } catch (error) {
+      console.error('Error al buscar compañía del usuario:', error);
+      return {
+        success: false,
+        error: 'Error al buscar compañía del usuario'
+      };
+    }
+  }
