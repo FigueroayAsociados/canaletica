@@ -47,16 +47,16 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: `
               default-src 'self';
-              script-src 'self' 'unsafe-inline' https://apis.google.com https://*.firebaseio.com https://*.firebaseapp.com;
+              script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseio.com https://*.firebaseapp.com https://*.googletagmanager.com https://www.googletagmanager.com https://*.google-analytics.com;
               style-src 'self' 'unsafe-inline';
-              img-src 'self' data: https://storage.googleapis.com;
-              font-src 'self';
-              connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com;
-              frame-src 'self' https://*.firebaseapp.com;
+              img-src 'self' data: https://storage.googleapis.com https://*.googleapis.com https://firebasestorage.googleapis.com;
+              font-src 'self' data:;
+              connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com https://*.google-analytics.com;
+              frame-src 'self' https://*.firebaseapp.com https://www.youtube.com https://youtube.com;
               object-src 'none';
               base-uri 'self';
               form-action 'self';
-              frame-ancestors 'none';
+              frame-ancestors 'self';
               block-all-mixed-content;
               upgrade-insecure-requests;
             `.replace(/\s{2,}/g, ' ').trim()
