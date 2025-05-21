@@ -29,6 +29,7 @@ import FormOptionsManager from '@/components/settings/FormOptionsManager';
 import RiskQuestionManager from '@/components/settings/RiskQuestionManager';
 import VideosManager from '@/components/settings/VideosManager';
 import { LegalDocumentsManager } from '@/components/settings/LegalDocumentsManager';
+import { TwoFactorSettings } from '@/components/settings/TwoFactorSettings';
 import { useCompany } from '@/lib/hooks';
 
 export default function SettingsPage() {
@@ -297,6 +298,16 @@ export default function SettingsPage() {
           </button>
           <button
             className={`py-4 px-6 text-sm font-medium ${
+              activeTab === 'security'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('security')}
+          >
+            Seguridad
+          </button>
+          <button
+            className={`py-4 px-6 text-sm font-medium ${
               activeTab === 'integrations'
                 ? 'border-b-2 border-primary text-primary'
                 : 'text-gray-500 hover:text-gray-700'
@@ -490,6 +501,12 @@ export default function SettingsPage() {
           
           {activeTab === 'videos' && (
             <VideosManager />
+          )}
+          
+          {activeTab === 'security' && (
+            <div className="space-y-6">
+              <TwoFactorSettings />
+            </div>
           )}
 
           {activeTab === 'notifications' && (

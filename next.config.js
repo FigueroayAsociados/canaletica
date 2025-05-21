@@ -14,6 +14,67 @@ const nextConfig = {
   // Paquetes que deben ser externalizados en el servidor
   serverExternalPackages: ['pdfkit', 'blob-stream', 'linebreak'],
   output: 'standalone',
+  
+  // Configuración de cabeceras de seguridad (ISO 37002:2021)
+  async headers() {
+    return [
+      {
+        // Aplicar a todas las rutas
+        source: '/:path*',
+        headers: [
+          // Protección XSS
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          // Prevenir inferencia de tipo MIME
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          // Prevenir clickjacking
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          // Política de referencia estricta
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          // Content Security Policy para prevenir XSS
+          {
+            key: 'Content-Security-Policy',
+            value: `
+              default-src 'self';
+              script-src 'self' 'unsafe-inline' https://apis.google.com https://*.firebaseio.com https://*.firebaseapp.com;
+              style-src 'self' 'unsafe-inline';
+              img-src 'self' data: https://storage.googleapis.com;
+              font-src 'self';
+              connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com;
+              frame-src 'self' https://*.firebaseapp.com;
+              object-src 'none';
+              base-uri 'self';
+              form-action 'self';
+              frame-ancestors 'none';
+              block-all-mixed-content;
+              upgrade-insecure-requests;
+            `.replace(/\s{2,}/g, ' ').trim()
+          },
+          // Permisos de características del navegador
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+          },
+          // Strict Transport Security para forzar HTTPS
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload'
+          },
+        ],
+      },
+    ];
+  },
   webpack: (config) => {
     // Añadir fallbacks para módulos de Node.js que no funcionan en el navegador
     config.resolve.fallback = {
