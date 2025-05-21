@@ -77,32 +77,28 @@ export interface UserProfile {
    */
   export async function getUserProfileById(companyId: string, userId: string) {
     try {
-      // Caso 1: Verificación subdominio mvc
-      let subdomain = '';
+      // Verificar si estamos en un subdominio específico para asegurar que coincida con companyId
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
-        subdomain = hostname.split('.')[0];
+        const hostParts = hostname.split('.');
+        const subdomain = hostParts[0]?.toLowerCase();
         
-        // Si estamos en el subdominio mvc pero no estamos usando companyId="mvc"
-        if (subdomain === 'mvc' && companyId !== 'mvc') {
-          companyId = 'mvc'; // Forzar el uso de la compañía "mvc"
+        // Si estamos en un subdominio específico (no www, localhost, canaletica, canaletic)
+        if (subdomain && 
+            subdomain !== 'www' && 
+            subdomain !== 'localhost' && 
+            subdomain !== 'canaletic' && 
+            subdomain !== 'canaletica' &&
+            subdomain !== 'default' &&
+            subdomain !== companyId) {
+          
+          console.warn(`Subdomain (${subdomain}) no coincide con companyId (${companyId}). Se utilizará el subdominio para mayor seguridad.`);
+          companyId = subdomain; // Por seguridad, usar el subdominio para asegurar aislamiento de datos
         }
       }
       
-      // Caso 2: Verificación para usuarios con perfiles en mvc
-      if (subdomain === 'mvc') {
-        const mvcUserRef = doc(db, `companies/mvc/users`, userId);
-        const mvcUserSnap = await getDoc(mvcUserRef);
-        
-        if (mvcUserSnap.exists() && companyId !== 'mvc') {
-          return {
-            success: true,
-            userId,
-            profile: mvcUserSnap.data() as UserProfile,
-            companyId: 'mvc'
-          };
-        }
-      }
+      // NOTA: Se ha eliminado el código especial para mvc por motivos de seguridad
+      // Los usuarios deben estar en su propia compañía, no debemos buscar en otras compañías
       
       // Buscar en la compañía solicitada
       const userRef = doc(db, `companies/${companyId}/users`, userId);
@@ -116,7 +112,9 @@ export interface UserProfile {
           companyId
         };
       } else {
-        // Si el ID de compañía no es "mvc", intentar buscar específicamente en "mvc"
+        // NO BUSCAMOS EN OTRAS COMPAÑÍAS - Esto genera problemas de seguridad
+        // Los usuarios deben estar en su propia compañía
+        /* CÓDIGO ELIMINADO POR SEGURIDAD:
         if (companyId !== 'mvc') {
           const mvcUserRef = doc(db, `companies/mvc/users`, userId);
           const mvcUserSnap = await getDoc(mvcUserRef);
@@ -129,7 +127,7 @@ export interface UserProfile {
               companyId: 'mvc'
             };
           }
-        }
+        }*/
 
         return {
           success: false,
@@ -157,20 +155,27 @@ export interface UserProfile {
         };
       }
 
-      // Caso especial: Si el email es mvc@canaletica.cl, buscar siempre en compañía mvc
-      if (email.toLowerCase() === 'mvc@canaletica.cl') {
-        companyId = 'mvc';
-      }
-      
-      // Verificación de subdominio mvc
+      // Verificar si estamos en un subdominio específico para asegurar que coincida con companyId
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
-        const subdomain = hostname.split('.')[0];
+        const hostParts = hostname.split('.');
+        const subdomain = hostParts[0]?.toLowerCase();
         
-        if (subdomain === 'mvc' && companyId !== 'mvc') {
-          companyId = 'mvc';
+        // Si estamos en un subdominio específico (no www, localhost, canaletica, canaletic)
+        if (subdomain && 
+            subdomain !== 'www' && 
+            subdomain !== 'localhost' && 
+            subdomain !== 'canaletic' && 
+            subdomain !== 'canaletica' &&
+            subdomain !== 'default' &&
+            subdomain !== companyId) {
+          
+          console.warn(`Subdomain (${subdomain}) no coincide con companyId (${companyId}). Se utilizará el subdominio para mayor seguridad.`);
+          companyId = subdomain; // Por seguridad, usar el subdominio para asegurar aislamiento de datos
         }
       }
+      
+      // NOTA: Se ha eliminado el código especial para mvc por motivos de seguridad
 
       // Verificar primero si existe la colección de super_admins
       try {

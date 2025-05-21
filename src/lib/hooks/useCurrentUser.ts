@@ -159,7 +159,11 @@ export function useCurrentUser(): CurrentUser {
             setIsSuperAdmin(false);
           }
         } else {
-          // Intentar con mvc si no se encuentra
+          // NO INTENTAMOS CON MVC - Esto genera problemas de seguridad
+          // Los usuarios deben estar en su propia compañía
+          console.warn(`No se encontró perfil para UID ${currentUser.uid} en compañía ${targetCompanyId}`);
+          
+          /* CÓDIGO ELIMINADO POR SEGURIDAD:
           if (targetCompanyId !== 'mvc') {
             const mvcResult = await getUserProfileById('mvc', currentUser.uid);
             
@@ -170,7 +174,7 @@ export function useCurrentUser(): CurrentUser {
               }
               return;
             }
-          }
+          } */
           
           // No se encontró perfil
           if (isMountedRef.current) {

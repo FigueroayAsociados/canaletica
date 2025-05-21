@@ -33,6 +33,7 @@ import {
   // Importar utilidades de control de acceso para centralizar verificaciones de seguridad
   import { verifyCompanyAccess } from '@/lib/utils/accessControl';
 import { getCompanyIdFromSubdomain, validateCompanyId } from '@/lib/utils/subdomainDetector';
+import { verifyCompanyAccessStrict, logSecurityViolation } from '@/lib/services/securityService';
   // Importación que funciona tanto en SSR como en cliente
 // No importamos directamente para evitar errores durante el SSR
 let PDFDocument = null;
@@ -562,15 +563,30 @@ export async function getReportByCodeAndAccessCode(
         };
       }
 
-      // SEGUNDA CAPA DE SEGURIDAD: Verificación centralizada de acceso multi-tenant
-      const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
-      if (!accessCheck.success) {
-        console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a todos los reportes de compañía ${companyId}`);
-        return {
-          success: false,
-          error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía',
-          reports: []
-        };
+      // SEGUNDA CAPA DE SEGURIDAD: Verificación estricta de acceso multi-tenant
+      if (userId && userRole !== 'super_admin') {
+        const accessCheck = await verifyCompanyAccessStrict(userId, companyId, userRole);
+        if (!accessCheck.success) {
+          console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a todos los reportes de compañía ${companyId}`);
+          
+          // Registrar violación de seguridad
+          const userDoc = await getDoc(doc(db, `users/${userId}`));
+          const userCompanyId = userDoc.exists() ? userDoc.data().companyId || 'unknown' : 'unknown';
+          
+          logSecurityViolation(
+            userId, 
+            'acceder a reportes',
+            'listado completo',
+            companyId,
+            userCompanyId
+          );
+          
+          return {
+            success: false,
+            error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía',
+            reports: []
+          };
+        }
       }
 
       console.log(`Buscando denuncias en: companies/${companyId}/reports`);
