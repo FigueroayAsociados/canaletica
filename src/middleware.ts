@@ -122,6 +122,30 @@ export default function middleware(request: NextRequest) {
     }
   }
   
+  // Verificar acceso a rutas protegidas
+  if (pathname.startsWith('/dashboard/') && !publicRoutes.includes(pathname)) {
+    // Obtener la información de la sesión
+    const session = request.cookies.get('session')?.value;
+    
+    // Si no hay sesión, redirigir a login
+    if (!session) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    
+    // Aquí podríamos verificar si el usuario tiene acceso a la compañía específica
+    // Para implementación completa, habría que decodificar el token JWT de la sesión
+    // y verificar los permisos del usuario.
+    
+    // Redirección de seguridad: si es una ruta de dashboard y el usuario está intentando
+    // acceder a través del dominio principal en lugar del subdominio específico de su empresa,
+    // redirigirlo a la misma ruta pero en el subdominio correcto de su empresa.
+    
+    // NOTA: Este es un placeholder para la implementación completa que requeriría
+    // acceso a la base de datos y verificación del token JWT. Por ahora, solo
+    // mostramos un log para indicar que se haría esta verificación.
+    console.log(`Middleware: Verificando acceso a ruta protegida ${pathname} para compañía ${companyId || 'sin identificar'}`);
+  }
+  
   // Si estamos en la ruta principal sin contexto de empresa
   // y no es una ruta pública como /login, /register, etc.
   if (
@@ -133,9 +157,6 @@ export default function middleware(request: NextRequest) {
     // Redirigir a una página de selección de empresa o a la página principal
     return NextResponse.redirect(new URL('/login', request.url));
   }
-  
-  // TODO: Para producción, implementar lógica de autenticación real aquí
-  // Redirigir a login si no hay sesión válida en rutas protegidas
   
   // En otros casos, continuamos con la solicitud normalmente
   // El CompanyContext.tsx manejará la detección del ID de empresa

@@ -11,7 +11,7 @@ import { marked } from 'marked';
 import { CorporateDocuments } from '@/components/public/CorporateDocuments';
 import { VideoPlayer } from '@/components/public/VideoPlayer';
 import { VideoGallery } from '@/components/public/VideoGallery';
-import { DEFAULT_COMPANY_ID } from '@/lib/utils/constants';
+import { DEFAULT_COMPANY_ID, SUPPORT_EMAIL } from '@/lib/utils/constants';
 import { getTermsDocument, getPrivacyDocument } from '@/lib/services/documentService';
 import { Spinner } from '@/components/ui/spinner';
 import { CompanyLogo, CompanyHero } from '@/components/ui/company-logo';
@@ -311,8 +311,8 @@ export default function Home() {
               <h3 className="text-lg font-semibold mb-4">Contacto</h3>
               <p className="text-gray-300 text-sm">
                 Para soporte técnico, contáctenos en:
-                <a href="mailto:soporte@canaletica.com" className="block text-primary-light hover:text-white transition-colors mt-1">
-                  soporte@canaletica.com
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="block text-primary-light hover:text-white transition-colors mt-1">
+                  {SUPPORT_EMAIL}
                 </a>
               </p>
             </div>

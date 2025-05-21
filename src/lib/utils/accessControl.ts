@@ -78,33 +78,62 @@ export async function verifyCompanyAccess(
     return { success: true };
   }
 
-  // Si es admin, verificar que pertenezca a esta compañía
-  if (userRole === UserRole.ADMIN && userId) {
-    try {
-      const userRef = doc(db, `companies/${companyId}/users/${userId}`);
-      const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-
-        // Si el usuario pertenece a otra compañía, bloquear el acceso
-        if (userData.company && userData.company !== companyId) {
-          const errorMsg = `⚠️ ALERTA DE SEGURIDAD: Usuario admin ${userId} intentó acceder a compañía ${companyId} pero pertenece a ${userData.company}`;
-          logger.error(errorMsg);
-
-          return {
-            success: false,
-            error: 'No tiene permiso para acceder a los datos de esta compañía'
-          };
-        }
+  // Si no hay userId o userRole, denegar acceso
+  if (!userId || !userRole) {
+    return { 
+      success: false,
+      error: 'No se pudo verificar la identidad del usuario'
+    };
+  }
+  
+  // Para todos los usuarios que no son super_admin, verificar que pertenezcan a esta compañía
+  try {
+    // Primero buscar el usuario en la colección de usuarios global
+    const globalUserRef = doc(db, `users/${userId}`);
+    const globalUserSnap = await getDoc(globalUserRef);
+    
+    if (globalUserSnap.exists()) {
+      const globalUserData = globalUserSnap.data();
+      
+      // Si el usuario tiene una compañía asignada y es diferente, bloquear acceso
+      if (globalUserData.companyId && globalUserData.companyId !== companyId) {
+        const errorMsg = `⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a compañía ${companyId} pero pertenece a ${globalUserData.companyId}`;
+        logger.error(errorMsg);
+        
+        // Registrar la violación de seguridad
+        logSecurityViolation(userId, 'acceder a datos', 'compañía', companyId, globalUserData.companyId);
+        
+        return {
+          success: false,
+          error: 'No tiene permiso para acceder a los datos de esta compañía'
+        };
       }
-    } catch (error) {
-      logger.error('Error al verificar el perfil del usuario:', error);
-      logger.warn('No se pudo verificar el aislamiento multi-tenant, se permite acceso con precaución');
     }
+    
+    // Verificar en la colección de usuarios de la compañía específica
+    const companyUserRef = doc(db, `companies/${companyId}/users/${userId}`);
+    const companyUserSnap = await getDoc(companyUserRef);
+    
+    // Si el usuario no existe en la colección de esta compañía, denegar acceso
+    if (!companyUserSnap.exists()) {
+      const errorMsg = `⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a compañía ${companyId} pero no está registrado en esta compañía`;
+      logger.error(errorMsg);
+      
+      return {
+        success: false,
+        error: 'No tiene permiso para acceder a los datos de esta compañía'
+      };
+    }
+  } catch (error) {
+    logger.error('Error al verificar el perfil del usuario:', error);
+    // No permitir acceso en caso de error - es más seguro denegar por defecto
+    return {
+      success: false,
+      error: 'No se pudo verificar su acceso a esta compañía'
+    };
   }
 
-  // Si no es ni super_admin ni admin, o no hubo problemas en la verificación, permitir
+  // Si pasó todas las verificaciones, permitir acceso
   return { success: true };
 }
 

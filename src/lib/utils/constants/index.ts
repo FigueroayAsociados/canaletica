@@ -13,6 +13,10 @@ export const ADMIN_UIDS = process.env.NEXT_PUBLIC_ADMIN_UIDS
 // Compañía por defecto
 export const DEFAULT_COMPANY_ID = 'default';
 
+// Información de contacto
+export const SUPPORT_EMAIL = 'soporte@canaletica.cl';
+export const COMPANY_DOMAIN = 'canaletica.cl';
+
 // Roles de usuario
 export enum UserRole {
   ADMIN = 'admin',
