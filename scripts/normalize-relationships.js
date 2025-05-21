@@ -9,7 +9,7 @@ const path = require('path');
 // Inicializar Firebase Admin
 try {
   // Intenta buscar una configuración local primero
-  const serviceAccountPath = path.join(__dirname, 'canaletica-firebase-adminsdk.json');
+  const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
   if (fs.existsSync(serviceAccountPath)) {
     const serviceAccount = require(serviceAccountPath);
     admin.initializeApp({
@@ -17,9 +17,19 @@ try {
     });
     console.log('Firebase Admin inicializado con credenciales locales');
   } else {
-    // Si no hay configuración local, usa las variables de entorno (para CI/CD)
-    admin.initializeApp();
-    console.log('Firebase Admin inicializado con credenciales de entorno');
+    // Si no hay configuración local, verificar si hay archivo en nivel superior
+    const rootServiceAccountPath = path.join(__dirname, '..', 'serviceAccountKey.json');
+    if (fs.existsSync(rootServiceAccountPath)) {
+      const serviceAccount = require(rootServiceAccountPath);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log('Firebase Admin inicializado con credenciales del directorio raíz');
+    } else {
+      // Si no hay configuración local, usa las variables de entorno (para CI/CD)
+      admin.initializeApp();
+      console.log('Firebase Admin inicializado con credenciales de entorno');
+    }
   }
 } catch (error) {
   console.error('Error al inicializar Firebase Admin:', error);

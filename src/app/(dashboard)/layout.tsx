@@ -119,9 +119,7 @@ export default function DashboardLayout({
   }
   
   // Permitir acceso si el usuario es superadmin, admin o investigador
-  // Desactiva temporalmente esta verificación hasta que arreglemos los roles
-  /*
-  if (!isAdmin && !isInvestigator && !isSuperAdmin) {
+  if (!isAdmin && !isInvestigator && profile?.role !== 'super_admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full p-6">
@@ -135,7 +133,6 @@ export default function DashboardLayout({
       </div>
     );
   }
-  */
 
   return (
     <div className="min-h-screen bg-neutral-100 flex">
