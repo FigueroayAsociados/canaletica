@@ -32,7 +32,7 @@ export default function AdminLeyKarinPage() {
   const [editingMeasure, setEditingMeasure] = useState<string | null>(null);
   
   // 2. Custom hooks
-  const { isAdmin, profile } = useCurrentUser();
+  const { isAdmin, profile, isLoading: userLoading } = useCurrentUser();
   const { companyId: contextCompanyId } = useCompany();
 
   // 3. Variables constantes
@@ -189,7 +189,7 @@ export default function AdminLeyKarinPage() {
   
   // 8. Renderizados condicionales
   // Si todavía estamos verificando permisos, mostrar spinner
-  if (isLoading) {
+  if (userLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -206,7 +206,7 @@ export default function AdminLeyKarinPage() {
   }
   
   // Solo mostrar error de permisos si ya hemos cargado los datos del usuario
-  if (!isLoading && !isAdmin) {
+  if (!userLoading && !isAdmin) {
     return (
       <Alert variant="error" className="mb-4">
         <AlertDescription>No tiene permisos para acceder a esta sección.</AlertDescription>
