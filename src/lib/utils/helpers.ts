@@ -33,18 +33,19 @@ export function normalizeCompanyId(companyId: string | null | undefined): string
     return DEFAULT_COMPANY_ID;
   }
   
-  // Para entornos de Vercel Preview, permitir los subdominios generados automáticamente
-  // pero registrar un aviso para debugging
-  if (companyId.startsWith('canaletica-') || 
-      companyId.includes('-ricardo-figueroas-projects-')) {
+  // Para entornos de Vercel Preview, SIEMPRE usar "default" o una empresa real existente
+  // Esto garantiza que en entornos de preview siempre usemos datos reales
+  if (typeof window !== 'undefined' && 
+      (companyId.startsWith('canaletica-') || 
+      companyId.includes('-ricardo-figueroas-projects-'))) {
     
     if (!normalizedIdCache.has(companyId)) {
-      logger.warn(`Usando ID de Vercel Preview: "${companyId}" - Manteniendo ID original para entorno de pruebas`, null, { prefix: 'normalizeCompanyId' });
+      logger.info(`🔧 MODO VERCEL PREVIEW: ID "${companyId}" normalizado a "${DEFAULT_COMPANY_ID}" para garantizar datos reales`, null, { prefix: 'normalizeCompanyId' });
       normalizedIdCache.set(companyId, true);
     }
     
-    // En preview de Vercel, mantener el ID original
-    return companyId.toLowerCase().trim();
+    // En preview de Vercel, usar default para asegurar datos reales
+    return DEFAULT_COMPANY_ID;
   }
   
   // Devolver el ID original sin normalizar
