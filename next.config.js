@@ -49,10 +49,10 @@ const nextConfig = {
               default-src 'self';
               script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseio.com https://*.firebaseapp.com https://*.googletagmanager.com https://www.googletagmanager.com https://*.google-analytics.com;
               style-src 'self' 'unsafe-inline';
-              img-src 'self' data: https://storage.googleapis.com https://*.googleapis.com https://firebasestorage.googleapis.com;
+              img-src 'self' data: https://storage.googleapis.com https://*.googleapis.com https://firebasestorage.googleapis.com https://*.ytimg.com;
               font-src 'self' data:;
               connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com https://*.google-analytics.com;
-              frame-src 'self' https://*.firebaseapp.com https://www.youtube.com https://youtube.com;
+              frame-src 'self' https://*.firebaseapp.com https://www.youtube.com https://youtube.com https://*.youtube-nocookie.com;
               object-src 'none';
               base-uri 'self';
               form-action 'self';

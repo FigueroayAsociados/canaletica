@@ -3131,7 +3131,23 @@ export async function getKarinReports(
     // SEGUNDA CAPA DE SEGURIDAD: Verificación centralizada de acceso multi-tenant
     const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
     if (!accessCheck.success) {
-      console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a reportes Karin de compañía ${companyId}`);
+      // Evitar errores con valores undefined, usar valores de cadena vacía como fallback
+      const safeUserId = userId || '(no identificado)';
+      const safeUserRole = userRole || '(sin rol)';
+      
+      console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${safeUserId} con rol ${safeUserRole} intentó acceder a reportes Karin de compañía ${companyId}`);
+      
+      // Registrar violación de seguridad si hay un usuario identificado
+      if (userId) {
+        logSecurityViolation(
+          userId,
+          'acceder',
+          'reportes Karin',
+          companyId,
+          '(desconocida)'
+        );
+      }
+      
       return {
         success: false,
         error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía',
