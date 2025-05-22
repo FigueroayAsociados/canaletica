@@ -169,8 +169,14 @@ export function useCompany() {
             subdomain !== 'canaletica' &&
             hostParts.length > 1) {
 
-          // Si el context.companyId no coincide con el subdominio, aplicar corrección de seguridad
-          if (context.companyId !== subdomain &&
+          // Verificar si estamos en un entorno de Vercel Preview
+          const isVercelPreview = hostname.includes('vercel.app') && 
+                                (subdomain.startsWith('canaletica-') ||
+                                 subdomain.includes('-ricardo-figueroas-projects-'));
+          
+          // Solo aplicar corrección de seguridad en producción, no en Vercel Preview
+          if (!isVercelPreview && 
+              context.companyId !== subdomain &&
               context.originalCompanyId !== subdomain) {
 
             logger.warn(`🔐 CORRECCIÓN DE SEGURIDAD: Detectado subdominio ${subdomain} pero context.companyId=${context.companyId}. ¡Aplicando restricción!`, null, { prefix: 'useCompany' });

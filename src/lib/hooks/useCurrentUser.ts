@@ -116,8 +116,14 @@ export function useCurrentUser(): CurrentUser {
           const hostParts = hostname.split('.');
           const subdomain = hostParts[0]?.toLowerCase();
           
+          // Verificar si estamos en un entorno de Vercel Preview
+          const isVercelPreview = hostname.includes('vercel.app') && 
+                                 (subdomain.startsWith('canaletica-') ||
+                                  subdomain.includes('-ricardo-figueroas-projects-'));
+          
           // Si es un subdominio específico diferente al companyId actual
           if (subdomain && 
+              !isVercelPreview &&  // No aplicar corrección en entorno de preview
               subdomain !== 'www' &&
               subdomain !== 'localhost' &&
               subdomain !== 'canaletica' &&
@@ -126,6 +132,11 @@ export function useCurrentUser(): CurrentUser {
               subdomain !== targetCompanyId) {
             console.warn(`*** CORRECCIÓN DE SEGURIDAD: Detectado subdominio ${subdomain} diferente de companyId=${targetCompanyId} ***`);
             targetCompanyId = subdomain;
+          }
+          
+          // Mensaje de ayuda para entorno de Vercel Preview
+          if (isVercelPreview) {
+            console.info(`🔧 ENTORNO DE VERCEL PREVIEW DETECTADO: ${subdomain} - Usando companyId=${targetCompanyId}`);
           }
         }
         
