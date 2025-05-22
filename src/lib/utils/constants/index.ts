@@ -10,6 +10,18 @@ export const ADMIN_UIDS = process.env.NEXT_PUBLIC_ADMIN_UIDS
       // Puedes agregar más UIDs aquí si es necesario
     ];
 
+// Detectar si estamos en entorno de Vercel Preview
+export const isVercelPreview = typeof window !== 'undefined' && 
+  window.location.hostname.includes('vercel.app') &&
+  (window.location.hostname.startsWith('canaletica-') || 
+   window.location.hostname.includes('-ricardo-figueroas-projects-'));
+
+// Si estamos en Vercel Preview, añadir cualquier UID actual como admin para facilitar pruebas
+if (isVercelPreview && typeof window !== 'undefined') {
+  // Esta función se ejecutará solo en el cliente
+  console.info('🔧 ENTORNO VERCEL PREVIEW DETECTADO: Habilitando modo de prueba para cualquier usuario autenticado');
+}
+
 // Compañía por defecto
 export const DEFAULT_COMPANY_ID = 'default';
 

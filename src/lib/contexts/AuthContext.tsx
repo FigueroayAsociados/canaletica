@@ -147,6 +147,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   function isSuperAdmin() {
     if (!currentUser) return false;
     
+    // Si estamos en un entorno de Vercel Preview, cualquier usuario autenticado es super admin
+    // Esto facilita las pruebas en entornos de desarrollo y preview
+    if (typeof window !== 'undefined' && 
+        window.location.hostname.includes('vercel.app') &&
+        (window.location.hostname.startsWith('canaletica-') || 
+         window.location.hostname.includes('-ricardo-figueroas-projects-'))) {
+      logger.info(`MODO PREVIEW: Usuario ${currentUser.email || currentUser.uid} tratado como SUPER_ADMIN`, null, 
+        { prefix: 'AuthContext.isSuperAdmin' });
+      return true;
+    }
+    
     // Primero verificar la lista ADMIN_UIDS (método rápido)
     if (ADMIN_UIDS.includes(currentUser.uid)) {
       return true;

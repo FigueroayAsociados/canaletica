@@ -89,6 +89,78 @@ export async function getAllCompanies(
   filters?: CompanyFilters
 ): Promise<{ success: boolean; companies?: Company[]; error?: string }> {
   try {
+    // Verificar si estamos en un entorno de Vercel Preview
+    const isVercelPreview = typeof window !== 'undefined' && 
+      window.location.hostname.includes('vercel.app') &&
+      (window.location.hostname.startsWith('canaletica-') || 
+       window.location.hostname.includes('-ricardo-figueroas-projects-'));
+
+    // En entornos de preview, devolver datos simulados para facilitar pruebas
+    if (isVercelPreview) {
+      logger.info('MODO PREVIEW: Devolviendo empresas simuladas para pruebas', null, { prefix: 'getAllCompanies' });
+      
+      // Usar el hostname como ID de empresa para entorno de preview
+      const previewCompanyId = window.location.hostname.split('.')[0];
+      
+      // Crear lista de empresas simuladas para preview
+      const previewCompanies: Company[] = [
+        {
+          id: previewCompanyId,
+          name: 'Vercel Preview Empresa',
+          description: 'Empresa para pruebas en entorno de Vercel Preview',
+          isActive: true,
+          contactEmail: 'demo@canaletica.cl',
+          contactPhone: '+56912345678',
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        },
+        {
+          id: 'default',
+          name: 'Empresa Default',
+          description: 'Empresa por defecto para pruebas',
+          isActive: true,
+          contactEmail: 'default@canaletica.cl',
+          contactPhone: '+56912345678',
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        },
+        {
+          id: 'demo',
+          name: 'Empresa Demo',
+          description: 'Empresa de demostración',
+          isActive: true,
+          contactEmail: 'demo@canaletica.cl',
+          contactPhone: '+56912345678',
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        }
+      ];
+      
+      // Aplicar filtros si se especifican
+      let filteredCompanies = previewCompanies;
+      if (filters) {
+        if (filters.isActive !== undefined) {
+          filteredCompanies = filteredCompanies.filter(c => c.isActive === filters.isActive);
+        }
+        
+        if (filters.environment) {
+          // Simular entorno
+          const envMapping: Record<string, EnvironmentType> = {
+            'default': 'production',
+            'demo': 'demo',
+            [previewCompanyId]: 'development'
+          };
+          
+          filteredCompanies = filteredCompanies.filter(c => 
+            envMapping[c.id] === filters.environment
+          );
+        }
+      }
+      
+      return { success: true, companies: filteredCompanies };
+    }
+    
+    // Comportamiento normal para entornos de producción
     const companiesRef = collection(db, 'companies');
     
     // Construir query con filtros
