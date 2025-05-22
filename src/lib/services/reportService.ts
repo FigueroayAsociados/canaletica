@@ -3128,6 +3128,16 @@ export async function getKarinReports(
       };
     }
 
+    // Verificar que tenemos la información del usuario
+    if (!userRole || !userId) {
+      console.warn(`Solicitud de reportes Karin con datos de usuario incompletos. CompanyId: ${companyId}, UserRole: ${userRole || 'undefined'}, UserId: ${userId || 'undefined'}`);
+      return {
+        success: false,
+        error: 'Información de usuario incompleta. Por favor, inicie sesión nuevamente.',
+        reports: []
+      };
+    }
+
     // SEGUNDA CAPA DE SEGURIDAD: Verificación centralizada de acceso multi-tenant
     const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
     if (!accessCheck.success) {
@@ -3137,16 +3147,14 @@ export async function getKarinReports(
       
       console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${safeUserId} con rol ${safeUserRole} intentó acceder a reportes Karin de compañía ${companyId}`);
       
-      // Registrar violación de seguridad si hay un usuario identificado
-      if (userId) {
-        logSecurityViolation(
-          userId,
-          'acceder',
-          'reportes Karin',
-          companyId,
-          '(desconocida)'
-        );
-      }
+      // Registrar violación de seguridad
+      logSecurityViolation(
+        userId,
+        'acceder',
+        'reportes Karin',
+        companyId,
+        '(desconocida)'
+      );
       
       return {
         success: false,

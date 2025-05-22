@@ -90,6 +90,9 @@ export default function AdminLeyKarinPage() {
   // Extraer uid y role para verificaciones de seguridad
   const uid = profile?.uid;
   const userRole = profile?.role;
+  
+  // Verificar si los datos del usuario están cargados
+  const isUserDataLoaded = !!uid && !!userRole;
 
   const {
     data: reportsData,
@@ -173,8 +176,10 @@ export default function AdminLeyKarinPage() {
   }, [reportsData]);
   
   useEffect(() => {
-    setLoading(initializeCategory.isPending || isLoadingReports);
-  }, [initializeCategory.isPending, isLoadingReports]);
+    // Solo consideramos que estamos cargando si los datos de usuario están disponibles
+    // o si cualquiera de las operaciones está en progreso
+    setLoading(initializeCategory.isPending || isLoadingReports || !isUserDataLoaded);
+  }, [initializeCategory.isPending, isLoadingReports, isUserDataLoaded]);
   
   useEffect(() => {
     if (reportsError) {
@@ -201,7 +206,13 @@ export default function AdminLeyKarinPage() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           </div>
-          <p className="text-gray-600">Inicializando módulo Ley Karin...</p>
+          <p className="text-gray-600">
+            {!isUserDataLoaded 
+              ? "Cargando información del usuario..." 
+              : initializeCategory.isPending 
+                ? "Inicializando módulo Ley Karin..." 
+                : "Cargando denuncias Ley Karin..."}
+          </p>
         </div>
       </div>
     );

@@ -47,6 +47,7 @@ export function useReports(
 
 /**
  * Hook para obtener reportes específicos de Ley Karin
+ * Solo se ejecuta cuando companyId, userRole y userId están disponibles
  */
 export function useKarinReports(
   companyId: string,
@@ -54,9 +55,10 @@ export function useKarinReports(
   userId?: string | null
 ) {
   return useQuery({
-    queryKey: ['karinReports', companyId, userRole],
+    queryKey: ['karinReports', companyId, userRole, userId],
     queryFn: () => getKarinReports(companyId, userRole, userId),
-    enabled: !!companyId,
+    // Solo habilitamos la consulta cuando tengamos todos los datos necesarios
+    enabled: !!companyId && !!userRole && !!userId,
   });
 }
 
