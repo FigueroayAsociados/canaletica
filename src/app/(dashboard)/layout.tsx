@@ -25,7 +25,18 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { currentUser, loading: authLoading, logout } = useAuth();
   const { profile, isLoading, error, isAdmin, isInvestigator } = useCurrentUser();
-  const { isEnabled } = useFeatureFlags();
+  const { isEnabled, features } = useFeatureFlags();
+  
+  // Depuración para entender por qué no se muestra el enlace de Ley Karin
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('DEBUG - Estado de features:', features);
+      console.log('DEBUG - karinModuleEnabled:', features?.karinModuleEnabled);
+      console.log('DEBUG - isEnabled(karinModuleEnabled):', isEnabled('karinModuleEnabled'));
+      console.log('DEBUG - isAdmin:', isAdmin);
+      console.log('DEBUG - isSuperAdmin:', profile?.role === 'super_admin');
+    }
+  }, [features, isEnabled, isAdmin, profile]);
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -278,18 +289,16 @@ export default function DashboardLayout({
               </Link>
               
 
-              {/* En Vercel Preview o si el módulo está habilitado, mostrar el enlace de Ley Karin */}
-              {(typeof window !== 'undefined' && window.location.hostname.includes('vercel.app') || isEnabled('karinModuleEnabled')) && (
-                <Link 
-                  href="/dashboard/admin/ley-karin" 
-                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
-                >
-                  <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Ley Karin
-                </Link>
-              )}
+              {/* Mostrar siempre el enlace de Ley Karin para depuración */}
+              <Link 
+                href="/dashboard/admin/ley-karin" 
+                className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+              >
+                <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Ley Karin
+              </Link>
               
               <Link 
                 href="/dashboard/admin/delete-reports" 
