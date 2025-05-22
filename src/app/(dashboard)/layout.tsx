@@ -278,7 +278,8 @@ export default function DashboardLayout({
               </Link>
               
 
-              {isEnabled('karinModuleEnabled') && (
+              {/* En Vercel Preview o si el módulo está habilitado, mostrar el enlace de Ley Karin */}
+              {(typeof window !== 'undefined' && window.location.hostname.includes('vercel.app') || isEnabled('karinModuleEnabled')) && (
                 <Link 
                   href="/dashboard/admin/ley-karin" 
                   className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
