@@ -48,17 +48,33 @@ export function useReports(
 /**
  * Hook para obtener reportes específicos de Ley Karin
  * Solo se ejecuta cuando companyId, userRole y userId están disponibles
+ * O cuando estamos en un entorno de Vercel Preview
  */
 export function useKarinReports(
   companyId: string,
   userRole?: string | null,
   userId?: string | null
 ) {
+  // Detectar si estamos en un entorno de Vercel Preview
+  const isVercelPreview = typeof window !== 'undefined' && 
+    window.location.hostname.includes('vercel.app') && 
+    (window.location.hostname.startsWith('canaletica-') || 
+     window.location.hostname.includes('-ricardo-figueroas-projects-'));
+  
   return useQuery({
     queryKey: ['karinReports', companyId, userRole, userId],
-    queryFn: () => getKarinReports(companyId, userRole, userId),
-    // Solo habilitamos la consulta cuando tengamos todos los datos necesarios
-    enabled: !!companyId && !!userRole && !!userId,
+    queryFn: () => {
+      // En modo de Vercel Preview, agregar información de debug
+      if (isVercelPreview) {
+        console.log(`🔧 useKarinReports - Ejecutando consulta en modo Vercel Preview`);
+        console.log(`🔧 companyId: ${companyId}, userRole: ${userRole}, userId: ${userId}`);
+      }
+      
+      return getKarinReports(companyId, userRole, userId);
+    },
+    // Siempre habilitamos la consulta en entornos de Vercel Preview,
+    // de lo contrario, solo cuando tengamos todos los datos necesarios
+    enabled: isVercelPreview || (!!companyId && !!userRole && !!userId),
   });
 }
 

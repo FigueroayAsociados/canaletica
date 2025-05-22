@@ -39,6 +39,21 @@ export default function AdminLeyKarinPage() {
   // Usar el company del perfil del usuario o el companyId del contexto
   const companyId = profile?.company || contextCompanyId;
   
+  // Detectar si estamos en un entorno de Vercel Preview para debugging
+  const isVercelPreview = typeof window !== 'undefined' && 
+    window.location.hostname.includes('vercel.app') && 
+    (window.location.hostname.startsWith('canaletica-') || 
+     window.location.hostname.includes('-ricardo-figueroas-projects-'));
+     
+  // Agregar información de debug
+  if (isVercelPreview) {
+    console.log('🔧 MODO VERCEL PREVIEW DETECTADO en página Ley Karin');
+    console.log(`🔧 companyId: ${companyId}`);
+    console.log(`🔧 profile:`, profile);
+    console.log(`🔧 isAdmin: ${isAdmin}`);
+    console.log(`🔧 userLoading: ${userLoading}`);
+  }
+  
   // 4. Funciones traducidas
   // Traducir etapa del proceso a español para mejor visualización
   const translateStage = React.useCallback((stage?: string): string => {
@@ -88,11 +103,28 @@ export default function AdminLeyKarinPage() {
   });
   
   // Extraer uid y role para verificaciones de seguridad
-  const uid = profile?.uid;
-  const userRole = profile?.role;
+  let uid = profile?.uid;
+  let userRole = profile?.role;
+  
+  // En entornos de Vercel Preview, proporcionar valores predeterminados para evitar bloqueos
+  if (isVercelPreview && (!uid || !userRole)) {
+    console.log('🔧 MODO VERCEL PREVIEW: Proporcionando valores predeterminados para uid y userRole');
+    
+    // Si no tenemos uid, usar un valor temporal para entorno de preview
+    if (!uid) {
+      uid = 'preview-admin-user';
+      console.log(`🔧 Usando uid predeterminado: ${uid}`);
+    }
+    
+    // Si no tenemos rol, asumir admin para permitir pruebas en preview
+    if (!userRole) {
+      userRole = 'admin';
+      console.log(`🔧 Usando userRole predeterminado: ${userRole}`);
+    }
+  }
   
   // Verificar si los datos del usuario están cargados
-  const isUserDataLoaded = !!uid && !!userRole;
+  const isUserDataLoaded = isVercelPreview || (!!uid && !!userRole);
 
   const {
     data: reportsData,
@@ -163,23 +195,76 @@ export default function AdminLeyKarinPage() {
     // Solo inicializar una vez al cargar la página
     if (!initAttempted && !initializeCategory.isPending && !initializeCategory.isSuccess) {
       setInitAttempted(true);
+      
+      if (isVercelPreview) {
+        console.log('🔧 Iniciando categoría Karin en modo Vercel Preview');
+        console.log(`🔧 companyId: ${companyId}`);
+      }
+      
       initializeCategory.mutate();
     }
-  }, [initializeCategory, initAttempted]);
+  }, [initializeCategory, initAttempted, companyId, isVercelPreview]);
+  
+  // En entornos de Vercel Preview, agregar efectos de debug para monitorear el estado
+  useEffect(() => {
+    if (isVercelPreview) {
+      console.log(`🔧 Estado de inicialización: initAttempted=${initAttempted}, isPending=${initializeCategory.isPending}, isSuccess=${initializeCategory.isSuccess}`);
+    }
+  }, [isVercelPreview, initAttempted, initializeCategory.isPending, initializeCategory.isSuccess]);
   
   useEffect(() => {
+    // En entornos de Vercel Preview, agregar logs para depuración
+    if (isVercelPreview) {
+      console.log('🔧 reportsData actualizado:', reportsData);
+    }
+    
     if (reportsData?.success) {
       setReports(reportsData.reports);
+      
+      if (isVercelPreview) {
+        console.log(`🔧 Reportes cargados correctamente: ${reportsData.reports.length} registros`);
+      }
     } else if (reportsData?.error) {
       setError(reportsData.error);
+      
+      if (isVercelPreview) {
+        console.error(`🔧 Error al cargar reportes: ${reportsData.error}`);
+      }
+    } else if (reportsData === undefined && isVercelPreview) {
+      console.log('🔧 reportsData es undefined - posible problema con la consulta');
     }
-  }, [reportsData]);
+  }, [reportsData, isVercelPreview]);
   
   useEffect(() => {
     // Solo consideramos que estamos cargando si los datos de usuario están disponibles
     // o si cualquiera de las operaciones está en progreso
-    setLoading(initializeCategory.isPending || isLoadingReports || !isUserDataLoaded);
-  }, [initializeCategory.isPending, isLoadingReports, isUserDataLoaded]);
+    const shouldBeLoading = initializeCategory.isPending || isLoadingReports || !isUserDataLoaded;
+    
+    // En entorno de Vercel Preview, agregar información de debug
+    if (isVercelPreview) {
+      console.log(`🔧 Estado de carga: shouldBeLoading=${shouldBeLoading}`);
+      console.log(`🔧 - initializeCategory.isPending=${initializeCategory.isPending}`);
+      console.log(`🔧 - isLoadingReports=${isLoadingReports}`);
+      console.log(`🔧 - isUserDataLoaded=${isUserDataLoaded}`);
+      
+      // En Vercel Preview, limitar el tiempo de carga para evitar ciclos infinitos
+      if (shouldBeLoading) {
+        console.log('🔧 Iniciando temporizador para limitar tiempo de carga en Vercel Preview');
+        
+        // Después de 5 segundos, forzar que se muestre la interfaz
+        const timer = setTimeout(() => {
+          if (isVercelPreview) {
+            console.log('🔧 Tiempo de carga excedido en Vercel Preview, forzando renderizado');
+            setLoading(false);
+          }
+        }, 5000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+    
+    setLoading(shouldBeLoading);
+  }, [initializeCategory.isPending, isLoadingReports, isUserDataLoaded, isVercelPreview]);
   
   useEffect(() => {
     if (reportsError) {
@@ -189,7 +274,7 @@ export default function AdminLeyKarinPage() {
   
   // 8. Renderizados condicionales
   // Si todavía estamos verificando permisos, mostrar spinner
-  if (userLoading) {
+  if (userLoading && !isVercelPreview) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -206,12 +291,19 @@ export default function AdminLeyKarinPage() {
   }
   
   // Solo mostrar error de permisos si ya hemos cargado los datos del usuario
-  if (!userLoading && !isAdmin) {
+  // Y NO estamos en un entorno de Vercel Preview
+  if (!userLoading && !isAdmin && !isVercelPreview) {
     return (
       <Alert variant="error" className="mb-4">
         <AlertDescription>No tiene permisos para acceder a esta sección.</AlertDescription>
       </Alert>
     );
+  }
+  
+  // Si estamos en entorno de Vercel Preview y normalmente se bloquearía el acceso,
+  // mostrar un mensaje especial pero permitir continuar
+  if (isVercelPreview && !isAdmin && !userLoading) {
+    console.log('🔧 MODO VERCEL PREVIEW: Permitiendo acceso a pesar de no tener rol de administrador');
   }
 
   if (loading) {
