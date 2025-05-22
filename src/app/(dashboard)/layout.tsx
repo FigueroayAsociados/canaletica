@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useCompany } from '@/lib/contexts/CompanyContext';
+import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import FloatingAssistant from '@/components/ai/FloatingAssistant';
@@ -24,6 +25,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { currentUser, loading: authLoading, logout } = useAuth();
   const { profile, isLoading, error, isAdmin, isInvestigator } = useCurrentUser();
+  const { isEnabled } = useFeatureFlags();
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -276,15 +278,17 @@ export default function DashboardLayout({
               </Link>
               
 
-              <Link 
-                href="/dashboard/admin/ley-karin" 
-                className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
-              >
-                <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Ley Karin
-              </Link>
+              {isEnabled('karinModuleEnabled') && (
+                <Link 
+                  href="/dashboard/admin/ley-karin" 
+                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-md ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'bg-primary text-white' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}`}
+                >
+                  <svg className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/admin/ley-karin') ? 'text-white' : 'text-neutral-500'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Ley Karin
+                </Link>
+              )}
               
               <Link 
                 href="/dashboard/admin/delete-reports" 
