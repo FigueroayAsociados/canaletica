@@ -22,6 +22,7 @@ import { TasksList } from '@/components/investigation/TasksList';
 import { FinalReport } from '@/components/investigation/FinalReport';
 import { KarinTimeline } from '@/components/investigation/KarinTimeline';
 import { KarinDeadlinesTimeline } from '@/components/investigation/KarinDeadlinesTimeline';
+import KarinDeadlinesTimelineAdvanced from '@/components/investigation/KarinDeadlinesTimelineAdvanced';
 import SubsanationForm from '@/components/investigation/SubsanationForm';
 import AuthorityNotificationForm from '@/components/investigation/AuthorityNotificationForm';
 import LegalDocumentGenerator from '@/components/ai/LegalDocumentGenerator';
@@ -862,10 +863,22 @@ export default function InvestigationDetailPage() {
               onUpdateStage={handleUpdateKarinStage}
             />
             
-            {/* Plazos y Visualización - nueva sección para gestión centralizada de plazos */}
-            <KarinDeadlinesTimeline
-              report={investigation}
-              onUpdateDeadlines={handleUpdateDeadlines}
+            {/* Sistema Avanzado de Plazos Legales */}
+            <KarinDeadlinesTimelineAdvanced
+              reportId={reportId}
+              companyId={userCompanyId}
+              reportDate={investigation.createdAt}
+              showActions={canEdit}
+              onDeadlineUpdate={(updatedDeadline) => {
+                // Recargar datos después de actualizar un plazo
+                const fetchUpdatedData = async () => {
+                  const result = await getInvestigationDetails(userCompanyId, reportId);
+                  if (result.success) {
+                    setInvestigation(result.investigation);
+                  }
+                };
+                fetchUpdatedData();
+              }}
             />
             
             {/* Inicializar plazos si no existen */}
