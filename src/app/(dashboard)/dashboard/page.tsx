@@ -249,7 +249,7 @@ export default function DashboardPage() {
             count: getExpiringSoon(),
             type: 'expiring'
           } : undefined}
-          linkUrl="/dashboard/reports?status=ley_karin_en_proceso" // Usar el filtro específico para Ley Karin en proceso
+          linkUrl="/dashboard/reports?status=En%20Investigaci%C3%B3n,Pendiente%20Informaci%C3%B3n,En%20Evaluaci%C3%B3n,Ley%20Karin%20-%20En%20Investigaci%C3%B3n" // Mostrar solo los reportes en investigación
           linkText="Ver investigaciones activas"
           colorScheme="warning"
         />

@@ -64,7 +64,9 @@ import {
       for (const state of regularInProgressStates) {
         const stateQuery = query(reportsRef, where('status', '==', state));
         const stateSnapshot = await getDocs(stateQuery);
-        inProgressCount += stateSnapshot.size;
+        const count = stateSnapshot.size;
+        inProgressCount += count;
+        console.log(`Estado ${state}: ${count} denuncias`);
       }
       
       // Estados en progreso para Ley Karin (siguiendo el orden exacto del proceso)
@@ -87,7 +89,9 @@ import {
       for (const state of karinInProgressStates) {
         const stateQuery = query(reportsRef, where('status', '==', state));
         const stateSnapshot = await getDocs(stateQuery);
-        inProgressCount += stateSnapshot.size;
+        const count = stateSnapshot.size;
+        inProgressCount += count;
+        console.log(`Estado ${state}: ${count} denuncias`);
       }
       
       metricsData.inProgressReports = inProgressCount;
@@ -201,6 +205,15 @@ import {
         // Esto asegura que los porcentajes mostrados en CategoryDistributionCard sean correctos
         metricsData.totalReports = categorizedReportsCount;
       }
+      
+      // Registro detallado del conteo de denuncias por estado para depuración
+      console.log('==== RESUMEN DE CONTEO DE DENUNCIAS ====');
+      console.log(`Total de denuncias: ${totalReports}`);
+      console.log(`Nuevas denuncias: ${metricsData.newReports}`);
+      console.log(`En investigación: ${metricsData.inProgressReports}`);
+      console.log(`Resueltas: ${metricsData.resolvedReports}`);
+      console.log(`Por categoría: ${categorizedReportsCount}`);
+      console.log('=======================================');
   
       // Obtener actividad reciente desde las actividades de todas las denuncias
       const recentActivities: any[] = [];
