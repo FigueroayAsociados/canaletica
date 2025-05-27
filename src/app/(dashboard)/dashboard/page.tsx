@@ -249,7 +249,7 @@ export default function DashboardPage() {
             count: getExpiringSoon(),
             type: 'expiring'
           } : undefined}
-          linkUrl="/dashboard/reports?status=En Investigación"
+          linkUrl="/dashboard/reports?status=ley_karin_en_proceso"
           linkText="Ver investigaciones activas"
           colorScheme="warning"
         />

@@ -140,12 +140,13 @@ export default function ReportsPage() {
         }
         
         // Si buscamos "en investigación" incluir todos los estados de investigación de Ley Karin
-        if (filters.status.toLowerCase() === 'en investigación') {
+        if (filters.status.toLowerCase() === 'en investigación' || filters.status === 'En Investigación') {
           return report.status.toLowerCase().includes('ley karin') && 
                 (report.status.toLowerCase().includes('investigación') || 
                  report.status.toLowerCase().includes('medidas') ||
                  report.status.toLowerCase().includes('informe') || 
-                 report.status.toLowerCase().includes('notificación'));
+                 report.status.toLowerCase().includes('notificación') ||
+                 report.status.toLowerCase().includes('asignada'));
         }
         
         // Si buscamos "resuelta" incluir estados finales de Ley Karin

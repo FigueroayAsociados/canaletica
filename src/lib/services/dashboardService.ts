@@ -153,9 +153,12 @@ import {
         'otros'
       ];
       
+      // Verificar que todas las denuncias tienen una categoría válida
+      let categorizedReportsCount = 0;
       const categoryPromises = categories.map(async category => {
         const categoryQuery = query(reportsRef, where('category', '==', category));
         const categorySnapshot = await getDocs(categoryQuery);
+        categorizedReportsCount += categorySnapshot.size;
         return {
           category,
           count: categorySnapshot.size
@@ -163,6 +166,11 @@ import {
       });
       
       metricsData.reportsByCategory = await Promise.all(categoryPromises);
+      
+      // Verificar si hay discrepancia con el total de reportes
+      if (categorizedReportsCount !== totalReports) {
+        console.warn(`Discrepancia en conteo de categorías: Total=${totalReports}, Suma de categorías=${categorizedReportsCount}`);
+      }
   
       // Obtener actividad reciente desde las actividades de todas las denuncias
       const recentActivities: any[] = [];
