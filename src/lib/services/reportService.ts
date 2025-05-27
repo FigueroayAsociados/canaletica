@@ -1492,7 +1492,19 @@ export async function updateKarinProcessStage(
       case 'report_approval':
         newStatus = 'Ley Karin - Aprobación de Informe';
         break;
-      case 'labor_department':
+      case 'investigation_complete':
+        newStatus = 'Ley Karin - Investigación Completa';
+        break;
+      case 'final_report':
+        newStatus = 'Ley Karin - Informe Final';
+        break;
+      case 'dt_submission':
+        newStatus = 'Ley Karin - Envío a DT';
+        break;
+      case 'dt_resolution':
+        newStatus = 'Ley Karin - Resolución DT';
+        break;
+      case 'labor_department': // Valor antiguo (para compatibilidad)
         newStatus = 'Ley Karin - En Dirección del Trabajo';
         break;
       case 'measures_adoption':

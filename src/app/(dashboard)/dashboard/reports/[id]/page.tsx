@@ -123,9 +123,18 @@ export default function ReportDetailPage() {
   // Obtener los investigadores de los datos cargados
   const investigators = investigatorsResult?.success ? investigatorsResult.users || [] : [];
   
+  // Función auxiliar para verificar si el estado es el mismo
+  const isStatusUnchanged = (report: any, newStatus: string): boolean => {
+    if (report.isKarinLaw) {
+      return report.karinProcess?.stage === newStatus;
+    } else {
+      return report.status === newStatus;
+    }
+  };
+  
   // Manejar cambio de estado
   const handleStatusChange = async () => {
-    if (!report || (report.isKarinLaw ? (report.karinProcess?.stage === newStatus) : (newStatus === report.status)) || !uid) return;
+    if (!report || isStatusUnchanged(report, newStatus) || !uid) return;
     
     try {
       if (report.isKarinLaw) {
@@ -611,7 +620,7 @@ export default function ReportDetailPage() {
                 
                 <Button 
                   onClick={handleStatusChange}
-                  disabled={newStatus === report.status || isSubmitting}
+                  disabled={isStatusUnchanged(report, newStatus) || isSubmitting}
                 >
                   {updateStatusMutation.isPending ? 'Guardando...' : 'Actualizar Estado'}
                 </Button>

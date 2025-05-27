@@ -37,36 +37,98 @@ import {
       const totalReports = allReportsSnapshot.size;
       metricsData.totalReports = totalReports;
   
-      // Contar por estado
+      // Contar reportes nuevos - incluye tanto "Nuevo" como "Ley Karin - Denuncia Interpuesta" o "Ley Karin - Denuncia Recibida"
+      let newReportsCount = 0;
+      
+      // Contar denuncias regulares nuevas
       const newReportsQuery = query(reportsRef, where('status', '==', 'Nuevo'));
       const newReportsSnapshot = await getDocs(newReportsQuery);
-      metricsData.newReports = newReportsSnapshot.size;
+      newReportsCount += newReportsSnapshot.size;
+      
+      // Contar denuncias Ley Karin en etapa inicial
+      const karinNewQuery1 = query(reportsRef, where('status', '==', 'Ley Karin - Denuncia Interpuesta'));
+      const karinNewSnapshot1 = await getDocs(karinNewQuery1);
+      newReportsCount += karinNewSnapshot1.size;
+      
+      const karinNewQuery2 = query(reportsRef, where('status', '==', 'Ley Karin - Denuncia Recibida'));
+      const karinNewSnapshot2 = await getDocs(karinNewQuery2);
+      newReportsCount += karinNewSnapshot2.size;
+      
+      metricsData.newReports = newReportsCount;
   
-      const inProgressStates = ['Asignada', 'En Investigación', 'Pendiente Información', 'En Evaluación'];
+      // Estados en progreso regulares
+      const regularInProgressStates = ['Asignada', 'En Investigación', 'Pendiente Información', 'En Evaluación'];
       let inProgressCount = 0;
-      for (const state of inProgressStates) {
+      
+      // Contar reportes regulares en progreso
+      for (const state of regularInProgressStates) {
         const stateQuery = query(reportsRef, where('status', '==', state));
         const stateSnapshot = await getDocs(stateQuery);
         inProgressCount += stateSnapshot.size;
       }
+      
+      // Estados en progreso para Ley Karin (siguiendo el orden exacto del proceso)
+      const karinInProgressStates = [
+        'Ley Karin - Medidas Precautorias',              // Etapa 3
+        'Ley Karin - Decisión de Investigar',            // Etapa 4
+        'Ley Karin - En Investigación',                  // Etapa 5
+        'Ley Karin - Creación de Informe',               // Etapa 6
+        'Ley Karin - Aprobación de Informe',             // Etapa 7
+        'Ley Karin - Notificación a DT',                 // Etapa 8
+        'Ley Karin - Notificación a SUSESO',             // Etapa 9
+        'Ley Karin - Investigación Completa',            // Etapa 10
+        'Ley Karin - Informe Final',                     // Etapa 11
+        'Ley Karin - Envío a DT',                        // Etapa 12
+        'Ley Karin - En Dirección del Trabajo',          // Valor antiguo (para compatibilidad)
+        'Ley Karin - Resolución DT'                      // Etapa 13
+      ];
+      
+      // Contar reportes Ley Karin en progreso
+      for (const state of karinInProgressStates) {
+        const stateQuery = query(reportsRef, where('status', '==', state));
+        const stateSnapshot = await getDocs(stateQuery);
+        inProgressCount += stateSnapshot.size;
+      }
+      
       metricsData.inProgressReports = inProgressCount;
   
-      const resolvedStates = ['Resuelta', 'En Seguimiento', 'Cerrada'];
+      // Estados resueltos para reportes regulares
+      const regularResolvedStates = ['Resuelta', 'En Seguimiento', 'Cerrada'];
       let resolvedCount = 0;
-      for (const state of resolvedStates) {
+      for (const state of regularResolvedStates) {
         const stateQuery = query(reportsRef, where('status', '==', state));
         const stateSnapshot = await getDocs(stateQuery);
         resolvedCount += stateSnapshot.size;
       }
+      
+      // Estados resueltos para reportes Ley Karin
+      const karinResolvedStates = [
+        'Ley Karin - Adopción de Medidas',           // Etapa 14
+        'Ley Karin - Sanciones',                     // Etapa 15
+        'Ley Karin - Cerrado',                       // Finalizado
+        'Ley Karin - Denuncia Falsa',                // Caso especial
+        'Ley Karin - Revisión de Represalias'        // Caso especial
+      ];
+      
+      // Contar reportes Ley Karin resueltos
+      for (const state of karinResolvedStates) {
+        const stateQuery = query(reportsRef, where('status', '==', state));
+        const stateSnapshot = await getDocs(stateQuery);
+        resolvedCount += stateSnapshot.size;
+      }
+      
       metricsData.resolvedReports = resolvedCount;
   
       // Calcular tiempo promedio de resolución
       let totalResolutionTimeInDays = 0;
       let completedReportsCount = 0;
       
+      // Combinar todos los estados que se consideran resueltos (tanto regulares como Ley Karin)
+      const allResolvedStates = [...regularResolvedStates, ...karinResolvedStates];
+      
       allReportsSnapshot.forEach(doc => {
         const data = doc.data();
-        if (resolvedStates.includes(data.status) && data.createdAt && data.updatedAt) {
+        if (allResolvedStates.includes(data.status) && data.createdAt && data.updatedAt) {
           const createdDate = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
           const updatedDate = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
           const diffTime = Math.abs(updatedDate.getTime() - createdDate.getTime());
