@@ -146,6 +146,7 @@ export default function SummaryStatCard({
             <Link 
               href={linkUrl} 
               className="text-sm font-medium text-primary hover:underline flex items-center"
+              title={`Ver detalles: ${linkText}`}
             >
               {linkText}
               <ChevronRight className="ml-1 w-4 h-4" />

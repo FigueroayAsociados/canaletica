@@ -155,21 +155,51 @@ import {
       
       // Verificar que todas las denuncias tienen una categoría válida
       let categorizedReportsCount = 0;
-      const categoryPromises = categories.map(async category => {
-        const categoryQuery = query(reportsRef, where('category', '==', category));
-        const categorySnapshot = await getDocs(categoryQuery);
-        categorizedReportsCount += categorySnapshot.size;
-        return {
-          category,
-          count: categorySnapshot.size
-        };
+      let reportsByCategory = [];
+      
+      // Uso de un solo loop para procesar todas las denuncias y contar por categoría
+      // Esto es más eficiente que hacer una consulta por cada categoría
+      const categoryCounts = {};
+      categories.forEach(category => {
+        categoryCounts[category] = 0;
       });
       
-      metricsData.reportsByCategory = await Promise.all(categoryPromises);
+      // Contar manualmente por categoría usando los documentos ya obtenidos
+      allReportsSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.category) {
+          // Verificar si la categoría está en nuestra lista predefinida
+          if (categories.includes(data.category)) {
+            categoryCounts[data.category]++;
+            categorizedReportsCount++;
+          } else {
+            // Si la categoría no está en la lista, contarla como "otros"
+            console.log(`Categoría no reconocida encontrada: ${data.category}, asignando a "otros"`)
+            categoryCounts['otros']++;
+            categorizedReportsCount++;
+          }
+        } else {
+          // Si no hay categoría definida, contarla como "otros"
+          console.log(`Denuncia sin categoría encontrada: ID=${doc.id}, asignando a "otros"`)
+          categoryCounts['otros']++;
+          categorizedReportsCount++;
+        }
+      });
+      
+      // Convertir los conteos a la estructura esperada
+      reportsByCategory = categories.map(category => ({
+        category,
+        count: categoryCounts[category] || 0
+      }));
+      
+      metricsData.reportsByCategory = reportsByCategory;
       
       // Verificar si hay discrepancia con el total de reportes
       if (categorizedReportsCount !== totalReports) {
         console.warn(`Discrepancia en conteo de categorías: Total=${totalReports}, Suma de categorías=${categorizedReportsCount}`);
+        // Actualizar metrics.totalReports para reflejar el número real de reportes categorizados
+        // Esto asegura que los porcentajes mostrados en CategoryDistributionCard sean correctos
+        metricsData.totalReports = categorizedReportsCount;
       }
   
       // Obtener actividad reciente desde las actividades de todas las denuncias
