@@ -32,7 +32,7 @@ export default function AdminLeyKarinPage() {
   const [editingMeasure, setEditingMeasure] = useState<string | null>(null);
   
   // 2. Custom hooks
-  const { isAdmin, profile } = useCurrentUser();
+  const { isAdmin, isSuperAdmin, profile } = useCurrentUser();
   const { companyId: contextCompanyId } = useCompany();
 
   // 3. Variables constantes
