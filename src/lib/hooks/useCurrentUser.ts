@@ -135,12 +135,9 @@ export function useCurrentUser(): CurrentUser {
         
         // Lista de correos de super admin como respaldo (para desarrollo y despliegues de vista previa)
         const superAdminEmails = [
+          'rfigueroaf@gmail.com', // Correo real del super admin
           'soporte@canaletica.cl',
-          'admin@canaletica.cl',
-          'admin@canaletic.app',
-          'soporte@canaletic.app',
-          'ricardo.figueroa@idus.cl',
-          'ricardof333@gmail.com'
+          'admin@canaletica.cl'
         ];
         
         // Verificar si el usuario está en la colección de super_admins o si su correo está en la lista
