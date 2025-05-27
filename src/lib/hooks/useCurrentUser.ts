@@ -133,7 +133,20 @@ export function useCurrentUser(): CurrentUser {
         const superAdminRef = doc(db, `super_admins/${currentUser.uid}`);
         const superAdminSnap = await getDoc(superAdminRef);
         
-        if (superAdminSnap.exists()) {
+        // Lista de correos de super admin como respaldo (para desarrollo y despliegues de vista previa)
+        const superAdminEmails = [
+          'soporte@canaletica.cl',
+          'admin@canaletica.cl',
+          'admin@canaletic.app',
+          'soporte@canaletic.app',
+          'ricardo.figueroa@idus.cl',
+          'ricardof333@gmail.com'
+        ];
+        
+        // Verificar si el usuario está en la colección de super_admins o si su correo está en la lista
+        if (superAdminSnap.exists() || (currentUser.email && superAdminEmails.includes(currentUser.email.toLowerCase()))) {
+          console.log(`[useCurrentUser] Usuario ${currentUser.email} reconocido como SUPER_ADMIN`);
+          
           if (isMountedRef.current) {
             setIsSuperAdmin(true);
             setProfile({
