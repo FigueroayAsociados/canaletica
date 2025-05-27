@@ -249,7 +249,7 @@ export default function DashboardPage() {
             count: getExpiringSoon(),
             type: 'expiring'
           } : undefined}
-          linkUrl="/dashboard/reports?status=ley_karin_en_proceso"
+          linkUrl="/dashboard/reports" // Enlace a todas las denuncias
           linkText="Ver investigaciones activas"
           colorScheme="warning"
         />

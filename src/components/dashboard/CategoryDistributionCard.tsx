@@ -22,7 +22,16 @@ export default function CategoryDistributionCard({
   totalCount
 }: CategoryDistributionCardProps) {
   // Si no se proporciona el total, calcularlo
-  const total = totalCount || categories.reduce((sum, item) => sum + item.count, 0);
+  const calculatedTotal = categories.reduce((sum, item) => sum + item.count, 0);
+  
+  // Usar el total proporcionado (si existe) o el calculado
+  // Esto es importante para mostrar el porcentaje correcto cuando hay discrepancias
+  const total = totalCount !== undefined ? totalCount : calculatedTotal;
+  
+  // Detectar discrepancias
+  if (totalCount !== undefined && calculatedTotal !== totalCount) {
+    console.warn(`Discrepancia en CategoryDistributionCard: Total proporcionado=${totalCount}, Total calculado=${calculatedTotal}`)
+  }
   
   // Mapeo de categorías a nombres legibles y colores
   const getCategoryInfo = (category: string): { name: string; color: string } => {
