@@ -100,7 +100,68 @@ export default function ReportsPage() {
     
     // Filtrar por estado - hacerlo case insensitive para evitar problemas con mayúsculas/minúsculas
     if (filters.status) {
-      result = result.filter(report => report.status.toLowerCase() === filters.status.toLowerCase());
+      // Para estados normales, búsqueda directa
+      const normalFilteredReports = result.filter(report => report.status.toLowerCase() === filters.status.toLowerCase());
+      
+      // Para reportes Ley Karin, manejar estados especiales
+      const karinFilteredReports = result.filter(report => {
+        if (!report.isKarinLaw) return false;
+        
+        // Estados agrupados para Ley Karin
+        if (filters.status.toLowerCase() === 'ley_karin_nuevas') {
+          return report.status.toLowerCase().includes('ley karin - denuncia interpuesta') || 
+                 report.status.toLowerCase().includes('ley karin - denuncia recibida') ||
+                 report.status.toLowerCase().includes('ley karin - subsanación');
+        }
+        
+        if (filters.status.toLowerCase() === 'ley_karin_en_proceso') {
+          return report.status.toLowerCase().includes('ley karin') && 
+                (report.status.toLowerCase().includes('medidas') ||
+                 report.status.toLowerCase().includes('decisión') ||
+                 report.status.toLowerCase().includes('investigación') || 
+                 report.status.toLowerCase().includes('informe') || 
+                 report.status.toLowerCase().includes('notificación') ||
+                 report.status.toLowerCase().includes('dirección') ||
+                 report.status.toLowerCase().includes('resolución'));
+        }
+        
+        if (filters.status.toLowerCase() === 'ley_karin_resueltas') {
+          return report.status.toLowerCase().includes('ley karin') && 
+                (report.status.toLowerCase().includes('cerrado') || 
+                 report.status.toLowerCase().includes('sanciones') ||
+                 report.status.toLowerCase().includes('adopción de medidas'));
+        }
+        
+        // Estados normales (mantener la compatibilidad con la lógica anterior)
+        // Si buscamos "nuevo" incluir los estados iniciales de Ley Karin
+        if (filters.status.toLowerCase() === 'nuevo') {
+          return report.status.toLowerCase().includes('ley karin - denuncia interpuesta') || 
+                 report.status.toLowerCase().includes('ley karin - denuncia recibida');
+        }
+        
+        // Si buscamos "en investigación" incluir todos los estados de investigación de Ley Karin
+        if (filters.status.toLowerCase() === 'en investigación') {
+          return report.status.toLowerCase().includes('ley karin') && 
+                (report.status.toLowerCase().includes('investigación') || 
+                 report.status.toLowerCase().includes('medidas') ||
+                 report.status.toLowerCase().includes('informe') || 
+                 report.status.toLowerCase().includes('notificación'));
+        }
+        
+        // Si buscamos "resuelta" incluir estados finales de Ley Karin
+        if (filters.status.toLowerCase() === 'resuelta') {
+          return report.status.toLowerCase().includes('ley karin') && 
+                (report.status.toLowerCase().includes('cerrado') || 
+                 report.status.toLowerCase().includes('sanciones') ||
+                 report.status.toLowerCase().includes('adopción de medidas'));
+        }
+        
+        // Para otras búsquedas, permitir búsqueda parcial en estados Ley Karin
+        return report.status.toLowerCase().includes(filters.status.toLowerCase());
+      });
+      
+      // Combinar resultados
+      result = [...normalFilteredReports, ...karinFilteredReports];
       console.log(`Filtrando por estado: ${filters.status}, encontradas: ${result.length} denuncias`);
     }
     
@@ -237,16 +298,24 @@ export default function ReportsPage() {
                 className="w-full"
               >
                 <option value="">Todos los estados</option>
-                <option value="nuevo">Nuevo</option>
-                <option value="admitida">Admitida</option>
-                <option value="asignada">Asignada</option>
-                <option value="en investigación">En Investigación</option>
-                <option value="pendiente información">Pendiente Información</option>
-                <option value="en evaluación">En Evaluación</option>
-                <option value="resuelta">Resuelta</option>
-                <option value="en seguimiento">En Seguimiento</option>
-                <option value="cerrada">Cerrada</option>
-                <option value="rechazada">Rechazada</option>
+                {/* Estados normales */}
+                <option value="Nuevo">Nuevo</option>
+                <option value="Admitida">Admitida</option>
+                <option value="Asignada">Asignada</option>
+                <option value="En Investigación">En Investigación</option>
+                <option value="Pendiente Información">Pendiente Información</option>
+                <option value="En Evaluación">En Evaluación</option>
+                <option value="Resuelta">Resuelta</option>
+                <option value="En Seguimiento">En Seguimiento</option>
+                <option value="Cerrada">Cerrada</option>
+                <option value="Rechazada">Rechazada</option>
+                
+                {/* Estados específicos para Ley Karin */}
+                <optgroup label="Estados Ley Karin">
+                  <option value="ley_karin_nuevas">Ley Karin - Nuevas</option>
+                  <option value="ley_karin_en_proceso">Ley Karin - En Proceso</option>
+                  <option value="ley_karin_resueltas">Ley Karin - Resueltas</option>
+                </optgroup>
               </Select>
             </div>
             

@@ -237,7 +237,7 @@ export default function DashboardPage() {
             type: 'increase',
             period: 'week'
           } : undefined}
-          linkUrl="/dashboard/reports?status=nuevo"
+          linkUrl="/dashboard/reports?status=Nuevo"
           linkText="Ver denuncias nuevas"
           colorScheme="primary"
         />
@@ -249,7 +249,7 @@ export default function DashboardPage() {
             count: getExpiringSoon(),
             type: 'expiring'
           } : undefined}
-          linkUrl="/dashboard/reports?status=en investigación"
+          linkUrl="/dashboard/reports?status=En Investigación"
           linkText="Ver investigaciones activas"
           colorScheme="warning"
         />
@@ -262,7 +262,7 @@ export default function DashboardPage() {
             type: 'increase',
             period: 'month'
           } : undefined}
-          linkUrl="/dashboard/reports?status=resuelta"
+          linkUrl="/dashboard/reports?status=Resuelta"
           linkText="Ver denuncias resueltas"
           colorScheme="success"
         />
