@@ -12,6 +12,7 @@ import {
   addCommunication
 } from '@/lib/services/reportService';
 import { getUsersByRole } from '@/lib/services/userService';
+import { KarinProcessStage } from '@/types/report';
 
 /**
  * Hook para obtener un reporte por su ID
@@ -77,9 +78,12 @@ export function useUpdateKarinStage() {
     }: {
       companyId: string;
       reportId: string;
-      newStage: string;
+      newStage: KarinProcessStage | string; // Acepta tanto KarinProcessStage como string para mantener compatibilidad
       additionalData?: any;
-    }) => updateKarinProcessStage(companyId, reportId, newStage, additionalData),
+    }) => {
+      // Asegurarnos de que newStage sea tratado como KarinProcessStage
+      return updateKarinProcessStage(companyId, reportId, newStage as KarinProcessStage, additionalData);
+    },
     
     onSuccess: (_, variables) => {
       // Invalidar consultas relevantes para recargar los datos
