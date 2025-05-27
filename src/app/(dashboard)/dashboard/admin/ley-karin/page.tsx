@@ -89,10 +89,11 @@ export default function AdminLeyKarinPage() {
   
   // Extraer uid y role para verificaciones de seguridad
   const uid = profile?.uid;
-  const userRole = profile?.role;
+  const userRole = profile?.role || (isSuperAdmin ? 'super_admin' : null);
   
   // Verificar si los datos del usuario están cargados
-  const isUserDataLoaded = !!uid && !!userRole;
+  // Para super_admin no necesitamos uid
+  const isUserDataLoaded = isSuperAdmin ? true : (!!uid && !!userRole);
 
   const {
     data: reportsData,
@@ -179,7 +180,10 @@ export default function AdminLeyKarinPage() {
     // Solo consideramos que estamos cargando si los datos de usuario están disponibles
     // o si cualquiera de las operaciones está en progreso
     setLoading(initializeCategory.isPending || isLoadingReports || !isUserDataLoaded);
-  }, [initializeCategory.isPending, isLoadingReports, isUserDataLoaded]);
+    
+    // Log para depuración
+    console.log(`Estado de carga: initPending=${initializeCategory.isPending}, reportsLoading=${isLoadingReports}, userDataLoaded=${isUserDataLoaded}, isSuperAdmin=${isSuperAdmin}`);
+  }, [initializeCategory.isPending, isLoadingReports, isUserDataLoaded, isSuperAdmin]);
   
   useEffect(() => {
     if (reportsError) {

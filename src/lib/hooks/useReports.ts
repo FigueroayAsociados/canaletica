@@ -55,11 +55,18 @@ export function useKarinReports(
   userRole?: string | null,
   userId?: string | null
 ) {
+  // Añadimos manejo especial para super admin
+  const isSuperAdmin = userRole === 'super_admin';
+  
   return useQuery({
     queryKey: ['karinReports', companyId, userRole, userId],
     queryFn: () => getKarinReports(companyId, userRole, userId),
     // Solo habilitamos la consulta cuando tengamos todos los datos necesarios
-    enabled: !!companyId && !!userRole && !!userId,
+    // Pero para super admin, permitimos consultar incluso sin userId explícito
+    enabled: !!companyId && (
+      (isSuperAdmin && !!userRole) || // Super admin solo necesita el rol
+      (!!userRole && !!userId) // Otros roles necesitan userRole y userId
+    ),
   });
 }
 

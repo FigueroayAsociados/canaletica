@@ -3128,8 +3128,8 @@ export async function getKarinReports(
       };
     }
 
-    // Verificar que tenemos la información del usuario
-    if (!userRole || !userId) {
+    // Permitir a super_admin continuar incluso sin userId, pero otros roles necesitan userId
+    if (userRole !== 'super_admin' && (!userRole || !userId)) {
       console.warn(`Solicitud de reportes Karin con datos de usuario incompletos. CompanyId: ${companyId}, UserRole: ${userRole || 'undefined'}, UserId: ${userId || 'undefined'}`);
       return {
         success: false,
@@ -3139,7 +3139,17 @@ export async function getKarinReports(
     }
 
     // SEGUNDA CAPA DE SEGURIDAD: Verificación centralizada de acceso multi-tenant
-    const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+    // Super admin tiene acceso automático
+    let accessCheck = { success: false };
+    
+    if (userRole === 'super_admin') {
+      // Si es super_admin, permitir acceso sin verificar
+      accessCheck = { success: true };
+    } else {
+      // Para otros roles, verificar acceso normalmente
+      accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+    }
+    
     if (!accessCheck.success) {
       // Evitar errores con valores undefined, usar valores de cadena vacía como fallback
       const safeUserId = userId || '(no identificado)';
