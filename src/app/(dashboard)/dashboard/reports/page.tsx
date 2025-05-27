@@ -149,6 +149,13 @@ export default function ReportsPage() {
                  report.status.toLowerCase().includes('asignada'));
         }
         
+        // Filtro especial para todas las denuncias en investigación (coincide con las 7 del dashboard)
+        if (filters.status.toLowerCase() === 'todas_en_investigacion') {
+          return (report.status === 'Asignada' || 
+                  report.status === 'En Investigación' || 
+                  report.status === 'Ley Karin - Medidas Precautorias');
+        }
+        
         // Si buscamos "resuelta" incluir estados finales de Ley Karin
         if (filters.status.toLowerCase() === 'resuelta') {
           return report.status.toLowerCase().includes('ley karin') && 
@@ -299,17 +306,25 @@ export default function ReportsPage() {
                 className="w-full"
               >
                 <option value="">Todos los estados</option>
+                
+                {/* Filtros agrupados (para coincidencia con dashboard) */}
+                <optgroup label="Filtros Agrupados">
+                  <option value="todas_en_investigacion">Todas en Investigación (7)</option>
+                </optgroup>
+                
                 {/* Estados normales */}
-                <option value="Nuevo">Nuevo</option>
-                <option value="Admitida">Admitida</option>
-                <option value="Asignada">Asignada</option>
-                <option value="En Investigación">En Investigación</option>
-                <option value="Pendiente Información">Pendiente Información</option>
-                <option value="En Evaluación">En Evaluación</option>
-                <option value="Resuelta">Resuelta</option>
-                <option value="En Seguimiento">En Seguimiento</option>
-                <option value="Cerrada">Cerrada</option>
-                <option value="Rechazada">Rechazada</option>
+                <optgroup label="Estados Normales">
+                  <option value="Nuevo">Nuevo</option>
+                  <option value="Admitida">Admitida</option>
+                  <option value="Asignada">Asignada</option>
+                  <option value="En Investigación">En Investigación</option>
+                  <option value="Pendiente Información">Pendiente Información</option>
+                  <option value="En Evaluación">En Evaluación</option>
+                  <option value="Resuelta">Resuelta</option>
+                  <option value="En Seguimiento">En Seguimiento</option>
+                  <option value="Cerrada">Cerrada</option>
+                  <option value="Rechazada">Rechazada</option>
+                </optgroup>
                 
                 {/* Estados específicos para Ley Karin */}
                 <optgroup label="Estados Ley Karin">

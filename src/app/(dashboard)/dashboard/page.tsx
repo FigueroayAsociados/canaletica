@@ -249,7 +249,7 @@ export default function DashboardPage() {
             count: getExpiringSoon(),
             type: 'expiring'
           } : undefined}
-          linkUrl="/dashboard/reports?status=ley_karin_en_proceso" // Usar el filtro agrupado que ya existe para Ley Karin en proceso
+          linkUrl="/dashboard/reports?status=todas_en_investigacion" // Filtro especial que muestra exactamente las 7 denuncias
           linkText="Ver investigaciones activas"
           colorScheme="warning"
         />
