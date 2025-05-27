@@ -684,10 +684,22 @@ let lastRestoreTimestamp: string | null = null;
 
 export async function ensureKarinCategoryExists(companyId: string) {
   try {
+    // Verificar si necesitamos forzar una actualización del caché
+    const forceUpdate = typeof window !== 'undefined' && 
+                      localStorage.getItem('karinCategoryRestored') === 'true' && 
+                      !localStorage.getItem('karinCategoryId');
+    
+    // Si se necesita forzar actualización, limpiar el caché
+    if (forceUpdate) {
+      console.log('Detectado caché obsoleto. Actualizando caché de categoría Karin...');
+      localStorage.removeItem('karinCategoryRestored');
+      memoryCache.karinCategoryRestored = false;
+    }
+    
     const cacheResult = getKarinCategoryCache();
     
     // Si ya se restauró la categoría en esta sesión, no repetir
-    if (cacheResult.restored) {
+    if (cacheResult.restored && cacheResult.categoryId) {
       return {
         success: true,
         message: 'Categoría Ley Karin ya verificada (desde caché)',

@@ -78,7 +78,18 @@ export default function AdminLeyKarinPage() {
     mutationFn: () => ensureKarinCategoryExists(companyId),
     onSuccess: (result) => {
       if (result.success) {
-        setSuccess(`Categoría Ley Karin configurada correctamente: ${result.message}. ID: ${result.categoryId}`);
+        // Construir un mensaje más claro y solo incluir ID si está disponible
+        let successMessage = 'Categoría Ley Karin configurada correctamente';
+        
+        // Añadir detalles del resultado
+        if (result.message) {
+          successMessage += `: ${result.message}`;
+        }
+        
+        setSuccess(successMessage);
+        
+        // Log para depuración
+        console.log('Resultado de ensureKarinCategoryExists:', result);
       }
     },
     onError: (error: any) => {
