@@ -625,17 +625,23 @@ export async function restoreAllCategories(companyId: string) {
 // Variable para caché en memoria (para el servidor y como respaldo)
 let memoryCache = {
   karinCategoryRestored: false,
-  lastRestoreTime: 0
+  lastRestoreTime: 0,
+  karinCategoryId: null // Añadir campo para almacenar el ID de la categoría Karin
 };
 
 // Función para obtener el valor en caché
-const getKarinCategoryCache = (): boolean => {
+const getKarinCategoryCache = () => {
   try {
     // En el cliente, intentar usar localStorage primero
     if (typeof window !== 'undefined') {
       const cachedValue = localStorage.getItem('karinCategoryRestored');
+      const cachedId = localStorage.getItem('karinCategoryId');
+      
       if (cachedValue !== null) {
-        return cachedValue === 'true';
+        return {
+          restored: cachedValue === 'true',
+          categoryId: cachedId
+        };
       }
     }
   } catch (e) {
@@ -643,15 +649,21 @@ const getKarinCategoryCache = (): boolean => {
   }
 
   // Usar la caché en memoria como respaldo
-  return memoryCache.karinCategoryRestored;
+  return {
+    restored: memoryCache.karinCategoryRestored,
+    categoryId: memoryCache.karinCategoryId
+  };
 };
 
 // Función para guardar en caché
-const setKarinCategoryCache = (value: boolean): void => {
+const setKarinCategoryCache = (value: boolean, categoryId?: string): void => {
   try {
     // En el cliente, guardar en localStorage
     if (typeof window !== 'undefined') {
       localStorage.setItem('karinCategoryRestored', value.toString());
+      if (categoryId) {
+        localStorage.setItem('karinCategoryId', categoryId);
+      }
     }
   } catch (e) {
     // Si hay algún error con localStorage, no hacer nada
@@ -659,6 +671,9 @@ const setKarinCategoryCache = (value: boolean): void => {
 
   // Siempre actualizar la caché en memoria
   memoryCache.karinCategoryRestored = value;
+  if (categoryId) {
+    memoryCache.karinCategoryId = categoryId;
+  }
   if (value) {
     memoryCache.lastRestoreTime = Date.now();
   }
@@ -669,26 +684,35 @@ let lastRestoreTimestamp: string | null = null;
 
 export async function ensureKarinCategoryExists(companyId: string) {
   try {
-    const isCached = getKarinCategoryCache();
+    const cacheResult = getKarinCategoryCache();
     
     // Si ya se restauró la categoría en esta sesión, no repetir
-    if (isCached) {
+    if (cacheResult.restored) {
       return {
         success: true,
         message: 'Categoría Ley Karin ya verificada (desde caché)',
-        timestamp: lastRestoreTimestamp
+        timestamp: lastRestoreTimestamp,
+        categoryId: cacheResult.categoryId // Incluir el ID de la categoría desde la caché
       };
     }
-    
-    // Marcar que ya se restauró la categoría
-    setKarinCategoryCache(true);
-    lastRestoreTimestamp = new Date().toISOString();
     
     // Restaurar todas las categorías es más seguro que intentar arreglar solo Ley Karin
     const result = await restoreAllCategories(companyId);
     
-    // Si fue exitoso, mantener en caché
-    if (!result.success) {
+    // Si fue exitoso, guardar en caché
+    if (result.success) {
+      // Obtener el ID de la categoría Ley Karin
+      const karinCategoryId = result.categoryIds?.ley_karin || null;
+      
+      // Marcar que ya se restauró la categoría y guardar su ID
+      setKarinCategoryCache(true, karinCategoryId);
+      lastRestoreTimestamp = new Date().toISOString();
+      
+      // Asegurarse de que el resultado tenga el ID de la categoría
+      if (!result.categoryId && karinCategoryId) {
+        result.categoryId = karinCategoryId;
+      }
+    } else {
       // Si falló, limpiar la caché para que se pueda intentar de nuevo
       setKarinCategoryCache(false);
       lastRestoreTimestamp = null;
