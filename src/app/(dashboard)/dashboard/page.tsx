@@ -32,7 +32,17 @@ export default function DashboardPage() {
   // Asegurar que solo se puedan ver métricas de la compañía del usuario
   // Los super admin pueden ver cualquier compañía (la que esté en el contexto)
   // Los admin regulares sólo pueden ver la compañía de su perfil
-  const userCompanyId = profile?.role === 'super_admin' ? companyId : (profile?.company || companyId);
+  let userCompanyId = profile?.role === 'super_admin' ? companyId : (profile?.company || companyId);
+  
+  // Para despliegues de Vercel, asegurar que userCompanyId sea 'default' si contiene patrones de Vercel
+  if (userCompanyId && (
+      userCompanyId.includes('-vercel') || 
+      userCompanyId.startsWith('canaletica-') ||
+      userCompanyId.includes('-ricardo-figueroas-projects-')
+    )) {
+    console.log(`[DashboardPage] Corrigiendo companyId de Vercel "${userCompanyId}" a "default"`);
+    userCompanyId = 'default';
+  }
 
   const fetchMetrics = async () => {
     try {

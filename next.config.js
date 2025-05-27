@@ -42,7 +42,7 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
-          // Content Security Policy para prevenir XSS
+          // Content Security Policy para prevenir XSS (ISO 37002:2021)
           {
             key: 'Content-Security-Policy',
             value: `
@@ -51,12 +51,13 @@ const nextConfig = {
               style-src 'self' 'unsafe-inline';
               img-src 'self' data: https://storage.googleapis.com https://*.googleapis.com https://firebasestorage.googleapis.com https://*.ytimg.com;
               font-src 'self' data:;
-              connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com https://*.google-analytics.com;
+              connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudfunctions.net https://us-central1-canaletica-e0f81.cloudfunctions.net https://southamerica-east1-canaletica-e0f81.cloudfunctions.net https://southamerica-west1-canaletica-e0f81.cloudfunctions.net;
               frame-src 'self' https://*.firebaseapp.com https://www.youtube.com https://youtube.com https://*.youtube-nocookie.com;
               object-src 'none';
               base-uri 'self';
               form-action 'self';
               frame-ancestors 'self';
+              trusted-types 'none';
               block-all-mixed-content;
               upgrade-insecure-requests;
             `.replace(/\s{2,}/g, ' ').trim()
