@@ -54,13 +54,24 @@ export default function ReportDetailPage() {
   const [showRiskAnalysis, setShowRiskAnalysis] = useState<boolean>(false);
 
   // Usar el company del perfil del usuario o el companyId del contexto
-  const companyId = profile?.company || contextCompanyId;
+  let companyId = profile?.company || contextCompanyId;
+  
+  // Para despliegues de Vercel, asegurar que companyId sea 'default' si contiene patrones de Vercel
+  if (companyId && (
+      companyId.includes('-vercel') || 
+      companyId.startsWith('canaletica-') ||
+      companyId.includes('-ricardo-figueroas-projects-')
+    )) {
+    console.log(`[ReportDetailPage] Corrigiendo companyId de Vercel "${companyId}" a "default"`);
+    companyId = 'default';
+  }
+  
   const { 
     data: reportResult, 
     isLoading, 
     isError, 
     error 
-  } = useReport(companyId, reportId);
+  } = useReport(companyId, reportId, profile?.role, profile?.uid);
 
   // Cargar investigadores si el usuario es admin
   const { 
