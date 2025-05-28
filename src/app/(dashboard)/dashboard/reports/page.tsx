@@ -3,6 +3,7 @@
 // src/app/(dashboard)/dashboard/reports/page.tsx
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,9 +48,25 @@ interface Report {
 }
 
 export default function ReportsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAdmin, profile } = useCurrentUser();
+  const { isAdmin, isInvestigator, profile } = useCurrentUser();
   const { companyId } = useCompany();
+
+  // NUEVA RESTRICCIÓN: Redirigir a investigadores a la página de investigaciones
+  useEffect(() => {
+    // Si el usuario es investigador y no es admin, redirigir a la página de investigaciones
+    if (isInvestigator && !isAdmin && profile?.role !== 'super_admin') {
+      console.log('Redirigiendo investigador a la página de investigaciones');
+      router.push('/dashboard/investigation');
+      return;
+    }
+  }, [isInvestigator, isAdmin, profile?.role, router]);
+
+  // Si el usuario es investigador, mostrar spinner mientras se redirige
+  if (isInvestigator && !isAdmin && profile?.role !== 'super_admin') {
+    return <Spinner text="Redirigiendo a la página de investigaciones..." />;
+  }
 
   // Estado para los filtros
   const [filters, setFilters] = useState<ReportFilters>({
@@ -98,7 +115,7 @@ export default function ReportsPage() {
     
     let result = [...data.reports];
     
-    // Filtrar por estado - hacerlo case insensitive para evitar problemas con mayúsculas/minúsculas
+    // Filtrar por estado
     if (filters.status) {
       // Para estados normales, búsqueda directa
       const normalFilteredReports = result.filter(report => report.status.toLowerCase() === filters.status.toLowerCase());
