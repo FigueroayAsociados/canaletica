@@ -53,22 +53,21 @@ export default function ReportsPage() {
   const { isAdmin, isInvestigator, profile } = useCurrentUser();
   const { companyId } = useCompany();
 
-  // NUEVA RESTRICCIÓN: Redirigir a investigadores a la página de investigaciones
+  // RESTRICCIÓN: Redirigir a investigadores a la página de investigaciones
   useEffect(() => {
-    // Si el usuario es investigador y no es admin, redirigir a la página de investigaciones
+    // Verificar si es un investigador y no tiene permisos de admin
     if (isInvestigator && !isAdmin && profile?.role !== 'super_admin') {
       console.log('Redirigiendo investigador a la página de investigaciones');
       router.push('/dashboard/investigation');
-      return;
     }
   }, [isInvestigator, isAdmin, profile?.role, router]);
-
-  // Si el usuario es investigador, mostrar spinner mientras se redirige
+  
+  // Mostrar spinner mientras se redirige
   if (isInvestigator && !isAdmin && profile?.role !== 'super_admin') {
     return <Spinner text="Redirigiendo a la página de investigaciones..." />;
   }
 
-  // Estado para los filtros
+  // Estado para los filtros - sólo se inicializa si no es un investigador
   const [filters, setFilters] = useState<ReportFilters>({
     status: searchParams.get('status') || '',
     category: searchParams.get('category') || '',
