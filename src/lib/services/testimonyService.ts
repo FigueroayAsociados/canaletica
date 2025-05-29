@@ -128,7 +128,8 @@ export async function signTestimony(
     signatureVerifiedBy: string;
     signatureVerifiedByName?: string;
     signatureImageId?: string;
-  }
+  },
+  retryCount: number = 0
 ) {
   try {
     console.log(`Intentando firmar testimonio ${testimonyId} para reporte ${reportId} de compañía ${companyId}`);
@@ -335,6 +336,19 @@ export async function signTestimony(
     };
   } catch (error) {
     console.error('Error al firmar testimonio:', error);
+    
+    // Implementar reintento automático para problemas de conexión
+    // Solo reintentar una vez para evitar bucles infinitos
+    if (retryCount < 1) {
+      console.log(`Reintentando firma de testimonio ${testimonyId} (intento ${retryCount + 1})...`);
+      
+      // Esperar un breve momento antes de reintentar
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Reintentar la operación incrementando el contador
+      return signTestimony(companyId, reportId, testimonyId, signatureData, retryCount + 1);
+    }
+    
     return {
       success: false,
       error: `Error al firmar testimonio: ${error.message}`
