@@ -272,19 +272,44 @@ export const InterviewList: React.FC<InterviewListProps> = ({
         setTimeout(() => {
           window.location.href = `/dashboard/investigation/${reportId}?tab=interviews&refresh=${Date.now()}`;
         }, 1500);
+      } else if (result.needsReload) {
+        // Si la API indica que se necesita recargar, mostrar mensaje y no intentar firmar de nuevo
+        setSuccess('Se ha creado un nuevo testimonio. La página se recargará automáticamente...');
+        setIsSubmitting(false);
+        
+        // Recargar la página después de un breve tiempo
+        setTimeout(() => {
+          window.location.href = `/dashboard/investigation/${reportId}?tab=interviews&refresh=${Date.now()}`;
+        }, 1500);
       } else if (result.testimonyId) {
-        // Si la API creó un nuevo testimonio, intentar firmar con el nuevo ID
+        // Si la API creó un nuevo testimonio, pero NO indica que hay que recargar, 
+        // intentar UNA SOLA VEZ con el nuevo ID
         const retryValues = { ...values };
-        const retryInterview = { 
+        
+        // Actualizar el testimonio seleccionado con el nuevo ID
+        setSelectedInterview({
           ...selectedInterview,
           testimonyId: result.testimonyId
-        };
+        });
         
-        setSuccess('Se ha creado un nuevo testimonio. Intentando firmar automáticamente...');
+        setSuccess(`Se ha creado un nuevo testimonio con ID ${result.testimonyId}. Intentando firmar una vez más...`);
         
-        // Esperar un momento y volver a intentar con el nuevo ID
+        // Esperar un momento y hacer un solo intento más
         setTimeout(() => {
-          handleSignTestimony(retryValues);
+          // Usar directamente el nuevo ID para evitar recursión infinita
+          console.log(`Firmando directamente con nuevo testimonyId: ${result.testimonyId}`);
+          
+          const directSignatureResult = signTestimony(
+            companyId,
+            reportId,
+            result.testimonyId,
+            signatureData
+          );
+          
+          // Independientemente del resultado, recargar la página
+          setTimeout(() => {
+            window.location.href = `/dashboard/investigation/${reportId}?tab=interviews&refresh=${Date.now()}`;
+          }, 1500);
         }, 1000);
       } else {
         setError(result.error || 'Error al firmar el testimonio');

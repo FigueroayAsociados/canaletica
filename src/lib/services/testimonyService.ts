@@ -201,6 +201,20 @@ export async function signTestimony(
       // Buscar entrevista por ID
       const interview = extendedInterviews.find((i: any) => i.id === testimonyId);
       
+      // IMPORTANTE: Verificar si esta entrevista ya está asociada a un testimonio existente
+      if (interview && interview.testimonyId) {
+        // Ya tiene un testimonyId asignado, intentar encontrar ese testimonio
+        const existingTestimony = testimonies.find((t: any) => t.id === interview.testimonyId);
+        if (existingTestimony) {
+          // El testimonio existe, usar ese ID en lugar de crear uno nuevo
+          return {
+            success: false,
+            error: `Esta entrevista ya tiene un testimonio asociado con ID ${interview.testimonyId}. Por favor, use ese ID para firmar.`,
+            testimonyId: interview.testimonyId
+          };
+        }
+      }
+      
       if (interview) {
         console.log('Se encontró la entrevista, creando testimonio automáticamente');
         
@@ -243,9 +257,11 @@ export async function signTestimony(
           'karinProcess.extendedInterviews': updatedInterviews
         });
         
+        // IMPORTANTE: No devolver success=false, sino un objeto que indique que se debe recargar
         return {
           success: false,
-          error: 'Se ha creado un nuevo testimonio. Por favor, intente firmar nuevamente con el ID correcto.',
+          needsReload: true,
+          error: 'Se ha creado un nuevo testimonio. Por favor, recargue la página para firmar con el ID correcto.',
           testimonyId: newTestimonyId // Devolver el nuevo ID para que el cliente pueda usarlo
         };
       }
