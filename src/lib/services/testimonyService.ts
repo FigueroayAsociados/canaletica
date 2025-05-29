@@ -131,11 +131,14 @@ export async function signTestimony(
   }
 ) {
   try {
+    console.log(`Intentando firmar testimonio ${testimonyId} para reporte ${reportId} de compañía ${companyId}`);
+    
     // Obtener referencia al documento del reporte
     const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
     const reportSnap = await getDoc(reportRef);
     
     if (!reportSnap.exists()) {
+      console.error(`Reporte ${reportId} no encontrado`);
       return {
         success: false,
         error: 'El reporte no existe'
@@ -144,12 +147,62 @@ export async function signTestimony(
     
     const reportData = reportSnap.data();
     
+    // Inicializar karinProcess si no existe
+    if (!reportData.karinProcess) {
+      console.log('Inicializando karinProcess en el reporte');
+      await updateDoc(reportRef, {
+        karinProcess: {
+          testimonies: [],
+          extendedInterviews: []
+        }
+      });
+      return {
+        success: false,
+        error: 'Se ha inicializado el proceso Karin. Por favor, intente nuevamente.'
+      };
+    }
+    
     // Obtener testimonios existentes
     const testimonies = reportData.karinProcess?.testimonies || [];
+    console.log(`Encontrados ${testimonies.length} testimonios en el reporte`);
     
     // Buscar el testimonio a firmar
     const testimonyIndex = testimonies.findIndex((t: any) => t.id === testimonyId);
     if (testimonyIndex === -1) {
+      console.error(`Testimonio ${testimonyId} no encontrado en el array de testimonios`);
+      
+      // Alternativa: Buscar en las entrevistas y crear el testimonio si es necesario
+      const extendedInterviews = reportData.karinProcess?.extendedInterviews || [];
+      const interview = extendedInterviews.find((i: any) => i.id === testimonyId);
+      
+      if (interview) {
+        console.log('Se encontró la entrevista, creando testimonio automáticamente');
+        // Crear un testimonio basado en la entrevista
+        const newTestimony = {
+          id: testimonyId,
+          personName: interview.interviewee,
+          personType: 'witness',
+          date: interview.date,
+          location: interview.location || 'No especificado',
+          interviewer: interview.conductedBy,
+          interviewerName: interview.conductedByName || 'Usuario del sistema',
+          summary: interview.summary,
+          hasSigned: false,
+          folioNumber: `T-${reportId.substring(0, 4)}-${testimonyId.substring(0, 4)}`,
+          createdAt: new Date().toISOString(),
+        };
+        
+        // Actualizar el documento con el nuevo testimonio
+        await updateDoc(reportRef, {
+          'karinProcess.testimonies': [...testimonies, newTestimony],
+        });
+        
+        return {
+          success: false,
+          error: 'Se ha creado el testimonio. Por favor, intente firmar nuevamente.'
+        };
+      }
+      
       return {
         success: false,
         error: 'El testimonio no fue encontrado'

@@ -92,6 +92,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
   // Cargar testimonios firmados y pendientes al inicio
   useEffect(() => {
     if (interviews && isKarinLaw) {
+      console.log('Procesando entrevistas para testimonios:', interviews);
       const signed = interviews.filter(interview => 
         interview.isTestimony && (interview.status === 'signed' || interview.status === 'verified')
       );
@@ -99,6 +100,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
         interview.isTestimony && interview.status === 'pending_signature'
       );
       
+      console.log('Testimonios firmados:', signed.length, 'Testimonios pendientes:', pending.length);
       setSignedTestimonies(signed);
       setPendingTestimonies(pending);
     }
