@@ -295,21 +295,35 @@ export const InterviewList: React.FC<InterviewListProps> = ({
         setSuccess(`Se ha creado un nuevo testimonio con ID ${result.testimonyId}. Intentando firmar una vez más...`);
         
         // Esperar un momento y hacer un solo intento más
-        setTimeout(() => {
-          // Usar directamente el nuevo ID para evitar recursión infinita
-          console.log(`Firmando directamente con nuevo testimonyId: ${result.testimonyId}`);
-          
-          const directSignatureResult = signTestimony(
-            companyId,
-            reportId,
-            result.testimonyId,
-            signatureData
-          );
-          
-          // Independientemente del resultado, recargar la página
-          setTimeout(() => {
-            window.location.href = `/dashboard/investigation/${reportId}?tab=interviews&refresh=${Date.now()}`;
-          }, 1500);
+        setTimeout(async () => {
+          try {
+            // Usar directamente el nuevo ID para evitar recursión infinita
+            console.log(`Firmando directamente con nuevo testimonyId: ${result.testimonyId}`);
+            
+            const directSignatureResult = await signTestimony(
+              companyId,
+              reportId,
+              result.testimonyId,
+              signatureData
+            );
+            
+            console.log('Resultado de la firma directa:', directSignatureResult);
+            
+            if (directSignatureResult.success) {
+              setSuccess('¡Testimonio firmado correctamente! Redirigiendo...');
+            } else {
+              setError(`No se pudo firmar: ${directSignatureResult.error}`);
+              console.error('Error al firmar con el nuevo ID:', directSignatureResult.error);
+            }
+          } catch (err) {
+            console.error('Error en la firma directa:', err);
+            setError('Ocurrió un error al intentar firmar el testimonio');
+          } finally {
+            // Independientemente del resultado, recargar la página
+            setTimeout(() => {
+              window.location.href = `/dashboard/investigation/${reportId}?tab=interviews&refresh=${Date.now()}`;
+            }, 2000);
+          }
         }, 1000);
       } else {
         setError(result.error || 'Error al firmar el testimonio');
