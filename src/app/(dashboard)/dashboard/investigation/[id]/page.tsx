@@ -815,9 +815,11 @@ export default function InvestigationDetailPage() {
         <TabsContent value="interviews">
           <InterviewList
             reportId={reportId}
+            companyId={userCompanyId}
             interviews={investigation.interviews || []}
             canEdit={canEdit}
             onInterviewAdded={handleInterviewAdded}
+            isKarinLaw={investigation.isKarinLaw}
           />
         </TabsContent>
         
