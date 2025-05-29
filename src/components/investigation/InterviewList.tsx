@@ -200,10 +200,14 @@ export const InterviewList: React.FC<InterviewListProps> = ({
         signatureVerifiedByName: displayName || 'Usuario del sistema',
       };
       
+      // Usar testimonyId si existe, o el id de la entrevista como fallback
+      const idToUse = selectedInterview.testimonyId || selectedInterview.id;
+      console.log('Firmando testimonio:', idToUse, 'para entrevista:', selectedInterview.id);
+      
       const result = await signTestimony(
         companyId,
         reportId,
-        selectedInterview.id,
+        idToUse,
         signatureData
       );
       
@@ -259,6 +263,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
           ...interview,
           isTestimony: true,
           status: 'pending_signature',
+          testimonyId: result.testimonyId, // Guardar el ID del testimonio
         };
         
         // Añadir a pendientes
