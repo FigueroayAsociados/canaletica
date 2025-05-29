@@ -214,33 +214,19 @@ export const InterviewList: React.FC<InterviewListProps> = ({
       );
       
       if (result.success) {
-        setSuccess('Testimonio firmado correctamente');
-        setShowSignatureForm(false);
-        setSelectedInterview(null);
+        // Mostrar mensaje de éxito
+        alert('Testimonio firmado correctamente. La página se recargará para mostrar los cambios.');
         
-        // Actualizar la lista de testimonios con datos completos
-        const updatedInterview = {
-          ...selectedInterview,
-          status: 'signed',
-          signatureDetails: signatureData,
-        };
-        
-        console.log('Actualizando testimonio:', selectedInterview.id, 'a estado firmado');
-        
-        // Notificar al componente padre para que se actualicen los datos desde la BD
-        onInterviewAdded(updatedInterview);
-        
-        // Forzar una recarga completa de la página para asegurar una UI consistente
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Redireccionar a la misma página para forzar una recarga completa
+        // Esto asegura que todos los datos se carguen frescos desde la base de datos
+        window.location.href = `/dashboard/investigation/${reportId}?tab=interviews`;
       } else {
         setError(result.error || 'Error al firmar el testimonio');
+        setIsSubmitting(false);
       }
     } catch (error) {
       console.error('Error al firmar el testimonio:', error);
       setError('Ha ocurrido un error al firmar el testimonio');
-    } finally {
       setIsSubmitting(false);
     }
   };
