@@ -94,19 +94,39 @@ export const InterviewList: React.FC<InterviewListProps> = ({
     if (interviews && isKarinLaw) {
       console.log('Procesando entrevistas para testimonios:', interviews);
       
-      // Identificar entrevistas con testimonyId
-      const interviewsWithTestimonyId = interviews.filter(
-        interview => interview.isTestimony && interview.testimonyId
-      );
+      // Identificar todas las entrevistas marcadas como testimonios, con o sin testimonyId
+      // Garantizar que estamos trabajando con valores booleanos correctos
+      const interviewsWithTestimony = interviews.filter(interview => {
+        // Convertir explícitamente a booleano por si viene como string u otro tipo
+        const isTestimony = interview.isTestimony === true || interview.isTestimony === 'true';
+        console.log(`Entrevista ${interview.id}: isTestimony=${isTestimony}, status=${interview.status}`);
+        return isTestimony;
+      });
+      
+      console.log('Total entrevistas marcadas como testimonio:', interviewsWithTestimony.length);
       
       // Identificar testimonios pendientes vs firmados
-      const signed = interviewsWithTestimonyId.filter(
+      const signed = interviewsWithTestimony.filter(
         interview => interview.status === 'signed' || interview.status === 'verified'
       );
       
-      const pending = interviewsWithTestimonyId.filter(
-        interview => interview.status === 'pending_signature'
-      );
+      // Ampliar los criterios para testimonios pendientes para capturar todos los casos posibles
+      const pending = interviewsWithTestimony.filter(interview => {
+        const isPendingSignature = interview.status === 'pending_signature';
+        const isDraft = interview.status === 'draft' || !interview.status;
+        const result = isPendingSignature || (interview.isTestimony === true && isDraft);
+        console.log(`Evaluando testimonio ${interview.id} para pendientes: isPendingSignature=${isPendingSignature}, isDraft=${isDraft}, resultado=${result}`);
+        return result;
+      });
+      
+      // Log más detallado para depurar
+      console.log('Detalles de entrevistas marcadas como testimonio:', 
+        interviewsWithTestimony.map(i => ({
+          id: i.id,
+          isTestimony: i.isTestimony,
+          status: i.status,
+          testimonyId: i.testimonyId
+        })));
       
       console.log('Testimonios firmados:', signed.length, 'Testimonios pendientes:', pending.length);
       
@@ -174,6 +194,11 @@ export const InterviewList: React.FC<InterviewListProps> = ({
           ...extendedInterviewData,
           date: new Date(values.date),
         };
+        
+        // Si es un testimonio y se generó un testimonyId, agregarlo al objeto
+        if (values.isTestimony && result.testimonyId) {
+          newInterview.testimonyId = result.testimonyId;
+        }
         
         onInterviewAdded(newInterview);
         setShowForm(false);
