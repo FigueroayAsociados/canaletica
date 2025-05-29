@@ -34,6 +34,7 @@
             'canaletic.app',
             'firebaseio.com',
             'firebaseapp.com',
+            'firestore.googleapis.com',
             'googleapis.com',
             'google-analytics.com',
             'googletagmanager.com',
@@ -50,6 +51,13 @@
             const isDomainAllowed = allowedDomains.some(allowedDomain => 
               domain === allowedDomain || domain.endsWith('.' + allowedDomain)
             );
+            
+            // Permitir siempre conexiones a Firestore para evitar problemas de CORS
+            if (domain === 'firestore.googleapis.com' || 
+                domain.endsWith('.firebaseio.com') ||
+                domain.endsWith('.canaletic.app')) {
+              return string;
+            }
             
             if (!isDomainAllowed) {
               console.error('[Seguridad] URL bloqueada por política de seguridad:', domain);
