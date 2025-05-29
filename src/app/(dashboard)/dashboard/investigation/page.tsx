@@ -216,13 +216,36 @@ export default function InvestigationPage() {
                 className="w-full"
               >
                 <option value="">Todos los estados</option>
-                <option value="Asignada">Asignada</option>
-                <option value="En Investigación">En Investigación</option>
-                <option value="Pendiente Información">Pendiente Información</option>
-                <option value="En Evaluación">En Evaluación</option>
-                <option value="Resuelta">Resuelta</option>
-                <option value="En Seguimiento">En Seguimiento</option>
-                <option value="Cerrada">Cerrada</option>
+                <optgroup label="Estados Regulares">
+                  <option value="Asignada">Asignada</option>
+                  <option value="En Investigación">En Investigación</option>
+                  <option value="Pendiente Información">Pendiente Información</option>
+                  <option value="En Evaluación">En Evaluación</option>
+                  <option value="Resuelta">Resuelta</option>
+                  <option value="En Seguimiento">En Seguimiento</option>
+                  <option value="Cerrada">Cerrada</option>
+                </optgroup>
+                <optgroup label="Estados Ley Karin">
+                  <option value="Ley Karin - Denuncia Interpuesta">Denuncia Interpuesta</option>
+                  <option value="Ley Karin - Denuncia Recibida">Denuncia Recibida</option>
+                  <option value="Ley Karin - Medidas Precautorias">Medidas Precautorias</option>
+                  <option value="Ley Karin - Decisión de Investigar">Decisión de Investigar</option>
+                  <option value="Ley Karin - En Investigación">En Investigación</option>
+                  <option value="Ley Karin - Creación de Informe">Creación de Informe</option>
+                  <option value="Ley Karin - Aprobación de Informe">Aprobación de Informe</option>
+                  <option value="Ley Karin - Notificación a DT">Notificación a DT</option>
+                  <option value="Ley Karin - Notificación a SUSESO">Notificación a SUSESO</option>
+                  <option value="Ley Karin - Investigación Completa">Investigación Completa</option>
+                  <option value="Ley Karin - Informe Final">Informe Final</option>
+                  <option value="Ley Karin - Envío a DT">Envío a DT</option>
+                  <option value="Ley Karin - En Dirección del Trabajo">En Dirección del Trabajo</option>
+                  <option value="Ley Karin - Resolución DT">Resolución DT</option>
+                  <option value="Ley Karin - Adopción de Medidas">Adopción de Medidas</option>
+                  <option value="Ley Karin - Sanciones">Sanciones</option>
+                  <option value="Ley Karin - Cerrado">Cerrado</option>
+                  <option value="Ley Karin - Denuncia Falsa">Denuncia Falsa</option>
+                  <option value="Ley Karin - Revisión de Represalias">Revisión de Represalias</option>
+                </optgroup>
               </Select>
             </div>
             <div>
@@ -257,7 +280,11 @@ export default function InvestigationPage() {
           <CardContent className="p-6">
             <h3 className="font-medium text-yellow-800">Por Iniciar</h3>
             <p className="text-3xl font-bold text-yellow-900 mt-2">
-              {assignedReports.filter(r => r.status === 'Asignada').length}
+              {assignedReports.filter(r => 
+                r.status === 'Asignada' || 
+                r.status === 'Ley Karin - Denuncia Interpuesta' || 
+                r.status === 'Ley Karin - Denuncia Recibida'
+              ).length}
             </p>
             <p className="text-sm text-yellow-700 mt-1">Casos asignados pendientes de iniciar</p>
           </CardContent>
@@ -267,7 +294,21 @@ export default function InvestigationPage() {
             <h3 className="font-medium text-blue-800">En Proceso</h3>
             <p className="text-3xl font-bold text-blue-900 mt-2">
               {assignedReports.filter(r =>
-                ['En Investigación', 'Pendiente Información', 'En Evaluación'].includes(r.status)
+                // Estados regulares en proceso
+                ['En Investigación', 'Pendiente Información', 'En Evaluación'].includes(r.status) ||
+                // Estados Ley Karin en proceso
+                r.status === 'Ley Karin - Medidas Precautorias' ||
+                r.status === 'Ley Karin - Decisión de Investigar' ||
+                r.status === 'Ley Karin - En Investigación' ||
+                r.status === 'Ley Karin - Creación de Informe' ||
+                r.status === 'Ley Karin - Aprobación de Informe' ||
+                r.status === 'Ley Karin - Notificación a DT' ||
+                r.status === 'Ley Karin - Notificación a SUSESO' ||
+                r.status === 'Ley Karin - Investigación Completa' ||
+                r.status === 'Ley Karin - Informe Final' ||
+                r.status === 'Ley Karin - Envío a DT' ||
+                r.status === 'Ley Karin - En Dirección del Trabajo' ||
+                r.status === 'Ley Karin - Resolución DT'
               ).length}
             </p>
             <p className="text-sm text-blue-700 mt-1">Investigaciones activas en proceso</p>
@@ -278,7 +319,14 @@ export default function InvestigationPage() {
             <h3 className="font-medium text-green-800">Completadas</h3>
             <p className="text-3xl font-bold text-green-900 mt-2">
               {assignedReports.filter(r =>
-                ['Resuelta', 'En Seguimiento', 'Cerrada'].includes(r.status)
+                // Estados regulares completados
+                ['Resuelta', 'En Seguimiento', 'Cerrada'].includes(r.status) ||
+                // Estados Ley Karin completados
+                r.status === 'Ley Karin - Adopción de Medidas' ||
+                r.status === 'Ley Karin - Sanciones' ||
+                r.status === 'Ley Karin - Cerrado' ||
+                r.status === 'Ley Karin - Denuncia Falsa' ||
+                r.status === 'Ley Karin - Revisión de Represalias'
               ).length}
             </p>
             <p className="text-sm text-green-700 mt-1">Investigaciones resueltas o cerradas</p>

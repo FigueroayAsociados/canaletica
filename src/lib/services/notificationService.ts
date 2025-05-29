@@ -64,21 +64,42 @@ export async function createNotification(companyId: string, notification: Omit<N
 
       // Intentar enviar el correo electrónico usando la función segura
       try {
-        const result = await safeCallFunction('sendEmail', {
-          notificationId: docRef.id,
-          companyId,
-        });
+        try {
+          const result = await safeCallFunction('sendEmail', {
+            notificationId: docRef.id,
+            companyId,
+          });
 
-        if (result.data && result.data.success) {
+          if (result.data && result.data.success) {
+            return { 
+              success: true, 
+              notificationId: docRef.id 
+            };
+          } else {
+            console.warn(`Error en función sendEmail: ${JSON.stringify(result.data)}`);
+            return { 
+              success: false, 
+              error: 'Error al enviar el correo electrónico', 
+              notificationId: docRef.id 
+            };
+          }
+        } catch (functionError) {
+          // Capturar errores específicos de CSP
+          if (functionError.message && functionError.message.includes('Content Security Policy')) {
+            console.error('Error de Content Security Policy al enviar correo:', functionError);
+            return {
+              success: true, // Consideramos éxito parcial - se creó la notificación pero falló el email por CSP
+              error: 'No se pudo enviar el correo electrónico debido a restricciones de seguridad. La notificación fue creada.',
+              notificationId: docRef.id,
+              isCspError: true
+            };
+          }
+          
+          // Otros errores de la función
+          console.error('Error al llamar función sendEmail:', functionError);
           return { 
-            success: true, 
-            notificationId: docRef.id 
-          };
-        } else {
-          console.warn(`Error en función sendEmail: ${JSON.stringify(result.data)}`);
-          return { 
-            success: false, 
-            error: 'Error al enviar el correo electrónico', 
+            success: true, // Consideramos éxito parcial
+            error: 'Error al enviar el correo electrónico, pero la notificación fue creada', 
             notificationId: docRef.id 
           };
         }
