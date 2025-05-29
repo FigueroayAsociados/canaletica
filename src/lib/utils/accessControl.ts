@@ -78,6 +78,11 @@ export async function verifyCompanyAccess(
     return { success: true };
   }
 
+  // Permitir acceso público para seguimiento de denuncias
+  if (userRole === 'public') {
+    return { success: true };
+  }
+
   // Si no hay userId o userRole, denegar acceso
   if (!userId || !userRole) {
     return { 
