@@ -1056,200 +1056,201 @@ export const InterviewList: React.FC<InterviewListProps> = ({
           )}
         </Formik>
       );
-      
-      if (selectedInterview) {
-        return (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">
-                  {selectedInterview.isTestimony ? 'Testimonio de ' : 'Entrevista a '} 
-                  {selectedInterview.interviewee}
-                </h3>
-                <div className="flex items-center mt-1">
-                  <span className="text-sm text-gray-500 mr-2">
-                    {formatDate(selectedInterview.date)}
+    }
+    
+    // Verificar si hay una entrevista seleccionada - ahora correctamente a nivel de raíz
+    if (selectedInterview) {
+      return (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">
+                {selectedInterview.isTestimony ? 'Testimonio de ' : 'Entrevista a '} 
+                {selectedInterview.interviewee}
+              </h3>
+              <div className="flex items-center mt-1">
+                <span className="text-sm text-gray-500 mr-2">
+                  {formatDate(selectedInterview.date)}
+                </span>
+                {selectedInterview.isTestimony && getStatusBadge(selectedInterview.status)}
+                {selectedInterview.isConfidential && (
+                  <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                    Confidencial
                   </span>
-                  {selectedInterview.isTestimony && getStatusBadge(selectedInterview.status)}
-                  {selectedInterview.isConfidential && (
-                    <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                      Confidencial
-                    </span>
+                )}
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                setSelectedInterview(null);
+                setShowSignatureForm(false);
+              }}
+            >
+              Volver a la Lista
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Entrevistado</h4>
+              <p className="text-gray-900">{selectedInterview.interviewee}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Cargo</h4>
+              <p className="text-gray-900">{selectedInterview.position}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Fecha</h4>
+              <p className="text-gray-900">{formatDate(selectedInterview.date)}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Lugar</h4>
+              <p className="text-gray-900">{selectedInterview.location || 'No especificado'}</p>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-2">Resumen</h4>
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+              <p className="text-sm text-gray-800 whitespace-pre-line">
+                {selectedInterview.summary}
+              </p>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-2">Puntos Clave</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              {selectedInterview.keyPoints.map((point: string, index: number) => (
+                <li key={index} className="text-sm text-gray-800">{point}</li>
+              ))}
+            </ul>
+          </div>
+          
+          {selectedInterview.notes && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-500 mb-2">Notas Adicionales</h4>
+              <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+                <p className="text-sm text-gray-800">{selectedInterview.notes}</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Detalles de firma si es un testimonio firmado */}
+          {selectedInterview.isTestimony && selectedInterview.status === 'signed' && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-500 mb-2">Información de Firma</h4>
+              <div className="bg-green-50 p-3 rounded-md border border-green-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <strong>Fecha de firma:</strong> {formatDate(selectedInterview.signatureDate || selectedInterview.signatureDetails?.signedAt)}
+                  </div>
+                  <div>
+                    <strong>Método:</strong> {
+                      selectedInterview.signatureDetails?.signatureMethod === 'fisica' ? 'Firma física' :
+                      selectedInterview.signatureDetails?.signatureMethod === 'electronica' ? 'Firma electrónica avanzada' :
+                      'Firma simple'
+                    }
+                  </div>
+                  {selectedInterview.signatureDetails?.witnessName && (
+                    <>
+                      <div>
+                        <strong>Testigo:</strong> {selectedInterview.signatureDetails.witnessName}
+                      </div>
+                      <div>
+                        <strong>Cargo del testigo:</strong> {selectedInterview.signatureDetails.witnessPosition}
+                      </div>
+                    </>
+                  )}
+                  {selectedInterview.signatureDetails?.signatureObservations && (
+                    <div className="md:col-span-2">
+                      <strong>Observaciones:</strong> {selectedInterview.signatureDetails.signatureObservations}
+                    </div>
                   )}
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  setSelectedInterview(null);
-                  setShowSignatureForm(false);
-                }}
-              >
-                Volver a la Lista
-              </Button>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Entrevistado</h4>
-                <p className="text-gray-900">{selectedInterview.interviewee}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Cargo</h4>
-                <p className="text-gray-900">{selectedInterview.position}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Fecha</h4>
-                <p className="text-gray-900">{formatDate(selectedInterview.date)}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Lugar</h4>
-                <p className="text-gray-900">{selectedInterview.location || 'No especificado'}</p>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Resumen</h4>
-              <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-                <p className="text-sm text-gray-800 whitespace-pre-line">
-                  {selectedInterview.summary}
-                </p>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Puntos Clave</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {selectedInterview.keyPoints.map((point: string, index: number) => (
-                  <li key={index} className="text-sm text-gray-800">{point}</li>
-                ))}
-              </ul>
-            </div>
-            
-            {selectedInterview.notes && (
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Notas Adicionales</h4>
-                <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-                  <p className="text-sm text-gray-800">{selectedInterview.notes}</p>
-                </div>
-              </div>
-            )}
-            
-            {/* Detalles de firma si es un testimonio firmado */}
-            {selectedInterview.isTestimony && selectedInterview.status === 'signed' && (
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Información de Firma</h4>
-                <div className="bg-green-50 p-3 rounded-md border border-green-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <strong>Fecha de firma:</strong> {formatDate(selectedInterview.signatureDate || selectedInterview.signatureDetails?.signedAt)}
-                    </div>
-                    <div>
-                      <strong>Método:</strong> {
-                        selectedInterview.signatureDetails?.signatureMethod === 'fisica' ? 'Firma física' :
-                        selectedInterview.signatureDetails?.signatureMethod === 'electronica' ? 'Firma electrónica avanzada' :
-                        'Firma simple'
-                      }
-                    </div>
-                    {selectedInterview.signatureDetails?.witnessName && (
-                      <>
-                        <div>
-                          <strong>Testigo:</strong> {selectedInterview.signatureDetails.witnessName}
-                        </div>
-                        <div>
-                          <strong>Cargo del testigo:</strong> {selectedInterview.signatureDetails.witnessPosition}
-                        </div>
-                      </>
-                    )}
-                    {selectedInterview.signatureDetails?.signatureObservations && (
-                      <div className="md:col-span-2">
-                        <strong>Observaciones:</strong> {selectedInterview.signatureDetails.signatureObservations}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {canEdit && !selectedInterview.isTestimony && isKarinLaw && (
-              <div className="flex justify-end mt-2">
-                <Button
-                  onClick={() => handleConvertToTestimony(selectedInterview)}
-                  disabled={isSubmitting}
-                  className="bg-yellow-600 hover:bg-yellow-700"
-                >
-                  Convertir a Testimonio Formal
-                </Button>
-              </div>
-            )}
-          </div>
-        );
-      } else if (interviewsToShow.length > 0) {
-        return (
-          <div className="space-y-4">
-            {interviewsToShow.map((interview) => (
-              <Card key={interview.id} className={`${interview.isTestimony ? 'bg-yellow-50' : 'bg-gray-50'}`}>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900">
-                        {interview.interviewee}
-                      </h3>
-                      <p className="text-xs text-gray-500">
-                        {interview.position} - {formatDate(interview.date)}
-                      </p>
-                    </div>
-                    <div className="flex space-x-1">
-                      {interview.isTestimony && getStatusBadge(interview.status)}
-                      {interview.isConfidential && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                          Confidencial
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                    {interview.summary}
-                  </p>
-                  <div className="mt-3 flex justify-end">
-                    <Button 
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedInterview(interview);
-                        setShowSignatureForm(false);
-                      }}
-                    >
-                      Ver Detalles
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        );
-      } else {
-        return (
-          <div className="text-center py-8">
-            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-            </svg>
-            <h3 className="mt-2 text-lg font-medium text-gray-900">No hay entrevistas registradas</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Registre entrevistas para documentar los testimonios recopilados durante la investigación.
-            </p>
-            {canEdit && (
+          )}
+          
+          {canEdit && !selectedInterview.isTestimony && isKarinLaw && (
+            <div className="flex justify-end mt-2">
               <Button
-                onClick={() => setShowForm(true)}
-                className="mt-4"
+                onClick={() => handleConvertToTestimony(selectedInterview)}
+                disabled={isSubmitting}
+                className="bg-yellow-600 hover:bg-yellow-700"
               >
-                Registrar Primera Entrevista
+                Convertir a Testimonio Formal
               </Button>
-            )}
-          </div>
-        );
-      }
+            </div>
+          )}
+        </div>
+      );
+    } else if (interviewsToShow.length > 0) {
+      return (
+        <div className="space-y-4">
+          {interviewsToShow.map((interview) => (
+            <Card key={interview.id} className={`${interview.isTestimony ? 'bg-yellow-50' : 'bg-gray-50'}`}>
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900">
+                      {interview.interviewee}
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      {interview.position} - {formatDate(interview.date)}
+                    </p>
+                  </div>
+                  <div className="flex space-x-1">
+                    {interview.isTestimony && getStatusBadge(interview.status)}
+                    {interview.isConfidential && (
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                        Confidencial
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                  {interview.summary}
+                </p>
+                <div className="mt-3 flex justify-end">
+                  <Button 
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedInterview(interview);
+                      setShowSignatureForm(false);
+                    }}
+                  >
+                    Ver Detalles
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    } else {
+      return (
+        <div className="text-center py-8">
+          <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+          </svg>
+          <h3 className="mt-2 text-lg font-medium text-gray-900">No hay entrevistas registradas</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Registre entrevistas para documentar los testimonios recopilados durante la investigación.
+          </p>
+          {canEdit && (
+            <Button
+              onClick={() => setShowForm(true)}
+              className="mt-4"
+            >
+              Registrar Primera Entrevista
+            </Button>
+          )}
+        </div>
+      );
     }
   }
 };
