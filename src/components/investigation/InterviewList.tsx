@@ -218,19 +218,22 @@ export const InterviewList: React.FC<InterviewListProps> = ({
         setShowSignatureForm(false);
         setSelectedInterview(null);
         
-        // Actualizar la lista de testimonios
+        // Actualizar la lista de testimonios con datos completos
         const updatedInterview = {
           ...selectedInterview,
           status: 'signed',
           signatureDetails: signatureData,
         };
         
-        // Remover de pendientes y añadir a firmados
-        setPendingTestimonies(prev => prev.filter(t => t.id !== selectedInterview.id));
-        setSignedTestimonies(prev => [...prev, updatedInterview]);
+        console.log('Actualizando testimonio:', selectedInterview.id, 'a estado firmado');
         
-        // Notificar al componente padre
-        onInterviewAdded(updatedInterview); // Esto debería recargar todas las entrevistas
+        // Notificar al componente padre para que se actualicen los datos desde la BD
+        onInterviewAdded(updatedInterview);
+        
+        // Forzar una recarga completa de la página para asegurar una UI consistente
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
         setError(result.error || 'Error al firmar el testimonio');
       }
