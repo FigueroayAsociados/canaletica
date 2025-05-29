@@ -52,6 +52,14 @@ export default function ReportsPage() {
   const searchParams = useSearchParams();
   const { isAdmin, isInvestigator, profile } = useCurrentUser();
   const { companyId } = useCompany();
+  
+  // Estado para los filtros
+  const [filters, setFilters] = useState<ReportFilters>({
+    status: searchParams.get('status') || '',
+    category: searchParams.get('category') || '',
+    dateRange: searchParams.get('dateRange') || '',
+    searchTerm: searchParams.get('search') || '',
+  });
 
   // RESTRICCIÓN: Redirigir a investigadores a la página de investigaciones
   useEffect(() => {
@@ -61,19 +69,6 @@ export default function ReportsPage() {
       router.push('/dashboard/investigation');
     }
   }, [isInvestigator, isAdmin, profile?.role, router]);
-  
-  // Mostrar spinner mientras se redirige
-  if (isInvestigator && !isAdmin && profile?.role !== 'super_admin') {
-    return <Spinner text="Redirigiendo a la página de investigaciones..." />;
-  }
-
-  // Estado para los filtros - sólo se inicializa si no es un investigador
-  const [filters, setFilters] = useState<ReportFilters>({
-    status: searchParams.get('status') || '',
-    category: searchParams.get('category') || '',
-    dateRange: searchParams.get('dateRange') || '',
-    searchTerm: searchParams.get('search') || '',
-  });
 
   // Asegurar que el usuario solo pueda ver denuncias de su compañía
   // Los super admin pueden ver cualquier compañía (la que esté en el contexto)
@@ -273,8 +268,11 @@ export default function ReportsPage() {
     }
   };
   
-  if (isLoading) {
-    return <Spinner text="Cargando denuncias..." />;
+  // Mostrar spinner mientras se redirige o si está cargando
+  if ((isInvestigator && !isAdmin && profile?.role !== 'super_admin') || isLoading) {
+    return <Spinner text={isInvestigator && !isAdmin && profile?.role !== 'super_admin' 
+      ? "Redirigiendo a la página de investigaciones..." 
+      : "Cargando denuncias..."} />;
   }
   
   if (isError) {
