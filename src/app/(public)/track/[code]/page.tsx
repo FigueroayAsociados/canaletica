@@ -54,11 +54,13 @@ export default function ReportDetailsPage() {
         let result;
         if (accessCode) {
           // Si hay código de acceso, es una denuncia anónima
-          result = await getReportByCodeAndAccessCode(contextCompanyId, reportCode, accessCode);
+          // Pasamos rol 'public' y 'anonymous' como userId para la verificación de seguridad
+          result = await getReportByCodeAndAccessCode(contextCompanyId, reportCode, accessCode, 'public', 'anonymous');
         } else if (email) {
           // Si hay email, es una denuncia identificada
           // TODO: Implementar verificación con email
-          result = await getReportByCode(contextCompanyId, reportCode);
+          // Pasamos rol 'public' y email como userId para la verificación de seguridad
+          result = await getReportByCode(contextCompanyId, reportCode, 'public', email);
         } else {
           // Si no hay ninguno de los dos, redirigir a la página de búsqueda
           router.push('/track');

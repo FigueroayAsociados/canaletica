@@ -34,7 +34,8 @@ export default function TrackPage() {
     try {
       // TODO: Implementar la verificación de email de contacto
       // Por ahora, solo verificamos que el reporte existe
-      const result = await getReportByCode(contextCompanyId, reportCode);
+      // Pasamos rol 'public' y email como userId para la verificación de seguridad
+      const result = await getReportByCode(contextCompanyId, reportCode, 'public', contactEmail);
       
       if (result.success && result.reportId) {
         // Redireccionar a la página de detalles del reporte
@@ -62,7 +63,8 @@ export default function TrackPage() {
     setLoading(true);
 
     try {
-      const result = await getReportByCodeAndAccessCode(contextCompanyId, reportCode, accessCode);
+      // Pasamos rol 'public' y 'anonymous' como userId para la verificación de seguridad
+      const result = await getReportByCodeAndAccessCode(contextCompanyId, reportCode, accessCode, 'public', 'anonymous');
       
       if (result.success && result.reportId) {
         // Redireccionar a la página de detalles del reporte
