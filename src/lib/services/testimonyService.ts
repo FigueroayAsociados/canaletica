@@ -67,7 +67,7 @@ export async function addTestimony(
       hasSigned: false,
       physicalCopy: false,
       folioNumber: `T-${reportId.substring(0, 4)}-${testimonyId.substring(0, 4)}`,
-      createdAt: serverTimestamp(),
+      createdAt: new Date().toISOString(), // Usar toISOString para arrays
     };
     
     // Actualizar el array de testimonios en el reporte
@@ -189,7 +189,7 @@ export async function signTestimony(
           summary: interview.summary,
           hasSigned: false,
           folioNumber: `T-${reportId.substring(0, 4)}-${testimonyId.substring(0, 4)}`,
-          createdAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(), // Usar toISOString para compatibilidad con arrays
         };
         
         // Actualizar el documento con el nuevo testimonio
@@ -216,7 +216,7 @@ export async function signTestimony(
       hasSigned: true,
       signatureDetails: signatureData,
       signatureDate: signatureData.signedAt,
-      updatedAt: serverTimestamp(),
+      updatedAt: new Date().toISOString(), // Usar toISOString en lugar de serverTimestamp en arrays
     };
     
     // Actualizar el documento
