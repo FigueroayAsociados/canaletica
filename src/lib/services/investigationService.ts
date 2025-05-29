@@ -340,6 +340,15 @@ export async function addInterview(
     // Convertir fecha a Timestamp
     const interviewDate = new Date(interviewData.date);
     
+    // Verificar si el reporte es un caso de Ley Karin
+    const isKarinLaw = reportData.isKarinLaw || false;
+    
+    // Si es una entrevista que será testimonio, generar un testimonyId
+    let testimonyId = null;
+    if (interviewData.isTestimony && isKarinLaw) {
+      testimonyId = uuidv4();
+    }
+    
     // Crear objeto de entrevista extendida
     const extendedInterview = {
       id: interviewId,
@@ -348,21 +357,47 @@ export async function addInterview(
       conductedBy: interviewData.conductedBy || userId,
       conductedByName: interviewData.conductedByName || auth.currentUser?.displayName || 'Usuario del sistema',
       status: interviewData.status || (interviewData.isTestimony ? 'pending_signature' : 'draft'),
-      createdAt: interviewData.createdAt || new Date().toISOString()
+      createdAt: interviewData.createdAt || new Date().toISOString(),
+      // Añadir testimonyId si es un testimonio
+      ...(interviewData.isTestimony && testimonyId ? { testimonyId } : {})
     };
-    
-    // Verificar si el reporte es un caso de Ley Karin
-    const isKarinLaw = reportData.isKarinLaw || false;
     
     if (isKarinLaw) {
       // Actualizar el array de entrevistas extendidas en karinProcess
       const extendedInterviews = reportData.karinProcess?.extendedInterviews || [];
       
-      // Actualizar el documento con la nueva entrevista
-      await updateDoc(reportRef, {
+      // Preparar actualizaciones para el documento
+      const updateData: any = {
         'karinProcess.extendedInterviews': [...extendedInterviews, extendedInterview],
         'updatedAt': serverTimestamp()
-      });
+      };
+      
+      // Si es un testimonio, también crear la entrada en testimonies
+      if (interviewData.isTestimony && testimonyId) {
+        const testimonies = reportData.karinProcess?.testimonies || [];
+        const newTestimony = {
+          id: testimonyId,
+          personName: interviewData.interviewee,
+          personType: 'witness', // Valor por defecto
+          date: interviewData.date,
+          location: interviewData.location || 'No especificado',
+          interviewer: userId,
+          interviewerName: auth.currentUser?.displayName || 'Usuario del sistema',
+          summary: interviewData.summary,
+          interviewProtocol: interviewData.protocol || 'formal',
+          recordingConsent: interviewData.recordingConsent || false,
+          isConfidential: interviewData.isConfidential || false,
+          hasSigned: false,
+          status: 'pending_signature',
+          createdAt: new Date().toISOString(),
+          fromInterviewId: interviewId
+        };
+        
+        updateData['karinProcess.testimonies'] = [...testimonies, newTestimony];
+      }
+      
+      // Actualizar el documento con todos los cambios
+      await updateDoc(reportRef, updateData);
     }
     
     // También registrar la entrevista como una actividad para compatibilidad
@@ -378,6 +413,8 @@ export async function addInterview(
         ...interviewData,
         id: interviewId,
         date: Timestamp.fromDate(interviewDate),
+        // Añadir testimonyId si es un testimonio
+        ...(interviewData.isTestimony && testimonyId ? { testimonyId } : {})
       },
       visibleToReporter: false,
     });
@@ -386,6 +423,7 @@ export async function addInterview(
       success: true,
       interviewId: interviewId,
       activityId: newActivityRef.id,
+      testimonyId: testimonyId, // Devolver testimonyId si se creó
     };
   } catch (error) {
     console.error('Error adding interview:', error);
