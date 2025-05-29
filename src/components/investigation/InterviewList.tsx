@@ -93,14 +93,23 @@ export const InterviewList: React.FC<InterviewListProps> = ({
   useEffect(() => {
     if (interviews && isKarinLaw) {
       console.log('Procesando entrevistas para testimonios:', interviews);
-      const signed = interviews.filter(interview => 
-        interview.isTestimony && (interview.status === 'signed' || interview.status === 'verified')
+      
+      // Identificar entrevistas con testimonyId
+      const interviewsWithTestimonyId = interviews.filter(
+        interview => interview.isTestimony && interview.testimonyId
       );
-      const pending = interviews.filter(interview => 
-        interview.isTestimony && interview.status === 'pending_signature'
+      
+      // Identificar testimonios pendientes vs firmados
+      const signed = interviewsWithTestimonyId.filter(
+        interview => interview.status === 'signed' || interview.status === 'verified'
+      );
+      
+      const pending = interviewsWithTestimonyId.filter(
+        interview => interview.status === 'pending_signature'
       );
       
       console.log('Testimonios firmados:', signed.length, 'Testimonios pendientes:', pending.length);
+      
       setSignedTestimonies(signed);
       setPendingTestimonies(pending);
     }
@@ -202,7 +211,9 @@ export const InterviewList: React.FC<InterviewListProps> = ({
         signatureVerifiedByName: displayName || 'Usuario del sistema',
       };
       
-      // Usar testimonyId si existe, o el id de la entrevista como fallback
+      // Determinar el ID correcto a usar para la firma
+      // 1. Preferir testimonyId si existe
+      // 2. Usar ID de la entrevista solo como último recurso
       const idToUse = selectedInterview.testimonyId || selectedInterview.id;
       console.log('Firmando testimonio:', idToUse, 'para entrevista:', selectedInterview.id);
       
@@ -214,12 +225,42 @@ export const InterviewList: React.FC<InterviewListProps> = ({
       );
       
       if (result.success) {
-        // Mostrar mensaje de éxito
-        alert('Testimonio firmado correctamente. La página se recargará para mostrar los cambios.');
+        setSuccess('Testimonio firmado correctamente');
+        setShowSignatureForm(false);
+        setSelectedInterview(null);
         
-        // Redireccionar a la misma página para forzar una recarga completa
-        // Esto asegura que todos los datos se carguen frescos desde la base de datos
-        window.location.href = `/dashboard/investigation/${reportId}?tab=interviews`;
+        // Si la API devolvió un ID de testimonio, usarlo para actualizar la UI
+        const effectiveTestimonyId = result.testimonyId || idToUse;
+        
+        // Actualizar la lista de testimonios
+        const updatedInterview = {
+          ...selectedInterview,
+          status: 'signed',
+          testimonyId: effectiveTestimonyId,
+          signatureDetails: signatureData,
+        };
+        
+        // Notificar al componente padre para que actualice los datos
+        onInterviewAdded(updatedInterview);
+        
+        // Volver a cargar la página con foco en la pestaña correcta
+        setTimeout(() => {
+          window.location.href = `/dashboard/investigation/${reportId}?tab=interviews&refresh=${Date.now()}`;
+        }, 1500);
+      } else if (result.testimonyId) {
+        // Si la API creó un nuevo testimonio, intentar firmar con el nuevo ID
+        const retryValues = { ...values };
+        const retryInterview = { 
+          ...selectedInterview,
+          testimonyId: result.testimonyId
+        };
+        
+        setSuccess('Se ha creado un nuevo testimonio. Intentando firmar automáticamente...');
+        
+        // Esperar un momento y volver a intentar con el nuevo ID
+        setTimeout(() => {
+          handleSignTestimony(retryValues);
+        }, 1000);
       } else {
         setError(result.error || 'Error al firmar el testimonio');
         setIsSubmitting(false);
@@ -249,7 +290,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
       if (result.success) {
         setSuccess('Entrevista convertida a testimonio correctamente');
         
-        // Actualizar la UI
+        // Actualizar la UI con el ID del testimonio recién creado
         const updatedInterview = {
           ...interview,
           isTestimony: true,
@@ -262,6 +303,11 @@ export const InterviewList: React.FC<InterviewListProps> = ({
         
         // Notificar al componente padre
         onInterviewAdded(updatedInterview);
+        
+        // Opcional: recargar para asegurar datos frescos
+        setTimeout(() => {
+          window.location.href = `/dashboard/investigation/${reportId}?tab=interviews&refresh=${Date.now()}`;
+        }, 1500);
       } else {
         setError(result.error || 'Error al convertir la entrevista a testimonio');
       }
