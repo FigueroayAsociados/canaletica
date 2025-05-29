@@ -148,6 +148,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
         createdAt: new Date().toISOString(),
       };
       
+      console.log('Creando entrevista para compañía:', companyId, 'reporte:', reportId);
       const result = await addInterview(
         companyId,
         reportId,
