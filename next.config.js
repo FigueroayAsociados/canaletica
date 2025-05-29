@@ -51,7 +51,7 @@ const nextConfig = {
               style-src 'self' 'unsafe-inline';
               img-src 'self' data: https://storage.googleapis.com https://*.googleapis.com https://firebasestorage.googleapis.com https://*.ytimg.com;
               font-src 'self' data:;
-              connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudfunctions.net https://us-central1-canaletica-e0f81.cloudfunctions.net https://southamerica-east1-canaletica-e0f81.cloudfunctions.net https://southamerica-west1-canaletica-e0f81.cloudfunctions.net;
+              connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudfunctions.net https://us-central1-canaletica-e0f81.cloudfunctions.net https://southamerica-east1-canaletica-e0f81.cloudfunctions.net https://southamerica-west1-canaletica-e0f81.cloudfunctions.net https://*.canaletic.app;
               frame-src 'self' https://*.firebaseapp.com https://www.youtube.com https://youtube.com https://*.youtube-nocookie.com;
               object-src 'none';
               base-uri 'self';
