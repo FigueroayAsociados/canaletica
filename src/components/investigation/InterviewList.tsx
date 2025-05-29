@@ -411,6 +411,21 @@ export const InterviewList: React.FC<InterviewListProps> = ({
   // Filtrar entrevistas normales (no testimonios)
   const regularInterviews = interviews.filter(interview => !interview.isTestimony);
   
+  // Determinar en qué pestaña debería mostrarse la entrevista seleccionada
+  useEffect(() => {
+    if (selectedInterview) {
+      if (selectedInterview.isTestimony) {
+        if (selectedInterview.status === 'signed' || selectedInterview.status === 'verified') {
+          setSelectedTab('signed_testimonies');
+        } else {
+          setSelectedTab('pending_testimonies');
+        }
+      } else {
+        setSelectedTab('interviews');
+      }
+    }
+  }, [selectedInterview]);
+  
   return (
     <div className="space-y-6">
       {isKarinLaw ? (
@@ -799,6 +814,13 @@ export const InterviewList: React.FC<InterviewListProps> = ({
   );
   
   function renderInterviewsContent(interviewsToShow: any[]) {
+    // Verifica si la entrevista seleccionada está en el arreglo de entrevistas a mostrar
+    // Si no está, podría ser un testimonio y no debería mostrarse en la pestaña de entrevistas regulares
+    const shouldShowSelectedInterview = selectedInterview && 
+      (interviewsToShow.some(interview => interview.id === selectedInterview.id) || 
+       selectedTab === 'pending_testimonies' || 
+       selectedTab === 'signed_testimonies');
+    
     if (showForm) {
       return (
         <Formik
@@ -1059,7 +1081,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
     }
     
     // Verificar si hay una entrevista seleccionada - ahora correctamente a nivel de raíz
-    if (selectedInterview) {
+    if (selectedInterview && shouldShowSelectedInterview) {
       return (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -1086,6 +1108,7 @@ export const InterviewList: React.FC<InterviewListProps> = ({
               onClick={() => {
                 setSelectedInterview(null);
                 setShowSignatureForm(false);
+                // No cambiamos la pestaña al volver para mantener la navegación coherente
               }}
             >
               Volver a la Lista
