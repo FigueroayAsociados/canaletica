@@ -318,8 +318,13 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps, visibleSections = [], 
       {/* Impacto personal, laboral o económico */}
       <div className="mb-6">
         <Label htmlFor="impactType" required>
-          Tipo de impacto
+          Tipo de impacto generado por la conducta denunciada
         </Label>
+        <p className="text-sm text-gray-600 mt-1 mb-3">
+          Seleccione el tipo de impacto o consecuencia que ha tenido la situación denunciada sobre usted, 
+          otras personas o la organización. Esta información nos ayuda a evaluar la gravedad y determinar 
+          las medidas apropiadas.
+        </p>
         <div className="mt-1 mb-3">
           <Field
             as={Select}

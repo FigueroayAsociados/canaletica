@@ -143,19 +143,16 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
   ) => {
     const { name, value } = e.target;
     
-    // Extraer el nombre base del campo (sin el sufijo -evidence)
-    const fieldName = name.replace('-evidence', '');
-    
     setNewEvidence((prev) => ({
       ...prev,
-      [fieldName]: value,
+      [name]: value,
     }));
     
     // Limpiar error cuando el usuario comienza a escribir
-    if (formErrors[fieldName]) {
+    if (formErrors[name]) {
       setFormErrors((prev) => ({
         ...prev,
-        [fieldName]: '',
+        [name]: '',
       }));
     }
   };
@@ -317,17 +314,22 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
         <div className="space-y-4">
           {/* Descripción de la evidencia */}
           <div>
-            <FormField
-              id="description-evidence"
-              name="description-evidence"
-              label="Descripción de la evidencia"
-              type="textarea"
-              required
+            <Label htmlFor="description" required>
+              Descripción de la evidencia
+            </Label>
+            <Textarea
+              id="description"
+              name="description"
               placeholder="Describa qué muestra esta evidencia y su relevancia para la denuncia"
               value={newEvidence.description}
               onChange={handleInputChange}
-              description="Explique qué contiene esta evidencia y por qué es relevante para su denuncia"
+              error={!!formErrors.description}
+              className="mt-1"
+              required
             />
+            <p className="text-sm text-gray-500 mt-1">
+              Explique qué contiene esta evidencia y por qué es relevante para su denuncia
+            </p>
             {formErrors.description && (
               <div className="text-red-500 text-sm mt-1" role="alert">{formErrors.description}</div>
             )}
@@ -380,17 +382,23 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
             />
           </div>
 
-          {/* URL alternativa con FormField */}
+          {/* URL alternativa */}
           <div>
-            <FormField
+            <Label htmlFor="url">
+              URL (alternativa al archivo)
+            </Label>
+            <Input
               id="url"
-              name="url-evidence"
-              label="URL (alternativa al archivo)"
+              name="url"
               placeholder="https://ejemplo.com/mi-evidencia"
-              description="Si la evidencia está disponible en línea, proporcione la URL completa"
               value={newEvidence.url}
               onChange={handleInputChange}
+              error={!!formErrors.url}
+              className="mt-1"
             />
+            <p className="text-sm text-gray-500 mt-1">
+              Si la evidencia está disponible en línea, proporcione la URL completa
+            </p>
             {formErrors.url && (
               <div className="text-red-500 text-sm mt-1">{formErrors.url}</div>
             )}
