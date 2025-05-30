@@ -113,13 +113,11 @@ const validationSchemas = [
     conductFrequency: Yup.string().required('Debe indicar la frecuencia de la conducta'),
   }),
 
-  // Paso 5: Evidencias y Documentación - Simplificado al máximo
+  // Paso 5: Evidencias y Documentación - Completamente opcional
   Yup.object({
-    evidences: Yup.array().of(
-      Yup.object({
-        description: Yup.string().required('Debe proporcionar una descripción de la evidencia')
-      })
-    )
+    // No se requiere validación para evidencias ya que son opcionales
+    evidences: Yup.array().optional(),
+    additionalEvidenceDescription: Yup.string().optional()
   }),
 
   // Paso 6: Información Adicional y Confirmación

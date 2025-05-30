@@ -35,6 +35,7 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   
   // Límites actualizados por tipo de archivo
   const MAX_DOCUMENT_SIZE = 15 * 1024 * 1024; // 15MB para documentos
@@ -190,6 +191,9 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
+        
+        // Ocultar formulario después de agregar
+        setShowAddForm(false);
       } catch (error) {
         console.error('Error al agregar evidencia:', error);
         setFormErrors({
@@ -309,10 +313,52 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
         </div>
       )}
 
-      {/* Formulario para agregar evidencia */}
+      {/* Botón/Formulario para agregar evidencia */}
       <div className="bg-white border border-gray-200 rounded-md p-5">
-        <h4 className="font-medium text-gray-900 mb-4">Agregar evidencia</h4>
-        <div className="space-y-4">
+        {!showAddForm ? (
+          // Mostrar solo el botón cuando el formulario está oculto
+          <div className="text-center">
+            <Button
+              type="button"
+              onClick={() => setShowAddForm(true)}
+              className="w-full md:w-auto"
+            >
+              + Agregar Evidencia
+            </Button>
+            <p className="text-sm text-gray-500 mt-2">
+              {values.evidences.length > 0 
+                ? "Haga clic para agregar más evidencias (opcional)" 
+                : "Haga clic para agregar evidencia que respalde su denuncia (opcional)"}
+            </p>
+          </div>
+        ) : (
+          // Mostrar el formulario cuando está visible
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-medium text-gray-900">Agregar evidencia</h4>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowAddForm(false);
+                  // Limpiar formulario al cerrar
+                  setNewEvidence({
+                    file: undefined,
+                    description: '',
+                    url: ''
+                  });
+                  setFormErrors({});
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
           {/* Descripción de la evidencia */}
           <div>
             <Label htmlFor="description" required>
@@ -439,8 +485,10 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
                 </>
               ) : "Agregar Evidencia"}
             </Button>
-          </div>
-        </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Descripción de evidencias adicionales */}
