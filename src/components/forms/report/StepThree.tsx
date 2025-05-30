@@ -8,12 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { FormSection } from '@/lib/utils/formUtils';
+import FormField from '@/components/ui/form-field';
+import { useFormContext } from '@/lib/contexts/FormContext';
 
 interface StepThreeProps {
   formikProps: FormikProps<ReportFormValues>;
+  visibleSections?: FormSection[];
+  shouldShowSection?: (sectionId: string) => boolean;
 }
 
-const StepThree: React.FC<StepThreeProps> = ({ formikProps }) => {
+const StepThree: React.FC<StepThreeProps> = ({ formikProps, visibleSections = [], shouldShowSection }) => {
   const { values, errors, touched, setFieldValue } = formikProps;
   const [newAccused, setNewAccused] = useState<AccusedPersonType>({
     id: '',

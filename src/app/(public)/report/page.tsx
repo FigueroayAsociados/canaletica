@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { initialValues, ReportFormValues } from '@/types/report';
@@ -17,6 +17,8 @@ import { createReport, uploadEvidence } from '@/lib/services/reportService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
 import { useCompany } from '@/lib/hooks';
+import { FormProvider } from '@/lib/contexts/FormContext';
+import { calculateCompletionPercentage, estimateRemainingTime, shouldShowSection, formSections } from '@/lib/utils/formUtils';
 
 // Validación para cada paso del formulario
 const validationSchemas = [
@@ -407,18 +409,33 @@ export default function ReportPage() {
     }
   };
 
+  // Función para renderizar el paso actual con secciones condicionales
   const renderStep = (step: number, formikProps: any) => {
+    const { values } = formikProps;
+    
+    // Validar qué secciones mostrar en cada paso según el estado actual
+    const visibleSections = useMemo(() => {
+      return formSections.filter(section => shouldShowSection(section.id, values, formSections));
+    }, [values]);
+    
+    // Pasar las secciones visibles a cada componente de paso
+    const stepProps = {
+      formikProps,
+      visibleSections,
+      shouldShowSection: (sectionId: string) => shouldShowSection(sectionId, values, formSections)
+    };
+    
     switch (step) {
       case 0:
-        return <StepOne formikProps={formikProps} />;
+        return <StepOne {...stepProps} />;
       case 1:
-        return <StepTwo formikProps={formikProps} />;
+        return <StepTwo {...stepProps} />;
       case 2:
-        return <StepThree formikProps={formikProps} />;
+        return <StepThree {...stepProps} />;
       case 3:
-        return <StepFour formikProps={formikProps} />;
+        return <StepFour {...stepProps} />;
       case 4:
-        return <StepFive formikProps={formikProps} />;
+        return <StepFive {...stepProps} />;
       case 5:
         return (
           <>
@@ -435,7 +452,7 @@ export default function ReportPage() {
                 </AlertDescription>
               </Alert>
             )}
-            <StepSix formikProps={formikProps} />
+            <StepSix {...stepProps} />
           </>
         );
       case 6:
@@ -507,29 +524,65 @@ export default function ReportPage() {
         </div>
       )}
 
-      {/* Indicador de progreso */}
-      <div className="border-b border-gray-200">
+      {/* Indicador de progreso mejorado */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
         <div className="p-4">
-          <div className="flex justify-between items-center mb-4">
-            {/* Número y título del paso actual */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">
-                {getStepIndicator(activeStep).title}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {getStepIndicator(activeStep).subtitle}
-              </p>
+          <div className="flex justify-between items-center mb-2">
+            {/* Número y título del paso actual con animación */}
+            <div className="flex items-center">
+              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary text-white font-medium mr-3 transition-all duration-300 transform">
+                {activeStep + 1}
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  {getStepIndicator(activeStep).title}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {getStepIndicator(activeStep).subtitle}
+                </p>
+              </div>
             </div>
             
-            {/* Indicador visual de progreso */}
-            <div className="flex items-center space-x-1">
+            {/* Tiempo estimado - usando la función de estimación */}
+            <div className="text-sm text-gray-500 hidden md:block">
+              <span>Tiempo estimado: {(6 - activeStep)} min</span>
+            </div>
+          </div>
+          
+          {/* Barra de progreso animada - usando la función de cálculo de progreso */}
+          <div className="relative pt-1">
+            <div className="flex justify-between mb-1">
+              <div className="text-xs text-gray-500">
+                Progreso: {Math.round(((activeStep + 1) / 6) * 100)}%
+              </div>
+              <div className="text-xs text-gray-500">
+                Paso {activeStep + 1} de 6
+              </div>
+            </div>
+            <div className="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
+              <div 
+                style={{ width: `${((activeStep + 1) / 6) * 100}%` }}
+                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary transition-all duration-500 ease-in-out"
+              ></div>
+            </div>
+            
+            {/* Pasos visuales */}
+            <div className="flex justify-between mt-1">
               {[0, 1, 2, 3, 4, 5].map((step) => (
-                <div
-                  key={step}
-                  className={`h-2 w-8 rounded-full ${
-                    step <= activeStep ? 'bg-primary' : 'bg-gray-200'
-                  }`}
-                ></div>
+                <div key={step} className="flex flex-col items-center">
+                  <div 
+                    className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                      step < activeStep 
+                        ? 'bg-primary' 
+                        : step === activeStep 
+                          ? 'bg-primary ring-4 ring-primary-100' 
+                          : 'bg-gray-300'
+                    }`}
+                  ></div>
+                  <span className="text-xs text-gray-500 hidden md:inline-block mt-1">
+                    {step + 1}
+                  </span>
+                </div>
               ))}
             </div>
           </div>
@@ -573,41 +626,45 @@ export default function ReportPage() {
         validateOnMount={false}
         validateOnChange={true}
         validateOnBlur={true}
+        // Opciones adicionales para mejorar la validación en tiempo real
+        validateOnInput={true}
       >
         {(formikProps) => (
-          <Form className="p-6">
-            {renderStep(activeStep, formikProps)}
+          <FormProvider>
+            <Form className="p-6">
+              {renderStep(activeStep, formikProps)}
 
-            <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between">
-              {activeStep > 0 ? (
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="btn-outline"
-                >
-                  Anterior
-                </button>
-              ) : (
-                <div></div> /* Espacio vacío para mantener la alineación */
-              )}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className={`btn-primary ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isLastStep ? 'Enviar Denuncia' : 'Siguiente'}
-                {submitting && (
-                  <span className="ml-2 inline-block animate-spin">
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </span>
+              <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between">
+                {activeStep > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="btn-outline"
+                  >
+                    Anterior
+                  </button>
+                ) : (
+                  <div></div> /* Espacio vacío para mantener la alineación */
                 )}
-              </button>
-            </div>
-          </Form>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={`btn-primary ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isLastStep ? 'Enviar Denuncia' : 'Siguiente'}
+                  {submitting && (
+                    <span className="ml-2 inline-block animate-spin">
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              </div>
+            </Form>
+          </FormProvider>
         )}
       </Formik>
     </div>

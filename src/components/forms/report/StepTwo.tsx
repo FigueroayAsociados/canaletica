@@ -9,9 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getCategories, getSubcategories, Category, Subcategory } from '@/lib/services/configService';
 import { useCompany } from '@/lib/hooks';
+import { FormSection } from '@/lib/utils/formUtils';
+import FormField from '@/components/ui/form-field';
+import { useFormContext } from '@/lib/contexts/FormContext';
 
 interface StepTwoProps {
   formikProps: FormikProps<ReportFormValues>;
+  visibleSections?: FormSection[];
+  shouldShowSection?: (sectionId: string) => boolean;
 }
 
 // Categorías predeterminadas para usar en caso de error
@@ -83,7 +88,7 @@ const DEFAULT_SUBCATEGORIES = {
   ]
 };
 
-const StepTwo: React.FC<StepTwoProps> = ({ formikProps }) => {
+const StepTwo: React.FC<StepTwoProps> = ({ formikProps, visibleSections = [], shouldShowSection }) => {
   const { values, errors, touched, setFieldValue } = formikProps;
   const { companyId } = useCompany();
 

@@ -9,12 +9,17 @@ import { Select } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getCompanyConfig, CompanyConfig, FormOptionValue, getFormOptions } from '@/lib/services/configService';
 import { useCompany } from '@/lib/hooks';
+import { useFormContext } from '@/lib/contexts/FormContext';
+import FormField from '@/components/ui/form-field';
+import { FormSection } from '@/lib/utils/formUtils';
 
 interface StepOneProps {
   formikProps: FormikProps<ReportFormValues>;
+  visibleSections?: FormSection[];
+  shouldShowSection?: (sectionId: string) => boolean;
 }
 
-const StepOne: React.FC<StepOneProps> = ({ formikProps }) => {
+const StepOne: React.FC<StepOneProps> = ({ formikProps, visibleSections = [], shouldShowSection }) => {
   const { values, errors, touched, setFieldValue } = formikProps;
   const { companyId } = useCompany();
   
@@ -148,333 +153,344 @@ const StepOne: React.FC<StepOneProps> = ({ formikProps }) => {
         </p>
       </div>
 
-      {/* Tipo de relación con la empresa */}
-      <div className="mb-6">
-        <Label htmlFor="relationship" required>
-          ¿Cuál es su relación con la empresa?
-        </Label>
-        {error && (
-          <Alert variant="error" className="mb-2">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        <Field
-          as={Select}
-          id="relationship"
-          name="relationship"
-          error={touched.relationship && errors.relationship}
-          className="mt-1"
-          disabled={loading}
-        >
-          <option value="">Seleccione una opción</option>
-          {!loading && relationshipOptions.length > 0 ? (
-            // Opciones cargadas dinámicamente desde la configuración
-            <>
-              {relationshipOptions.map(option => (
-                <option key={option.id} value={option.value}>
-                  {option.name}
-                </option>
-              ))}
-            </>
-          ) : (
-            // Opciones por defecto en caso de error o carga
-            <>
-              <option value="empleado">Empleado</option>
-              <option value="proveedor">Proveedor</option>
-              <option value="cliente">Cliente</option>
-              <option value="contratista">Contratista</option>
-              <option value="otro">Otro</option>
-            </>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Tipo de relación con la empresa */}
+        <div className="md:col-span-2">
+          {error && (
+            <Alert variant="error" className="mb-2">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
-        </Field>
-        <ErrorMessage name="relationship">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
-        </ErrorMessage>
-        
-        {loading && (
-          <p className="text-sm text-gray-500 mt-1">Cargando configuración...</p>
-        )}
-      </div>
-
-      {/* Opción de denuncia anónima - Solo visible si NO es Ley Karin */}
-      {!values.isKarinLaw ? (
-        <div className="mb-6">
-          <Label required>¿Desea realizar una denuncia anónima?</Label>
-          <div className="mt-2 space-y-2">
-            <div className="flex items-center">
-              <Field
-                type="radio"
-                id="anonymous-yes"
-                name="isAnonymous"
-                value="true"
-                checked={values.isAnonymous === true}
-                onChange={handleAnonymousChange}
-                className="h-4 w-4 text-primary"
-                disabled={values.isKarinLaw} // Desactivar si es Ley Karin
-              />
-              <label htmlFor="anonymous-yes" className={`ml-2 text-sm ${values.isKarinLaw ? 'text-gray-400' : 'text-gray-700'}`}>
-                Sí, quiero mantener mi identidad anónima
-              </label>
-              {values.isKarinLaw && (
-                <span className="ml-2 text-xs text-red-500">(No disponible para Ley Karin)</span>
-              )}
+          
+          {loading ? (
+            <div className="animate-pulse">
+              <Label htmlFor="relationship" required>
+                ¿Cuál es su relación con la empresa?
+              </Label>
+              <div className="h-10 bg-gray-200 rounded mt-1"></div>
+              <p className="text-sm text-gray-500 mt-1">Cargando opciones...</p>
             </div>
-            <div className="flex items-center">
-              <Field
-                type="radio"
-                id="anonymous-no"
-                name="isAnonymous"
-                value="false"
-                checked={values.isAnonymous === false}
-                onChange={handleAnonymousChange}
-                className="h-4 w-4 text-primary"
-              />
-              <label htmlFor="anonymous-no" className="ml-2 text-sm text-gray-700">
-                No, acepto proporcionar mis datos de contacto
-              </label>
-            </div>
-          </div>
+          ) : (
+            <FormField
+              name="relationship"
+              label="¿Cuál es su relación con la empresa?"
+              type="select"
+              required
+              disabled={loading}
+              options={relationshipOptions.length > 0 ? 
+                relationshipOptions.map(option => ({
+                  value: option.value,
+                  label: option.name
+                })) : [
+                  { value: 'empleado', label: 'Empleado' },
+                  { value: 'proveedor', label: 'Proveedor' },
+                  { value: 'cliente', label: 'Cliente' },
+                  { value: 'contratista', label: 'Contratista' },
+                  { value: 'otro', label: 'Otro' }
+                ]}
+              description="Seleccione cómo se relaciona usted con la empresa denunciada"
+            />
+          )}
         </div>
-      ) : (
-        <div className="mb-6">
-          <Alert variant="warning">
-            <AlertDescription>
-              <p className="font-medium">Identificación obligatoria para denuncias Ley Karin</p>
-              <p className="text-sm mt-1">
-                Las denuncias bajo Ley Karin <strong>no pueden ser anónimas</strong>. Se requiere identificación 
-                del denunciante conforme a la normativa legal vigente. Si está denunciando en nombre
-                de otra persona, deberá acreditar su representación.
-              </p>
-            </AlertDescription>
-          </Alert>
-          {/* Ocultar este campo del formulario pero asegurar que siempre sea false para Ley Karin */}
-          <input type="hidden" name="isAnonymous" value="false" />
-        </div>
-      )}
 
-      {/* Información de contacto (si no es anónima) */}
-      {!values.isAnonymous && (
-        <div className="bg-gray-50 p-4 rounded-md space-y-4 border border-gray-200">
-          <h4 className="font-medium text-gray-900">Información de contacto</h4>
-          
-          <div>
-            <Label htmlFor="contactInfo.name" required>
-              Nombre completo
-            </Label>
-            <Field
-              as={Input}
-              id="contactInfo.name"
-              name="contactInfo.name"
-              error={touched.contactInfo?.name && errors.contactInfo?.name}
-              className="mt-1"
-            />
-            <ErrorMessage name="contactInfo.name">
-              {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
-            </ErrorMessage>
-          </div>
-          
-          <div>
-            <Label htmlFor="contactInfo.email" required>
-              Correo electrónico
-            </Label>
-            <Field
-              as={Input}
-              type="email"
-              id="contactInfo.email"
-              name="contactInfo.email"
-              error={touched.contactInfo?.email && errors.contactInfo?.email}
-              className="mt-1"
-            />
-            <ErrorMessage name="contactInfo.email">
-              {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
-            </ErrorMessage>
-          </div>
-          
-          <div>
-            <Label htmlFor="contactInfo.phone" required>
-              Teléfono de contacto
-            </Label>
-            <Field
-              as={Input}
-              id="contactInfo.phone"
-              name="contactInfo.phone"
-              error={touched.contactInfo?.phone && errors.contactInfo?.phone}
-              className="mt-1"
-            />
-            <ErrorMessage name="contactInfo.phone">
-              {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
-            </ErrorMessage>
-          </div>
-          
-          <div>
-            <Label htmlFor="contactInfo.position">
-              Cargo o posición (opcional)
-            </Label>
-            <Field
-              as={Input}
-              id="contactInfo.position"
-              name="contactInfo.position"
-              className="mt-1"
-            />
-          </div>
-
-          {/* Sección adicional para Ley Karin - Denuncias de terceros */}
-          {values.isKarinLaw && (
-            <div className="mt-4 border-t pt-4">
-              <Label required>¿Es usted la persona afectada directamente?</Label>
-              
-              {/* Inicializar valor de isVictim si no está definido */}
-              {values.isVictim === undefined && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md mb-3">
-                  <p className="text-sm text-blue-700">
-                    Por favor seleccione si usted es la persona afectada o si realiza la denuncia por otra persona.
-                  </p>
-                </div>
-              )}
-              
-              <div className="mt-2 space-y-2">
+        {/* Opción de denuncia anónima - Solo visible si NO es Ley Karin */}
+        {!values.isKarinLaw ? (
+          <div className="md:col-span-2 mb-6">
+            <fieldset>
+              <legend className="block text-sm font-medium text-gray-900 mb-2">
+                <span className="text-red-500">*</span> ¿Desea realizar una denuncia anónima?
+              </legend>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    console.log("Estableciendo isVictim=true");
-                    setFieldValue('isVictim', true);
-                  }}
-                  className={`w-full text-left p-3 rounded-md ${values.isVictim === true 
-                    ? 'bg-blue-100 border-blue-400 border-2' 
-                    : 'bg-gray-50 border border-gray-300 hover:bg-gray-100'}`}
+                  onClick={() => setFieldValue('isAnonymous', true)}
+                  disabled={values.isKarinLaw}
+                  className={`p-4 rounded-lg border-2 text-left ${
+                    values.isAnonymous && !values.isKarinLaw 
+                      ? 'border-primary bg-primary-50' 
+                      : values.isKarinLaw 
+                        ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' 
+                        : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  aria-pressed={values.isAnonymous === true}
+                  aria-disabled={values.isKarinLaw}
                 >
                   <div className="flex items-center">
-                    <div className={`h-4 w-4 rounded-full mr-2 ${values.isVictim === true ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-                    <span className="font-medium">Sí, soy la víctima directa</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                    <div className="text-left">
+                      <h4 className="font-medium mb-1">Denuncia Anónima</h4>
+                      <p className="text-sm text-gray-600">Su identidad se mantendrá confidencial</p>
+                    </div>
                   </div>
                 </button>
                 
                 <button
                   type="button"
-                  onClick={() => {
-                    console.log("Estableciendo isVictim=false");
-                    setFieldValue('isVictim', false);
-                  }}
-                  className={`w-full text-left p-3 rounded-md ${values.isVictim === false 
-                    ? 'bg-blue-100 border-blue-400 border-2' 
-                    : 'bg-gray-50 border border-gray-300 hover:bg-gray-100'}`}
+                  onClick={() => setFieldValue('isAnonymous', false)}
+                  className={`p-4 rounded-lg border-2 text-left ${
+                    !values.isAnonymous 
+                      ? 'border-primary bg-primary-50' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  aria-pressed={values.isAnonymous === false}
                 >
                   <div className="flex items-center">
-                    <div className={`h-4 w-4 rounded-full mr-2 ${values.isVictim === false ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-                    <span className="font-medium">No, denuncio en representación de la persona afectada</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <div className="text-left">
+                      <h4 className="font-medium mb-1">Denuncia Identificada</h4>
+                      <p className="text-sm text-gray-600">Proporcione sus datos de contacto</p>
+                    </div>
                   </div>
                 </button>
+                
+                {/* Campos ocultos para Formik */}
+                <Field type="radio" id="anonymous-yes-hidden" name="isAnonymous" value="true" className="hidden" />
+                <Field type="radio" id="anonymous-no-hidden" name="isAnonymous" value="false" className="hidden" />
               </div>
+            </fieldset>
+          </div>
+        ) : (
+          <div className="md:col-span-2 mb-6">
+            <Alert variant="warning">
+              <AlertDescription>
+                <p className="font-medium">Identificación obligatoria para denuncias Ley Karin</p>
+                <p className="text-sm mt-1">
+                  Las denuncias bajo Ley Karin <strong>no pueden ser anónimas</strong>. Se requiere identificación 
+                  del denunciante conforme a la normativa legal vigente. Si está denunciando en nombre
+                  de otra persona, deberá acreditar su representación.
+                </p>
+              </AlertDescription>
+            </Alert>
+            {/* Ocultar este campo del formulario pero asegurar que siempre sea false para Ley Karin */}
+            <input type="hidden" name="isAnonymous" value="false" />
+          </div>
+        )}
 
-              {/* Campos adicionales si denuncia por otra persona */}
-              {values.isVictim === false && (
-                <div className="mt-4 space-y-4 p-3 bg-gray-100 rounded-md">
-                  <div>
-                    <Label htmlFor="victimInfo.name" required>
-                      Nombre completo de la persona afectada
-                    </Label>
-                    <Field
-                      as={Input}
-                      id="victimInfo.name"
-                      name="victimInfo.name"
-                      error={touched.victimInfo?.name && errors.victimInfo?.name}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="authorizationDocument" required>
-                      Documento que acredita representación o autorización
-                    </Label>
-                    <input
-                      type="file"
-                      id="authorizationDocument"
-                      name="authorizationDocument"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      onChange={(event) => {
-                        const file = event.currentTarget.files?.[0];
-                        if (file) {
-                          setFieldValue('authorizationDocument', file);
-                        }
-                      }}
-                      className="mt-1 w-full text-sm text-gray-900 border border-gray-300 rounded-md cursor-pointer bg-white file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-primary file:text-white file:cursor-pointer"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Adjunte un documento que acredite su autorización para presentar esta denuncia (poder simple, mandato, correo electrónico u otro).
-                      Formatos aceptados: PDF, DOC, DOCX, JPG, JPEG, PNG. Máximo 5MB.
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="relationToVictim" required>
-                      Relación con la persona afectada
-                    </Label>
-                    <Field
-                      as={Select}
-                      id="relationToVictim"
-                      name="relationToVictim"
-                      error={touched.relationToVictim && errors.relationToVictim}
-                      className="mt-1"
-                    >
-                      <option value="">Seleccione una opción</option>
-                      <option value="familiar">Familiar</option>
-                      <option value="companero_trabajo">Compañero/a de trabajo</option>
-                      <option value="jefatura">Jefatura</option>
-                      <option value="representante_legal">Representante legal</option>
-                      <option value="otro">Otra relación</option>
-                    </Field>
-                  </div>
-                </div>
-              )}
+        {/* Información de contacto (si no es anónima) */}
+        {!values.isAnonymous && (
+          <div className="bg-gray-50 p-4 rounded-md border border-gray-200 md:col-span-2">
+            <h4 className="font-medium text-gray-900 mb-4">Información de contacto</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                name="contactInfo.name"
+                label="Nombre completo"
+                required
+                placeholder="Ingrese su nombre completo"
+                description="Nombre y apellidos de la persona que realiza la denuncia"
+              />
+              
+              <FormField
+                name="contactInfo.email"
+                label="Correo electrónico"
+                type="email"
+                required
+                placeholder="ejemplo@correo.com"
+                description="Se utilizará para notificaciones relacionadas con su denuncia"
+              />
+              
+              <FormField
+                name="contactInfo.phone"
+                label="Teléfono de contacto"
+                type="tel"
+                required
+                placeholder="+56 9 XXXX XXXX"
+                description="Número de teléfono donde podamos contactarle si es necesario"
+              />
+              
+              <FormField
+                name="contactInfo.position"
+                label="Cargo o posición (opcional)"
+                placeholder="Ej: Analista, Gerente, etc."
+                description="Su cargo o posición en la empresa, si aplica"
+              />
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Mensaje sobre anonimato */}
-      {values.isAnonymous && (
-        <Alert variant="info" className="mb-6">
-          <AlertDescription>
-            <p className="text-sm">
-              <strong>Importante:</strong> Al realizar una denuncia anónima, recibirá un código de acceso único.
-              Guarde este código en un lugar seguro, lo necesitará para dar seguimiento a su denuncia.
-            </p>
-          </AlertDescription>
-        </Alert>
-      )}
+            {/* Sección adicional para Ley Karin - Denuncias de terceros */}
+            {values.isKarinLaw && (
+              <div className="mt-6 border-t pt-5 md:col-span-2">
+                <fieldset>
+                  <legend className="text-sm font-medium text-gray-900 mb-3">
+                    <span className="text-red-500">*</span> ¿Es usted la persona afectada directamente?
+                  </legend>
+                  
+                  {/* Inicializar valor de isVictim si no está definido */}
+                  {values.isVictim === undefined && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md mb-3">
+                      <p className="text-sm text-blue-700">
+                        Por favor seleccione si usted es la persona afectada o si realiza la denuncia por otra persona.
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log("Estableciendo isVictim=true");
+                        setFieldValue('isVictim', true);
+                      }}
+                      className={`text-left p-4 rounded-lg border-2 transition-all ${values.isVictim === true 
+                        ? 'bg-blue-50 border-blue-400' 
+                        : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                      aria-pressed={values.isVictim === true}
+                    >
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-3">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="font-medium">Sí, soy la víctima directa</div>
+                          <p className="text-xs text-gray-500 mt-1">Soy la persona que ha experimentado los hechos denunciados</p>
+                        </div>
+                      </div>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log("Estableciendo isVictim=false");
+                        setFieldValue('isVictim', false);
+                      }}
+                      className={`text-left p-4 rounded-lg border-2 transition-all ${values.isVictim === false 
+                        ? 'bg-blue-50 border-blue-400' 
+                        : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                      aria-pressed={values.isVictim === false}
+                    >
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 mr-3">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div className="font-medium">No, denuncio en representación de otra persona</div>
+                          <p className="text-xs text-gray-500 mt-1">Actúo como representante de la persona afectada</p>
+                        </div>
+                      </div>
+                    </button>
 
+                    {/* Campo oculto para Formik */}
+                    <Field type="hidden" id="isVictim-hidden" name="isVictim" />
+                  </div>
 
-      {/* Aceptación de política de privacidad */}
-      <div className="mt-8">
-        <div className="flex items-start">
-          <div className="flex items-center h-5">
-            <Field
-              type="checkbox"
-              id="acceptPrivacyPolicy"
-              name="acceptPrivacyPolicy"
-              className="h-4 w-4 text-primary rounded border-gray-300"
-            />
+                  {/* Campos adicionales si denuncia por otra persona */}
+                  {values.isVictim === false && (
+                    <div className="mt-5 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h5 className="font-medium mb-4">Información de la persona afectada</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <FormField
+                            name="victimInfo.name"
+                            label="Nombre completo de la persona afectada"
+                            required
+                            placeholder="Ingrese el nombre de la persona afectada"
+                            description="Nombre completo de la persona que ha sufrido la situación denunciada"
+                          />
+                        </div>
+                        
+                        <div className="md:col-span-2">
+                          <Label htmlFor="authorizationDocument" required>
+                            Documento que acredita representación o autorización
+                          </Label>
+                          <input
+                            type="file"
+                            id="authorizationDocument"
+                            name="authorizationDocument"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            onChange={(event) => {
+                              const file = event.currentTarget.files?.[0];
+                              if (file) {
+                                setFieldValue('authorizationDocument', file);
+                              }
+                            }}
+                            className="mt-1 w-full text-sm text-gray-900 border border-gray-300 rounded-md cursor-pointer bg-white file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-primary file:text-white file:cursor-pointer"
+                            aria-required="true"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Adjunte un documento que acredite su autorización para presentar esta denuncia (poder simple, mandato, correo electrónico u otro).
+                            Formatos aceptados: PDF, DOC, DOCX, JPG, JPEG, PNG. Máximo 5MB.
+                          </p>
+                        </div>
+                        
+                        <div className="md:col-span-2">
+                          <FormField
+                            name="relationToVictim"
+                            label="Relación con la persona afectada"
+                            type="select"
+                            required
+                            options={[
+                              { value: 'familiar', label: 'Familiar' },
+                              { value: 'companero_trabajo', label: 'Compañero/a de trabajo' },
+                              { value: 'jefatura', label: 'Jefatura' },
+                              { value: 'representante_legal', label: 'Representante legal' },
+                              { value: 'otro', label: 'Otra relación' }
+                            ]}
+                            description="Indique cómo se relaciona usted con la persona afectada"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </fieldset>
+              </div>
+            )}
           </div>
-          <div className="ml-3 text-sm">
-            <label htmlFor="acceptPrivacyPolicy" className="font-medium text-gray-700">
-              Acepto la política de privacidad y el tratamiento de mis datos personales
-            </label>
-            <p className="text-gray-500">
-              Al marcar esta casilla, acepta que la información proporcionada sea utilizada para
-              la investigación de esta denuncia conforme a nuestra <a 
-                href="/politica-privacidad.md" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                política de privacidad
-              </a>.
-            </p>
+        )}
+
+        {/* Mensaje sobre anonimato */}
+        {values.isAnonymous && (
+          <Alert variant="info" className="mb-6 md:col-span-2">
+            <AlertDescription>
+              <p className="text-sm">
+                <strong>Importante:</strong> Al realizar una denuncia anónima, recibirá un código de acceso único.
+                Guarde este código en un lugar seguro, lo necesitará para dar seguimiento a su denuncia.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Aceptación de política de privacidad */}
+        <div className="mt-6 md:col-span-2 border-t pt-6">
+          <div className="flex items-start">
+            <div className="flex items-center h-5">
+              <Field
+                type="checkbox"
+                id="acceptPrivacyPolicy"
+                name="acceptPrivacyPolicy"
+                className="h-4 w-4 text-primary rounded border-gray-300"
+                aria-required="true"
+                aria-invalid={touched.acceptPrivacyPolicy && errors.acceptPrivacyPolicy ? "true" : "false"}
+                aria-describedby="privacy-policy-description privacy-policy-error"
+              />
+            </div>
+            <div className="ml-3 text-sm">
+              <label htmlFor="acceptPrivacyPolicy" className="font-medium text-gray-700">
+                Acepto la política de privacidad y el tratamiento de mis datos personales
+              </label>
+              <p id="privacy-policy-description" className="text-gray-500">
+                Al marcar esta casilla, acepta que la información proporcionada sea utilizada para
+                la investigación de esta denuncia conforme a nuestra <a 
+                  href="/politica-privacidad.md" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  política de privacidad
+                </a>.
+              </p>
+            </div>
           </div>
+          <ErrorMessage name="acceptPrivacyPolicy">
+            {(msg) => <div id="privacy-policy-error" className="text-error text-sm mt-1" role="alert">{msg}</div>}
+          </ErrorMessage>
         </div>
-        <ErrorMessage name="acceptPrivacyPolicy">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
-        </ErrorMessage>
       </div>
     </div>
   );

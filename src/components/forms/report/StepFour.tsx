@@ -13,12 +13,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { getCompanyConfig, CompanyConfig, FormOptionValue, getFormOptions } from '@/lib/services/configService';
 import { useCompany } from '@/lib/hooks';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FormSection } from '@/lib/utils/formUtils';
+import FormField from '@/components/ui/form-field';
+import { useFormContext } from '@/lib/contexts/FormContext';
 
 interface StepFourProps {
   formikProps: FormikProps<ReportFormValues>;
+  visibleSections?: FormSection[];
+  shouldShowSection?: (sectionId: string) => boolean;
 }
 
-const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
+const StepFour: React.FC<StepFourProps> = ({ formikProps, visibleSections = [], shouldShowSection }) => {
   const { values, errors, touched, setFieldValue } = formikProps;
   const { companyId } = useCompany();
   
@@ -34,6 +39,9 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
     name: '',
     contact: '',
   });
+  
+  // Estado para mensajes de éxito
+  const [witnessAdded, setWitnessAdded] = useState(false);
   
   // Cargar configuración de la empresa al montar el componente
   useEffect(() => {
@@ -98,6 +106,10 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
       
       setFieldValue('witnesses', [...values.witnesses, witness]);
       
+      // Mostrar mensaje de éxito brevemente
+      setWitnessAdded(true);
+      setTimeout(() => setWitnessAdded(false), 3000);
+      
       // Limpiar formulario
       setNewWitness({
         name: '',
@@ -137,42 +149,26 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
 
       {/* Descripción detallada */}
       <div className="mb-6">
-        <Label htmlFor="detailedDescription" required>
-          Describa en detalle los hechos denunciados
-        </Label>
-        <Field
-          as={Textarea}
+        <FormField
           id="detailedDescription"
           name="detailedDescription"
-          rows={8}
-          error={touched.detailedDescription && errors.detailedDescription}
-          className="mt-1"
+          label="Describa en detalle los hechos denunciados"
+          type="textarea"
+          required
           placeholder="Describa con el mayor detalle posible qué ocurrió, cómo ocurrió, quiénes participaron, y cualquier otra información relevante."
+          description="Mínimo 100 caracteres. Sea lo más específico posible e incluya fechas, nombres y detalles relevantes."
         />
-        <ErrorMessage name="detailedDescription">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
-        </ErrorMessage>
-        <p className="text-sm text-gray-500 mt-1">
-          Mínimo 100 caracteres. Sea lo más específico posible e incluya fechas, nombres y detalles relevantes.
-        </p>
       </div>
 
       {/* Lugar exacto de los hechos */}
       <div className="mb-6">
-        <Label htmlFor="exactLocation" required>
-          Lugar exacto donde ocurrieron los hechos
-        </Label>
-        <Field
-          as={Input}
+        <FormField
           id="exactLocation"
           name="exactLocation"
-          error={touched.exactLocation && errors.exactLocation}
-          className="mt-1"
+          label="Lugar exacto donde ocurrieron los hechos"
+          required
           placeholder="Ej: Oficina principal, piso 3, sala de reuniones B, etc."
         />
-        <ErrorMessage name="exactLocation">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
-        </ErrorMessage>
       </div>
 
       {/* Frecuencia de la conducta */}
@@ -228,16 +224,29 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
           será tratada con confidencialidad.
         </p>
 
+        {/* Mensaje de éxito */}
+        {witnessAdded && (
+          <Alert variant="success" className="mb-4">
+            <AlertDescription>Testigo agregado correctamente.</AlertDescription>
+          </Alert>
+        )}
+        
         {/* Lista de testigos */}
         {values.witnesses.length > 0 && (
           <div className="space-y-2 mb-4">
+            <h4 className="font-medium text-gray-900 mb-2">Testigos registrados</h4>
             {values.witnesses.map((witness) => (
               <Card key={witness.id} className="bg-gray-50">
                 <CardContent className="py-3 px-4 flex justify-between items-center">
                   <div>
-                    <p className="font-medium">{witness.name}</p>
+                    <div className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <p className="font-medium">{witness.name}</p>
+                    </div>
                     {witness.contact && (
-                      <p className="text-sm text-gray-500">Contacto: {witness.contact}</p>
+                      <p className="text-sm text-gray-500 mt-1 ml-7">Contacto: {witness.contact}</p>
                     )}
                   </div>
                   <Button
@@ -256,6 +265,7 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
 
         {/* Formulario para agregar testigo */}
         <div className="bg-white border border-gray-200 rounded-md p-4">
+          <h4 className="font-medium text-gray-900 mb-3">Agregar nuevo testigo</h4>
           <div className="space-y-3">
             <div>
               <Label htmlFor="witness-name">Nombre del testigo</Label>
@@ -265,6 +275,7 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
                 value={newWitness.name}
                 onChange={handleWitnessChange}
                 className="mt-1"
+                placeholder="Nombre completo del testigo"
               />
             </div>
             <div>
@@ -278,14 +289,28 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
                 placeholder="Email o teléfono"
               />
             </div>
-            <Button
-              type="button"
-              onClick={handleAddWitness}
-              variant="outline"
-              disabled={!newWitness.name.trim()}
-            >
-              Agregar Testigo
-            </Button>
+            <div className="flex justify-end mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setNewWitness({
+                    name: '',
+                    contact: ''
+                  });
+                }}
+                className="mr-2"
+              >
+                Limpiar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAddWitness}
+                disabled={!newWitness.name.trim()}
+              >
+                Agregar Testigo
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -295,51 +320,48 @@ const StepFour: React.FC<StepFourProps> = ({ formikProps }) => {
         <Label htmlFor="impactType" required>
           Tipo de impacto
         </Label>
-        <Field
-          as={Select}
-          id="impactType"
-          name="impactType"
-          className="mt-1 mb-3"
-          disabled={loading}
-        >
-          <option value="">Seleccione un tipo de impacto</option>
-          {!loading && impactOptions.length > 0 ? (
-            // Opciones cargadas dinámicamente desde la configuración
-            impactOptions.map(option => (
-              <option key={option.id} value={option.value}>
-                {option.name}{option.description ? ` (${option.description})` : ''}
-              </option>
-            ))
-          ) : (
-            // Opciones por defecto en caso de error o carga
-            <>
-              <option value="economico">Económico</option>
-              <option value="laboral">Laboral</option>
-              <option value="personal">Personal</option>
-              <option value="reputacional">Reputacional</option>
-              <option value="otro">Otro</option>
-            </>
-          )}
-        </Field>
-        <ErrorMessage name="impactType">
-          {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
-        </ErrorMessage>
-
-        <div className={values.impactType === 'personal' ? "block" : "hidden"}>
-          <Label htmlFor="impact">
-            Descripción del impacto personal
-          </Label>
+        <div className="mt-1 mb-3">
           <Field
-            as={Textarea}
+            as={Select}
+            id="impactType"
+            name="impactType"
+            className={`w-full ${touched.impactType && errors.impactType ? 'border-red-500' : ''}`}
+            disabled={loading}
+            aria-invalid={touched.impactType && errors.impactType ? 'true' : 'false'}
+          >
+            <option value="">Seleccione un tipo de impacto</option>
+            {!loading && impactOptions.length > 0 ? (
+              // Opciones cargadas dinámicamente desde la configuración
+              impactOptions.map(option => (
+                <option key={option.id} value={option.value}>
+                  {option.name}{option.description ? ` (${option.description})` : ''}
+                </option>
+              ))
+            ) : (
+              // Opciones por defecto en caso de error o carga
+              <>
+                <option value="economico">Económico</option>
+                <option value="laboral">Laboral</option>
+                <option value="personal">Personal</option>
+                <option value="reputacional">Reputacional</option>
+                <option value="otro">Otro</option>
+              </>
+            )}
+          </Field>
+          <ErrorMessage name="impactType">
+            {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+          </ErrorMessage>
+        </div>
+
+        <div className={values.impactType === 'personal' || values.impactType === 'laboral' ? "block" : "hidden"}>
+          <FormField
             id="impact"
             name="impact"
-            rows={4}
-            className="mt-1"
+            label={`Descripción del impacto ${values.impactType === 'personal' ? 'personal' : values.impactType === 'laboral' ? 'laboral' : ''}`}
+            type="textarea"
             placeholder="Describa cómo esta situación le ha afectado a usted o a otras personas, tanto personal como laboralmente."
+            description="Esta información nos ayuda a comprender la gravedad de la situación y evaluar posibles riesgos psicológicos."
           />
-          <p className="text-sm text-gray-500 mt-1">
-            Esta información nos ayuda a comprender la gravedad de la situación y evaluar posibles riesgos psicológicos.
-          </p>
         </div>
       </div>
       

@@ -1,15 +1,16 @@
 // src/components/forms/report/StepFive.tsx
 
 import React, { useState, useRef } from 'react';
-import { Field, ErrorMessage, FormikProps } from 'formik';
+import { Field, FormikProps } from 'formik';
 import { v4 as uuidv4 } from 'uuid';
-import { ReportFormValues } from '@/types/report';
+import { ReportFormValues, EvidenceType } from '@/types/report';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import FileUpload from '@/components/ui/file-upload';
+import FormField from '@/components/ui/form-field';
 
 interface StepFiveProps {
   formikProps: FormikProps<ReportFormValues>;
@@ -19,14 +20,20 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
   const { values, errors, touched, setFieldValue } = formikProps;
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [newEvidence, setNewEvidence] = useState({
-    file: undefined as File | undefined,
+  // Estado para nueva evidencia con tipado correcto
+  const [newEvidence, setNewEvidence] = useState<{
+    file?: File;
+    description: string;
+    url: string;
+  }>({
+    file: undefined,
     description: '',
     url: ''
   });
   
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   
   // Límites actualizados por tipo de archivo
   const MAX_DOCUMENT_SIZE = 15 * 1024 * 1024; // 15MB para documentos
@@ -130,77 +137,37 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
     return Object.keys(errors).length === 0;
   };
 
-  // Manejar selección de archivo
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    
-    if (file) {
-      console.log('Archivo seleccionado:', file.name, file.type, file.size);
-      
-      // Validación del tipo de archivo
-      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-        setFormErrors((prev) => ({
-          ...prev,
-          file: `Tipo de archivo no permitido: ${file.type}. Use documentos, imágenes, audio o video.`,
-        }));
-        return;
-      }
-      
-      // Validación del tamaño
-      const sizeLimit = getFileSizeLimit(file);
-      if (file.size > sizeLimit) {
-        const sizeMB = Math.round(sizeLimit / (1024 * 1024));
-        setFormErrors((prev) => ({
-          ...prev,
-          file: `El archivo excede el tamaño máximo permitido (${sizeMB}MB)`,
-        }));
-        return;
-      }
-      
-      // Si pasó todas las validaciones, guardar el archivo
-      setNewEvidence((prev) => ({
-        ...prev,
-        file,
-      }));
-      
-      // Limpiar error cuando el usuario selecciona un archivo válido
-      if (formErrors.file) {
-        setFormErrors((prev) => ({
-          ...prev,
-          file: '',
-        }));
-      }
-    }
-  };
-
-  // Manejar cambios en el formulario de nueva evidencia
+  // Manejar cambios en los campos de texto
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     
+    // Extraer el nombre base del campo (sin el sufijo -evidence)
+    const fieldName = name.replace('-evidence', '');
+    
     setNewEvidence((prev) => ({
       ...prev,
-      [name]: value,
+      [fieldName]: value,
     }));
     
     // Limpiar error cuando el usuario comienza a escribir
-    if (formErrors[name]) {
+    if (formErrors[fieldName]) {
       setFormErrors((prev) => ({
         ...prev,
-        [name]: '',
+        [fieldName]: '',
       }));
     }
   };
 
-  // Agregar nueva evidencia con mejor manejo de errores
+  // Agregar nueva evidencia con mejor manejo de errores y feedback de éxito
   const handleAddEvidence = () => {
     if (validateEvidenceForm()) {
       setUploading(true);
       
       try {
         // Crear objeto de evidencia
-        const newEvidenceObj = {
+        const newEvidenceObj: EvidenceType = {
           id: uuidv4(),
           file: newEvidence.file,
           description: newEvidence.description,
@@ -209,6 +176,10 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
         
         // Añadir a la lista
         setFieldValue('evidences', [...values.evidences, newEvidenceObj]);
+        
+        // Mostrar mensaje de éxito brevemente
+        setUploadSuccess(true);
+        setTimeout(() => setUploadSuccess(false), 3000); // Ocultar después de 3 segundos
         
         // Limpiar formulario
         setNewEvidence({
@@ -270,10 +241,16 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
         </AlertDescription>
       </Alert>
 
-      {/* Mensaje de error general */}
+      {/* Mensajes de error o éxito */}
       {formErrors.general && (
         <Alert variant="error" className="mb-6">
           <AlertDescription>{formErrors.general}</AlertDescription>
+        </Alert>
+      )}
+      
+      {uploadSuccess && (
+        <Alert variant="success" className="mb-6">
+          <AlertDescription>Evidencia agregada exitosamente.</AlertDescription>
         </Alert>
       )}
 
@@ -302,13 +279,15 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
                         />
                       </svg>
                       <h5 className="font-medium">
-                        {evidence.file ? evidence.file.name : 'URL Externa'}
+                        {evidence.file ? evidence.file.name : evidence.url ? 'URL Externa' : 'Evidencia'}
                       </h5>
                     </div>
                     <p className="text-sm text-gray-700 mt-1">{evidence.description}</p>
                     {evidence.url && (
                       <p className="text-sm text-blue-600 mt-1">
-                        {evidence.url}
+                        <a href={evidence.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          {evidence.url}
+                        </a>
                       </p>
                     )}
                     {evidence.file && (
@@ -338,84 +317,120 @@ const StepFive: React.FC<StepFiveProps> = ({ formikProps }) => {
         <div className="space-y-4">
           {/* Descripción de la evidencia */}
           <div>
-            <Label htmlFor="description" required>
-              Descripción de la evidencia
-            </Label>
-            <Textarea
-              id="description"
-              name="description"
+            <FormField
+              id="description-evidence"
+              name="description-evidence"
+              label="Descripción de la evidencia"
+              type="textarea"
+              required
+              placeholder="Describa qué muestra esta evidencia y su relevancia para la denuncia"
               value={newEvidence.description}
               onChange={handleInputChange}
-              className={formErrors.description ? "border-red-500" : ""}
-              placeholder="Describa qué muestra esta evidencia y su relevancia para la denuncia"
+              description="Explique qué contiene esta evidencia y por qué es relevante para su denuncia"
             />
             {formErrors.description && (
-              <div className="text-red-500 text-sm mt-1">{formErrors.description}</div>
+              <div className="text-red-500 text-sm mt-1" role="alert">{formErrors.description}</div>
             )}
           </div>
 
-          {/* Carga de archivo */}
+          {/* Carga de archivo mejorada */}
           <div>
-            <Label htmlFor="file">
-              Archivo
-            </Label>
-            <Input
+            <FileUpload 
               id="file"
               name="file"
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className={formErrors.file ? "border-red-500" : ""}
+              label="Archivo"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp3,.mp4,.wav,.avi,.xlsx,.xls,.txt,.gif,.webp"
+              onChange={(file) => {
+                if (file) {
+                  // Validar el archivo
+                  const errorMsg = validateFile(file);
+                  if (errorMsg) {
+                    setFormErrors(prev => ({
+                      ...prev,
+                      file: errorMsg
+                    }));
+                    return;
+                  }
+                  
+                  // Si pasa la validación, actualizar el estado
+                  setNewEvidence(prev => ({
+                    ...prev,
+                    file
+                  }));
+                  
+                  // Limpiar error si existía
+                  if (formErrors.file) {
+                    setFormErrors(prev => ({
+                      ...prev,
+                      file: ''
+                    }));
+                  }
+                } else {
+                  // Si se elimina el archivo
+                  setNewEvidence(prev => ({
+                    ...prev,
+                    file: undefined
+                  }));
+                }
+              }}
+              value={newEvidence.file}
+              error={formErrors.file}
+              description="Formatos admitidos: PDF, Word, Excel, imágenes, audio y video. Si no puede subir el archivo, puede proporcionar un enlace a continuación."
+              maxSize={MAX_MEDIA_SIZE} // Tamaño máximo permitido
             />
-            {formErrors.file && (
-              <div className="text-red-500 text-sm mt-1">{formErrors.file}</div>
-            )}
-            {newEvidence.file && (
-              <p className="text-sm text-green-600 mt-1">
-                Archivo seleccionado: {newEvidence.file.name} ({formatFileSize(newEvidence.file.size)})
-              </p>
-            )}
-            <p className="text-sm text-gray-500 mt-1">
-              Si no puede subir el archivo, puede proporcionar un enlace a continuación.
-            </p>
           </div>
 
-          {/* URL alternativa */}
+          {/* URL alternativa con FormField */}
           <div>
-            <Label htmlFor="url">
-              URL (alternativa al archivo)
-            </Label>
-            <Input
+            <FormField
               id="url"
-              name="url"
+              name="url-evidence"
+              label="URL (alternativa al archivo)"
+              placeholder="https://ejemplo.com/mi-evidencia"
+              description="Si la evidencia está disponible en línea, proporcione la URL completa"
               value={newEvidence.url}
               onChange={handleInputChange}
-              className={formErrors.url ? "border-red-500" : ""}
-              placeholder="https://ejemplo.com/mi-evidencia"
             />
             {formErrors.url && (
               <div className="text-red-500 text-sm mt-1">{formErrors.url}</div>
             )}
           </div>
 
-          <Button
-            type="button"
-            onClick={handleAddEvidence}
-            className="mt-3"
-            disabled={uploading}
-          >
-            {uploading ? (
-              <>
-                <span className="mr-2">Agregando...</span>
-                <span className="inline-block animate-spin">
-                  <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                </span>
-              </>
-            ) : "Agregar Evidencia"}
-          </Button>
+          <div className="flex justify-end mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setNewEvidence({
+                  file: undefined,
+                  description: '',
+                  url: ''
+                });
+                setFormErrors({});
+              }}
+              className="mr-2"
+              disabled={uploading}
+            >
+              Limpiar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddEvidence}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <span className="mr-2">Agregando...</span>
+                  <span className="inline-block animate-spin">
+                    <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                </>
+              ) : "Agregar Evidencia"}
+            </Button>
+          </div>
         </div>
       </div>
 
