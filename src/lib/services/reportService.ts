@@ -276,7 +276,37 @@ try {
 } catch (notificationError) {
   console.error('Error general al enviar notificaciones:', notificationError);
   // No interrumpir el flujo por error en notificaciones
-}    
+}
+
+      // Evaluación automática de compliance (si está habilitado)
+      try {
+        // Importar dinámicamente para evitar dependencias circulares
+        const { evaluarRiesgoDenuncia, isComplianceEnabled } = await import('./complianceService');
+        
+        const complianceEnabled = await isComplianceEnabled(companyId);
+        if (complianceEnabled) {
+          console.log('Iniciando evaluación automática de compliance...');
+          
+          // Evaluar el riesgo en background
+          setTimeout(async () => {
+            try {
+              const evaluacionResult = await evaluarRiesgoDenuncia(
+                companyId, 
+                reportRef.id, 
+                reportData
+              );
+              console.log('Evaluación de compliance completada:', evaluacionResult.success);
+            } catch (complianceError) {
+              console.error('Error en evaluación automática de compliance:', complianceError);
+              // No interrumpir el flujo principal por errores de compliance
+            }
+          }, 2000); // Esperar 2 segundos para que se complete la creación
+        }
+      } catch (complianceError) {
+        console.error('Error verificando compliance:', complianceError);
+        // No interrumpir el flujo por error en compliance
+      }
+    
       return {
         success: true,
         reportId: reportRef.id,

@@ -1,0 +1,200 @@
+{
+  "delitos_aplicables": [
+    {
+      "id": 1,
+      "categoria": "Delitos Societarios y del Mercado de Valores",
+      "ley": "Ley N° 18.045, de Mercado de Valores",
+      "articulo": "Art. 59",
+      "descripcion": "Uso de información privilegiada en transacciones bursátiles",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Alto",
+      "keywords": ["información privilegiada", "insider trading", "mercado", "valores", "societarios"]
+    },
+    {
+      "id": 2,
+      "categoria": "Delitos Societarios y del Mercado de Valores",
+      "ley": "Ley N° 18.045, de Mercado de Valores",
+      "articulo": "Art. 60",
+      "descripcion": "Manipulación de precios en el mercado de valores",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Alto",
+      "keywords": ["manipulación", "precios", "mercado", "valores", "societarios"]
+    },
+    {
+      "id": 3,
+      "categoria": "Delitos contra la Libre Competencia",
+      "ley": "DL N° 211",
+      "articulo": "Art. 3",
+      "descripcion": "Acuerdos restrictivos de la competencia",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Alto",
+      "keywords": ["competencia", "acuerdos", "restrictivos", "libre", "monopolio"]
+    },
+    {
+      "id": 4,
+      "categoria": "Delitos Bancarios",
+      "ley": "Ley General de Bancos",
+      "articulo": "Art. 162",
+      "descripcion": "Captación no autorizada de dinero del público",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Alto",
+      "keywords": ["bancarios", "captación", "dinero", "público", "autorizada"]
+    },
+    {
+      "id": 5,
+      "categoria": "Delitos de Corrupción y Fraude",
+      "ley": "Ley N° 20.393",
+      "articulo": "Art. 250",
+      "descripcion": "Cohecho a funcionario público nacional",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Crítico",
+      "keywords": ["corrupción", "cohecho", "soborno", "funcionario", "público"]
+    },
+    {
+      "id": 6,
+      "categoria": "Delitos de Corrupción y Fraude",
+      "ley": "Código Penal",
+      "articulo": "Art. 248",
+      "descripcion": "Fraude al Fisco",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Crítico",
+      "keywords": ["fraude", "fisco", "corrupción", "estafa", "público"]
+    },
+    {
+      "id": 7,
+      "categoria": "Delitos Tributarios y Aduaneros",
+      "ley": "Código Tributario",
+      "articulo": "Art. 97",
+      "descripcion": "Evasión tributaria mediante documentos falsos",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Alto",
+      "keywords": ["tributarios", "evasión", "impuestos", "documentos", "falsos"]
+    },
+    {
+      "id": 8,
+      "categoria": "Delitos Ambientales",
+      "ley": "Ley N° 19.300",
+      "articulo": "Art. 291",
+      "descripcion": "Contaminación de aguas mediante vertimiento",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Medio",
+      "keywords": ["ambientales", "contaminación", "aguas", "vertimiento", "medio"]
+    },
+    {
+      "id": 9,
+      "categoria": "Delitos Informáticos",
+      "ley": "Ley N° 19.223",
+      "articulo": "Art. 1",
+      "descripcion": "Acceso indebido a sistemas informáticos",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Alto",
+      "keywords": ["informáticos", "acceso", "indebido", "sistemas", "computación"]
+    },
+    {
+      "id": 10,
+      "categoria": "Delitos Laborales y Previsionales",
+      "ley": "Código del Trabajo",
+      "articulo": "Art. 162",
+      "descripcion": "Acoso laboral y discriminación",
+      "aplicable_persona_juridica": false,
+      "nivel_riesgo": "Medio",
+      "keywords": ["laborales", "acoso", "discriminación", "maltrato", "trabajo"]
+    },
+    {
+      "id": 11,
+      "categoria": "Lavado de Activos y Financiamiento del Terrorismo",
+      "ley": "Ley N° 19.913",
+      "articulo": "Art. 27",
+      "descripcion": "Lavado de activos provenientes de delitos",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Crítico",
+      "keywords": ["lavado", "activos", "blanqueo", "dinero", "ilícitos"]
+    },
+    {
+      "id": 12,
+      "categoria": "Delitos Sanitarios",
+      "ley": "Código Sanitario",
+      "articulo": "Art. 174",
+      "descripcion": "Infracciones a normas sanitarias graves",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Medio",
+      "keywords": ["sanitarios", "salud", "infracciones", "normas", "graves"]
+    },
+    {
+      "id": 13,
+      "categoria": "Delitos contra la Propiedad Intelectual",
+      "ley": "Ley N° 17.336",
+      "articulo": "Art. 79",
+      "descripcion": "Infracción de derechos de autor",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Medio",
+      "keywords": ["propiedad", "intelectual", "derechos", "autor", "copyright"]
+    },
+    {
+      "id": 14,
+      "categoria": "Delitos del Mercado de Seguros",
+      "ley": "DFL N° 251",
+      "articulo": "Art. 58",
+      "descripcion": "Intermediación no autorizada de seguros",
+      "aplicable_persona_juridica": true,
+      "nivel_riesgo": "Alto",
+      "keywords": ["seguros", "intermediación", "autorizada", "mercado", "pólizas"]
+    },
+    {
+      "id": 15,
+      "categoria": "Delitos de la Ley de Control de Armas",
+      "ley": "Ley N° 17.798",
+      "articulo": "Art. 9",
+      "descripcion": "Porte ilegal de armas",
+      "aplicable_persona_juridica": false,
+      "nivel_riesgo": "Alto",
+      "keywords": ["armas", "porte", "ilegal", "control", "municiones"]
+    }
+  ],
+  "escalas_evaluacion": {
+    "probabilidad": {
+      "1": { "nivel": "Improbable", "descripcion": "Muy raro que ocurra" },
+      "2": { "nivel": "Poco Probable", "descripcion": "Puede ocurrir ocasionalmente" },
+      "3": { "nivel": "Probable", "descripcion": "Ocurre regularmente" },
+      "4": { "nivel": "Muy Probable", "descripcion": "Ocurre frecuentemente" },
+      "5": { "nivel": "Casi Seguro", "descripcion": "Ocurre casi siempre" }
+    },
+    "impacto": {
+      "1": { "nivel": "Insignificante", "descripcion": "Impacto mínimo" },
+      "2": { "nivel": "Menor", "descripcion": "Impacto bajo" },
+      "3": { "nivel": "Moderado", "descripcion": "Impacto medio" },
+      "4": { "nivel": "Mayor", "descripcion": "Impacto alto" },
+      "5": { "nivel": "Catastrófico", "descripcion": "Impacto severo" }
+    },
+    "riesgo_final": {
+      "1-4": "Aceptable",
+      "5-9": "Tolerable", 
+      "10-16": "Importante",
+      "17-25": "Intolerable"
+    }
+  },
+  "configuracion_canal_etica": {
+    "modulos_empresa": [
+      "Comercial",
+      "Operaciones", 
+      "Finanzas",
+      "Recursos Humanos",
+      "Legal y Compliance",
+      "Tecnología",
+      "Procurement",
+      "Marketing"
+    ],
+    "tipos_denuncia": [
+      "Corrupción y Soborno",
+      "Fraude Financiero",
+      "Lavado de Activos",
+      "Conflicto de Intereses",
+      "Discriminación",
+      "Acoso Laboral",
+      "Medio Ambiente",
+      "Competencia Desleal"
+    ],
+    "niveles_urgencia": ["Baja", "Media", "Alta", "Crítica"],
+    "estados_investigacion": ["Recibida", "En Proceso", "Investigando", "Cerrada", "Archivada"]
+  }
+}

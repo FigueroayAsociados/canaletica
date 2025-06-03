@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import ExportReportPDF from '@/components/reports/ExportReportPDF';
 import RiskAnalysisCard from '@/components/ai/RiskAnalysisCard';
+import EvaluacionRiesgo from '@/components/compliance/EvaluacionRiesgo';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useCompany } from '@/lib/hooks';
 import { useAI } from '@/lib/hooks/useAI';
@@ -323,8 +324,9 @@ export default function ReportDetailPage() {
       
       {/* Pestañas */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="details">Detalles</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="management">Gestión</TabsTrigger>
           <TabsTrigger value="communications">Comunicaciones</TabsTrigger>
           <TabsTrigger value="evidence">Evidencias</TabsTrigger>
@@ -549,6 +551,15 @@ export default function ReportDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        {/* Pestaña de Compliance */}
+        <TabsContent value="compliance" className="space-y-6">
+          <EvaluacionRiesgo 
+            reportId={reportId} 
+            companyId={companyId} 
+            className="w-full"
+          />
         </TabsContent>
         
         {/* Pestaña de Gestión */}
