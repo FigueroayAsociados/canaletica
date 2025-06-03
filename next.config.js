@@ -57,7 +57,7 @@ const nextConfig = {
               base-uri 'self';
               form-action 'self';
               frame-ancestors 'self';
-              trusted-types 'self' next-js-policy firebase-policy firebase-js-sdk-policy nextjs#bundler default;
+              trusted-types next-js-policy firebase-policy firebase-js-sdk-policy nextjs#bundler default;
               block-all-mixed-content;
               upgrade-insecure-requests;
             `.replace(/\s{2,}/g, ' ').trim()

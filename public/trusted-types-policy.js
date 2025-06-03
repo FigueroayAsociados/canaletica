@@ -79,12 +79,7 @@
         createScriptURL: string => string
       });
       
-      // Política específica para Firebase JS SDK
-      window.trustedTypes.createPolicy('firebase-js-sdk-policy', {
-        createHTML: string => string,
-        createScript: string => string,
-        createScriptURL: string => string
-      });
+      // Nota: firebase-js-sdk-policy se crea automáticamente por Firebase
       
       // Política por defecto (como fallback)
       window.trustedTypes.createPolicy('default', {
