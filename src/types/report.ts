@@ -418,6 +418,14 @@ export type ReportFormValues = {
   truthDeclaration: boolean;
   dataProcessingConsent: boolean;
 
+  // Preguntas de seguridad para denuncias anónimas
+  securityQuestions?: {
+    question1: string;
+    answer1: string;
+    question2: string;
+    answer2: string;
+  };
+
   // Campos específicos Ley Karin
   karinFrequency?: ConductFrequencyType;
   karinWorkImpact?: string;
@@ -803,4 +811,78 @@ export const initialValues: ReportFormValues = {
   expectation: '',
   truthDeclaration: false,
   dataProcessingConsent: false,
+
+  // Preguntas de seguridad para denuncias anónimas
+  securityQuestions: {
+    question1: '',
+    answer1: '',
+    question2: '',
+    answer2: ''
+  }
 };
+
+// Tipos para recuperación de códigos
+export interface SecurityQuestion {
+  id: string;
+  question: string;
+  placeholder?: string;
+}
+
+// Lista de preguntas de seguridad predefinidas
+export const SECURITY_QUESTIONS: SecurityQuestion[] = [
+  {
+    id: 'month_incident',
+    question: '¿En qué mes ocurrió el incidente principal?',
+    placeholder: 'Ejemplo: Enero, Febrero, etc.'
+  },
+  {
+    id: 'department_location',
+    question: '¿En qué departamento o área ocurrieron los hechos?',
+    placeholder: 'Ejemplo: Administración, Ventas, etc.'
+  },
+  {
+    id: 'day_week',
+    question: '¿Qué día de la semana ocurrió principalmente?',
+    placeholder: 'Ejemplo: Lunes, Martes, etc.'
+  },
+  {
+    id: 'time_day',
+    question: '¿En qué momento del día ocurrió?',
+    placeholder: 'Ejemplo: Mañana, Tarde, Noche'
+  },
+  {
+    id: 'category_selected',
+    question: '¿Qué categoría seleccionó para su denuncia?',
+    placeholder: 'Ejemplo: Acoso laboral, Medioambiente, etc.'
+  },
+  {
+    id: 'people_involved',
+    question: '¿Cuántas personas estuvieron directamente involucradas?',
+    placeholder: 'Ejemplo: 1, 2, 3, etc.'
+  },
+  {
+    id: 'report_length',
+    question: '¿Aproximadamente cuántas líneas escribió en la descripción?',
+    placeholder: 'Ejemplo: Pocas, Varias, Muchas'
+  }
+];
+
+// Interfaz para datos de recuperación
+export interface CodeRecoveryData {
+  // Para denuncias identificadas
+  email?: string;
+  
+  // Para denuncias anónimas  
+  reportCode?: string;
+  securityAnswers?: {
+    question1Id: string;
+    answer1: string;
+    question2Id: string;
+    answer2: string;
+  };
+  
+  // Datos adicionales de verificación
+  categorySelected?: string;
+  eventMonth?: string;
+  locationDepartment?: string;
+}

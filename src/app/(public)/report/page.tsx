@@ -128,6 +128,25 @@ const validationSchemas = [
     dataProcessingConsent: Yup.boolean()
       .oneOf([true], 'Debe dar su consentimiento para el tratamiento de datos')
       .required('Debe dar su consentimiento para el tratamiento de datos'),
+    // Preguntas de seguridad para denuncias anónimas
+    securityQuestions: Yup.object().when('isAnonymous', {
+      is: true,
+      then: () => Yup.object({
+        question1: Yup.string().required('Debe seleccionar la primera pregunta de seguridad'),
+        answer1: Yup.string()
+          .min(2, 'La respuesta debe tener al menos 2 caracteres')
+          .required('Debe responder la primera pregunta de seguridad'),
+        question2: Yup.string()
+          .required('Debe seleccionar la segunda pregunta de seguridad')
+          .test('different-questions', 'Debe seleccionar preguntas diferentes', function(value) {
+            return value !== this.parent.question1;
+          }),
+        answer2: Yup.string()
+          .min(2, 'La respuesta debe tener al menos 2 caracteres')
+          .required('Debe responder la segunda pregunta de seguridad'),
+      }),
+      otherwise: () => Yup.object().notRequired()
+    })
   }),
 ];
 

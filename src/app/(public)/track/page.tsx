@@ -188,6 +188,21 @@ export default function TrackPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Enlace de recuperación */}
+        <div className="mt-8 text-center">
+          <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+            <p className="text-sm text-blue-700 mb-2">
+              ¿Ha perdido sus códigos de seguimiento?
+            </p>
+            <a 
+              href="/track/recover" 
+              className="text-primary hover:underline font-medium"
+            >
+              Recuperar acceso a su denuncia
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );

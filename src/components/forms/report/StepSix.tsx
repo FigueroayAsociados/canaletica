@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Field, ErrorMessage, FormikProps } from 'formik';
-import { ReportFormValues } from '@/types/report';
+import { ReportFormValues, SECURITY_QUESTIONS } from '@/types/report';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -118,6 +118,102 @@ const StepSix: React.FC<StepSixProps> = ({ formikProps }) => {
           placeholder="Describa qué espera que suceda como resultado de esta denuncia."
         />
       </div>
+
+      {/* Preguntas de seguridad para denuncias anónimas */}
+      {values.isAnonymous && (
+        <div className="mb-8 bg-blue-50 p-6 rounded-lg border border-blue-200">
+          <h4 className="font-medium text-blue-900 mb-3">
+            Preguntas de Seguridad para Recuperación de Acceso
+          </h4>
+          <p className="text-blue-700 text-sm mb-4">
+            Para denuncias anónimas, configure dos preguntas de seguridad. Estas le permitirán 
+            recuperar el acceso a su denuncia en caso de perder los códigos de seguimiento.
+          </p>
+          
+          <div className="space-y-6">
+            {/* Primera pregunta de seguridad */}
+            <div>
+              <Label htmlFor="securityQuestion1">Primera pregunta de seguridad</Label>
+              <Field
+                as="select"
+                id="securityQuestion1"
+                name="securityQuestions.question1"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+              >
+                <option value="">Seleccione una pregunta...</option>
+                {SECURITY_QUESTIONS.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.question}
+                  </option>
+                ))}
+              </Field>
+              <ErrorMessage name="securityQuestions.question1">
+                {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+              </ErrorMessage>
+            </div>
+
+            {values.securityQuestions?.question1 && (
+              <div>
+                <Label htmlFor="securityAnswer1">Respuesta a la primera pregunta</Label>
+                <Field
+                  type="text"
+                  id="securityAnswer1"
+                  name="securityQuestions.answer1"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  placeholder="Escriba su respuesta..."
+                />
+                <ErrorMessage name="securityQuestions.answer1">
+                  {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+                </ErrorMessage>
+              </div>
+            )}
+
+            {/* Segunda pregunta de seguridad */}
+            <div>
+              <Label htmlFor="securityQuestion2">Segunda pregunta de seguridad</Label>
+              <Field
+                as="select"
+                id="securityQuestion2"
+                name="securityQuestions.question2"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+              >
+                <option value="">Seleccione una pregunta...</option>
+                {SECURITY_QUESTIONS.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.question}
+                  </option>
+                ))}
+              </Field>
+              <ErrorMessage name="securityQuestions.question2">
+                {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+              </ErrorMessage>
+            </div>
+
+            {values.securityQuestions?.question2 && (
+              <div>
+                <Label htmlFor="securityAnswer2">Respuesta a la segunda pregunta</Label>
+                <Field
+                  type="text"
+                  id="securityAnswer2"
+                  name="securityQuestions.answer2"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                  placeholder="Escriba su respuesta..."
+                />
+                <ErrorMessage name="securityQuestions.answer2">
+                  {(msg) => <div className="text-error text-sm mt-1">{msg}</div>}
+                </ErrorMessage>
+              </div>
+            )}
+          </div>
+
+          <Alert variant="info" className="mt-4">
+            <AlertDescription>
+              <strong>Importante:</strong> Recuerde sus respuestas exactamente como las escribió. 
+              Estas preguntas serán necesarias para recuperar el acceso si olvida sus códigos.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
 
       {/* Declaración de veracidad */}
       <div className="mt-8">

@@ -144,7 +144,18 @@ export async function assignReport(
           relationWithFacts: reportData.relationWithFacts,
           // Solo incluir contactInfo si no es anónimo
           ...(reportData.isAnonymous 
-            ? { accessCode } 
+            ? { 
+                accessCode,
+                // Guardar preguntas de seguridad para denuncias anónimas
+                ...(reportData.securityQuestions && {
+                  securityQuestions: {
+                    question1: reportData.securityQuestions.question1,
+                    answer1: reportData.securityQuestions.answer1.toLowerCase().trim(),
+                    question2: reportData.securityQuestions.question2,
+                    answer2: reportData.securityQuestions.answer2.toLowerCase().trim(),
+                  }
+                })
+              } 
             : { contactInfo: reportData.contactInfo }
           ),
         },
@@ -5594,6 +5605,164 @@ export async function deleteReport(
     return {
       success: false,
       error: 'Error al eliminar la denuncia'
+    };
+  }
+}
+
+/**
+ * Funciones para recuperación de códigos perdidos
+ */
+
+/**
+ * Recupera códigos de acceso por email para denuncias identificadas
+ */
+export async function recoverCodesByEmail(
+  companyId: string,
+  email: string
+): Promise<{ success: boolean; reportCodes?: string[]; error?: string }> {
+  try {
+    if (!companyId || !email) {
+      return {
+        success: false,
+        error: 'CompanyId y email son requeridos'
+      };
+    }
+
+    // Buscar denuncias que coincidan con el email
+    const reportsRef = collection(db, `companies/${companyId}/reports`);
+    const q = query(
+      reportsRef, 
+      where('reporter.contactInfo.email', '==', email.toLowerCase()),
+      where('reporter.isAnonymous', '==', false)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return {
+        success: false,
+        error: 'No se encontraron denuncias asociadas a este correo electrónico'
+      };
+    }
+
+    const reportCodes: string[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.code) {
+        reportCodes.push(data.code);
+      }
+    });
+
+    if (reportCodes.length === 0) {
+      return {
+        success: false,
+        error: 'No se pudieron recuperar los códigos de denuncia'
+      };
+    }
+
+    // TODO: Aquí se debería enviar un email con los códigos
+    // Por ahora solo retornamos success
+    console.log(`Códigos encontrados para ${email}:`, reportCodes);
+
+    return {
+      success: true,
+      reportCodes
+    };
+
+  } catch (error) {
+    console.error('Error en recuperación por email:', error);
+    return {
+      success: false,
+      error: 'Error interno del servidor'
+    };
+  }
+}
+
+/**
+ * Recupera código de acceso mediante preguntas de seguridad para denuncias anónimas
+ */
+export async function recoverCodesBySecurityQuestions(
+  companyId: string,
+  reportCode: string,
+  securityAnswers: {
+    question1Id: string;
+    answer1: string;
+    question2Id: string;
+    answer2: string;
+  }
+): Promise<{ success: boolean; accessCode?: string; error?: string }> {
+  try {
+    if (!companyId || !reportCode || !securityAnswers) {
+      return {
+        success: false,
+        error: 'Todos los parámetros son requeridos'
+      };
+    }
+
+    // Buscar la denuncia por código
+    const reportsRef = collection(db, `companies/${companyId}/reports`);
+    const q = query(reportsRef, where('code', '==', reportCode.toUpperCase()));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return {
+        success: false,
+        error: 'No se encontró ninguna denuncia con ese código'
+      };
+    }
+
+    const reportDoc = querySnapshot.docs[0];
+    const reportData = reportDoc.data();
+
+    // Verificar que sea una denuncia anónima
+    if (!reportData.reporter?.isAnonymous) {
+      return {
+        success: false,
+        error: 'Esta denuncia no es anónima. Use la recuperación por email.'
+      };
+    }
+
+    // Verificar que tenga preguntas de seguridad configuradas
+    if (!reportData.reporter?.securityQuestions) {
+      return {
+        success: false,
+        error: 'Esta denuncia no tiene preguntas de seguridad configuradas'
+      };
+    }
+
+    // Verificar las respuestas
+    const storedQuestions = reportData.reporter.securityQuestions;
+    
+    // Normalizar respuestas para comparación (minúsculas, sin espacios extra)
+    const normalizeAnswer = (answer: string) => 
+      answer.toLowerCase().trim().replace(/\s+/g, ' ');
+
+    const answer1Match = 
+      storedQuestions.question1 === securityAnswers.question1Id &&
+      normalizeAnswer(storedQuestions.answer1) === normalizeAnswer(securityAnswers.answer1);
+
+    const answer2Match = 
+      storedQuestions.question2 === securityAnswers.question2Id &&
+      normalizeAnswer(storedQuestions.answer2) === normalizeAnswer(securityAnswers.answer2);
+
+    if (!answer1Match || !answer2Match) {
+      return {
+        success: false,
+        error: 'Las respuestas no coinciden con las registradas en la denuncia'
+      };
+    }
+
+    // Si las respuestas coinciden, retornar el código de acceso
+    return {
+      success: true,
+      accessCode: reportData.reporter.accessCode
+    };
+
+  } catch (error) {
+    console.error('Error en recuperación por preguntas de seguridad:', error);
+    return {
+      success: false,
+      error: 'Error interno del servidor'
     };
   }
 }
