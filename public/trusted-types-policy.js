@@ -72,8 +72,15 @@
         }
       });
       
-      // Política para Firebase
+      // Política para Firebase (nombre original)
       window.trustedTypes.createPolicy('firebase-policy', {
+        createHTML: string => string,
+        createScript: string => string,
+        createScriptURL: string => string
+      });
+      
+      // Política específica para Firebase JS SDK
+      window.trustedTypes.createPolicy('firebase-js-sdk-policy', {
         createHTML: string => string,
         createScript: string => string,
         createScriptURL: string => string
