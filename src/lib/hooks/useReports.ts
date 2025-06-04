@@ -33,7 +33,7 @@ export function useReport(
         throw new Error(result.error || 'Error al obtener reporte');
       }
     },
-    enabled: !!reportId && !!companyId,
+    enabled: !!reportId && !!companyId && !!userId, // Esperar a que el usuario esté cargado
   });
 }
 
