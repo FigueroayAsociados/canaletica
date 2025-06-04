@@ -21,13 +21,16 @@ export function detectSubdomain(): string {
   try {
     const hostname = window.location.hostname;
 
-    // Si es localhost o el dominio principal, no hay subdominio específico
+    // Si es localhost, dominio principal, o preview de Vercel, usar default
     if (!hostname ||
         hostname === 'localhost' ||
         hostname === 'canaletic.app' ||
         hostname === 'canaletica.app' ||
         hostname === 'canaletic.com' ||
-        hostname === 'canaletica.com') {
+        hostname === 'canaletica.com' ||
+        hostname.includes('.vercel.app') ||
+        hostname.includes('preview') ||
+        hostname.includes('deployment')) {
       return 'default';
     }
 
@@ -86,11 +89,21 @@ export function getCompanyIdFromSubdomain(): string {
  * @returns true si coincide o es un caso especial, false si hay discrepancia
  */
 export function validateCompanyId(companyId: string): boolean {
-  // Si es DEFAULT_COMPANY_ID o estamos en desarrollo, siempre es válido
+  // Si es DEFAULT_COMPANY_ID, desarrollo, o preview de Vercel, siempre es válido
   if (companyId === DEFAULT_COMPANY_ID ||
       process.env.NODE_ENV === 'development' ||
       companyId === 'default') {
     return true;
+  }
+
+  // Verificar si estamos en un entorno de preview de Vercel
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname.includes('.vercel.app') || 
+        hostname.includes('preview') || 
+        hostname.includes('deployment')) {
+      return true;
+    }
   }
 
   const subdomainCompanyId = getCompanyIdFromSubdomain();

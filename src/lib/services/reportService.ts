@@ -594,8 +594,17 @@ export async function getReportByCodeAndAccessCode(
 
       // PRIMERA CAPA DE SEGURIDAD: Verificar que el companyId coincida con el subdominio
       // Esto previene intentos de acceder a datos de otras compañías desde un subdominio
+      // Incluye excepciones para desarrollo y preview de Vercel
       const subdomainCompanyId = getCompanyIdFromSubdomain();
-      if (subdomainCompanyId !== 'default' && companyId !== subdomainCompanyId) {
+      const isVercelPreview = typeof window !== 'undefined' && 
+        (window.location.hostname.includes('.vercel.app') || 
+         window.location.hostname.includes('preview') || 
+         window.location.hostname.includes('deployment'));
+      
+      if (subdomainCompanyId !== 'default' && 
+          companyId !== subdomainCompanyId && 
+          !isVercelPreview &&
+          process.env.NODE_ENV !== 'development') {
         console.error(`⚠️ ALERTA DE SEGURIDAD: Intento de acceder a compañía ${companyId} desde subdominio ${subdomainCompanyId}`);
         return {
           success: false,
@@ -3171,8 +3180,17 @@ export async function getKarinReports(
     }
 
     // PRIMERA CAPA DE SEGURIDAD: Verificar que el companyId coincida con el subdominio
+    // Incluye excepciones para desarrollo y preview de Vercel
     const subdomainCompanyId = getCompanyIdFromSubdomain();
-    if (subdomainCompanyId !== 'default' && companyId !== subdomainCompanyId) {
+    const isVercelPreview = typeof window !== 'undefined' && 
+      (window.location.hostname.includes('.vercel.app') || 
+       window.location.hostname.includes('preview') || 
+       window.location.hostname.includes('deployment'));
+    
+    if (subdomainCompanyId !== 'default' && 
+        companyId !== subdomainCompanyId && 
+        !isVercelPreview &&
+        process.env.NODE_ENV !== 'development') {
       console.error(`⚠️ ALERTA DE SEGURIDAD: Intento de acceder a denuncias Karin de compañía ${companyId} desde subdominio ${subdomainCompanyId}`);
       return {
         success: false,
