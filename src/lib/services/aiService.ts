@@ -4,6 +4,16 @@ import { getFeatureFlags } from '@/lib/services/featureFlagService';
 import { normalizeCompanyId } from '@/lib/utils/helpers';
 import { logger } from '@/lib/utils/logger';
 
+// Importar servicios de Claude
+import {
+  isClaudeAvailable,
+  analyzeRiskWithClaude,
+  generateInsightsWithClaude,
+  predictCategoriesWithClaude,
+  getConversationalAssistanceWithClaude,
+  generateLegalDocumentWithClaude
+} from './claudeService';
+
 /**
  * Tipo para los niveles de riesgo
  */
@@ -287,8 +297,46 @@ export const aiService = {
         };
       }
 
-      // En una implementación real, aquí se conectaría con un servicio de IA externo
-      // Para esta demostración, simulamos un análisis basado en palabras clave
+      // Intentar usar Claude API si está disponible
+      if (isClaudeAvailable()) {
+        try {
+          logger.info('🤖 Usando Claude API para análisis de riesgo', companyId, { prefix: 'aiService' });
+          
+          const claudeAnalysis = await analyzeRiskWithClaude({
+            description: params.reportContent,
+            category: params.category,
+            subcategory: params.subcategory,
+            isAnonymous: params.isAnonymous,
+            hasEvidence: params.hasEvidence,
+            isKarinLaw: params.isKarinLaw,
+            involvedPositions: params.involvedPositions
+          });
+
+          // Convertir respuesta de Claude al formato esperado
+          const analysis: RiskAnalysisResult = {
+            riskLevel: this.mapSeverityToRiskLevel(claudeAnalysis.severity_score),
+            riskScore: claudeAnalysis.severity_score,
+            riskFactors: claudeAnalysis.risk_indicators,
+            recommendations: this.generateRecommendationsFromAnalysis(claudeAnalysis),
+            confidence: claudeAnalysis.confidence,
+            aiMetadata: {
+              model: 'claude-3-haiku',
+              analysisDate: new Date().toISOString(),
+              keyPhases: claudeAnalysis.key_phrases,
+              sentiment: claudeAnalysis.sentiment,
+              similarCasesCount: claudeAnalysis.similar_cases_count
+            }
+          };
+
+          return { success: true, analysis };
+
+        } catch (claudeError) {
+          logger.warn(`⚠️ Claude API falló, usando análisis simulado: ${claudeError}`, companyId, { prefix: 'aiService' });
+          // Continuar con análisis simulado como fallback
+        }
+      }
+
+      // Fallback: análisis simulado (código original)
       
       // Convertir el contenido a minúsculas para análisis
       const content = params.reportContent.toLowerCase();
@@ -472,8 +520,29 @@ export const aiService = {
         };
       }
       
-      // Implementación simulada - aquí conectaríamos con un servicio real de IA
-      // basado en modelos de clasificación de texto
+      // Intentar usar Claude API si está disponible
+      if (isClaudeAvailable()) {
+        try {
+          logger.info('🤖 Usando Claude API para predicción de categorías', companyId, { prefix: 'aiService' });
+          
+          const claudePredictions = await predictCategoriesWithClaude(reportContent);
+          
+          // Convertir respuesta de Claude al formato esperado
+          const predictions: PredictedCategory[] = claudePredictions.map(pred => ({
+            category: pred.category,
+            subcategory: pred.subcategory,
+            confidence: pred.confidence / 100 // Convertir de 0-100 a 0-1
+          }));
+
+          return { success: true, categories: predictions };
+
+        } catch (claudeError) {
+          logger.warn(`⚠️ Claude API falló en predicción de categorías, usando análisis simulado: ${claudeError}`, companyId, { prefix: 'aiService' });
+          // Continuar con análisis simulado como fallback
+        }
+      }
+
+      // Fallback: implementación simulada
       
       const content = reportContent.toLowerCase();
       const predictions: PredictedCategory[] = [];
@@ -1097,10 +1166,101 @@ ${authorData ? `\n\n__________________________\n${authorData.name}\n${authorData
         minConfidence = 0.7
       } = params;
       
-      // En una implementación real, aquí se conectaría con un servicio de IA externo
-      // Para esta simulación, generamos insights de ejemplo
-      
-      // Generar insights simulados
+      // Intentar usar Claude API si está disponible
+      if (isClaudeAvailable()) {
+        try {
+          logger.info('🤖 Usando Claude API para generación de insights', companyId, { prefix: 'aiService' });
+          
+          // Obtener contexto de datos (en una implementación real, esto vendría de la base de datos)
+          const context = {
+            timeRange,
+            totalReports: Math.floor(Math.random() * 50) + 10, // Simulado por ahora
+            categories: ['modelo_prevencion', 'ley_karin', 'ciberseguridad', 'reglamento_interno']
+          };
+
+          const claudeInsights = await generateInsightsWithClaude(context);
+          
+          // Convertir respuesta de Claude al formato esperado
+          const insights: AIInsight[] = [];
+
+          // Procesar tendencias
+          if (focusAreas.includes('trends') && claudeInsights.trends) {
+            claudeInsights.trends.forEach((trend, index) => {
+              insights.push({
+                id: `claude-trend-${index}`,
+                category: 'trend',
+                title: trend.title,
+                description: trend.description,
+                confidence: trend.impact === 'high' ? 0.9 : trend.impact === 'medium' ? 0.75 : 0.6,
+                severity: trend.impact,
+                createdAt: new Date()
+              });
+            });
+          }
+
+          // Procesar riesgos
+          if (focusAreas.includes('risks') && claudeInsights.risks) {
+            claudeInsights.risks.forEach((risk, index) => {
+              insights.push({
+                id: `claude-risk-${index}`,
+                category: 'risk',
+                title: risk.title,
+                description: risk.description,
+                confidence: risk.urgency === 'high' ? 0.95 : risk.urgency === 'medium' ? 0.8 : 0.65,
+                severity: risk.impact,
+                createdAt: new Date()
+              });
+            });
+          }
+
+          // Procesar recomendaciones
+          if (focusAreas.includes('recommendations') && claudeInsights.recommendations) {
+            claudeInsights.recommendations.forEach((rec, index) => {
+              insights.push({
+                id: `claude-rec-${index}`,
+                category: 'recommendation',
+                title: rec.title,
+                description: rec.description,
+                confidence: rec.priority === 'high' ? 0.9 : rec.priority === 'medium' ? 0.75 : 0.6,
+                severity: rec.priority,
+                createdAt: new Date()
+              });
+            });
+          }
+
+          // Procesar eficiencia
+          if (focusAreas.includes('efficiency') && claudeInsights.efficiency) {
+            claudeInsights.efficiency.forEach((eff, index) => {
+              insights.push({
+                id: `claude-eff-${index}`,
+                category: 'efficiency',
+                title: eff.title,
+                description: eff.description,
+                confidence: eff.improvement > 20 ? 0.85 : eff.improvement > 10 ? 0.7 : 0.6,
+                severity: eff.improvement > 20 ? 'high' : 'medium',
+                data: {
+                  metric: eff.metric,
+                  improvement: eff.improvement
+                },
+                createdAt: new Date()
+              });
+            });
+          }
+
+          // Filtrar por confianza mínima y limitar resultados
+          const filteredInsights = insights
+            .filter(insight => insight.confidence >= minConfidence)
+            .slice(0, maxResults);
+
+          return { success: true, insights: filteredInsights };
+
+        } catch (claudeError) {
+          logger.warn(`⚠️ Claude API falló en generación de insights, usando insights simulados: ${claudeError}`, companyId, { prefix: 'aiService' });
+          // Continuar con insights simulados como fallback
+        }
+      }
+
+      // Fallback: generar insights simulados
       const insights: AIInsight[] = [];
       
       // 1. Tendencias
@@ -1292,6 +1452,60 @@ ${authorData ? `\n\n__________________________\n${authorData.name}\n${authorData
         error: errorMessage
       };
     }
+  },
+
+  /**
+   * Mapea severidad de Claude a nivel de riesgo
+   * @private
+   */
+  mapSeverityToRiskLevel(severityScore: number): RiskLevel {
+    if (severityScore >= 80) return 'crítico';
+    if (severityScore >= 60) return 'alto';
+    if (severityScore >= 40) return 'medio';
+    return 'bajo';
+  },
+
+  /**
+   * Genera recomendaciones basadas en análisis de Claude
+   * @private
+   */
+  generateRecommendationsFromAnalysis(claudeAnalysis: any): string[] {
+    const recommendations: string[] = [];
+    
+    // Recomendaciones basadas en severidad
+    if (claudeAnalysis.severity_score >= 80) {
+      recommendations.push('Activar protocolo de crisis inmediatamente');
+      recommendations.push('Notificar a dirección ejecutiva en las próximas 4 horas');
+      recommendations.push('Considerar medidas precautorias urgentes');
+    } else if (claudeAnalysis.severity_score >= 60) {
+      recommendations.push('Asignar investigador senior experimentado');
+      recommendations.push('Establecer cronograma de investigación prioritario');
+      recommendations.push('Implementar medidas preventivas temporales');
+    } else if (claudeAnalysis.severity_score >= 40) {
+      recommendations.push('Realizar investigación estándar');
+      recommendations.push('Documentar evidencias cuidadosamente');
+      recommendations.push('Establecer seguimiento regular del caso');
+    } else {
+      recommendations.push('Procesar según procedimiento estándar');
+      recommendations.push('Verificar información adicional si es necesaria');
+    }
+
+    // Recomendaciones basadas en indicadores específicos
+    if (claudeAnalysis.risk_indicators.some((indicator: string) => 
+        indicator.toLowerCase().includes('financiero') || 
+        indicator.toLowerCase().includes('dinero'))) {
+      recommendations.push('Revisar registros financieros relacionados');
+      recommendations.push('Verificar autorización de transacciones');
+    }
+
+    if (claudeAnalysis.risk_indicators.some((indicator: string) => 
+        indicator.toLowerCase().includes('acoso') || 
+        indicator.toLowerCase().includes('discriminación'))) {
+      recommendations.push('Aplicar protocolo específico de Ley Karin');
+      recommendations.push('Considerar separación temporal de las partes');
+    }
+
+    return recommendations.slice(0, 4); // Máximo 4 recomendaciones
   }
 };
 

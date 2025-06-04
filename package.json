@@ -19,6 +19,7 @@
     "setup-demo": "node scripts/setup-demo-company.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
     "@babel/plugin-transform-modules-commonjs": "^7.26.3",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
