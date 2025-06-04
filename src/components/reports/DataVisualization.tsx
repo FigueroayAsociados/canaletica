@@ -19,6 +19,94 @@ import {
 import { ReportingChartData, ReportingDataSeries } from '@/lib/services/reportingService';
 import { SafeRender } from '@/components/ui/safe-render';
 
+interface DataVisualizationProps {
+  data: any[];
+  timeRange?: string;
+  focusArea?: 'categories' | 'timeline' | 'status' | 'trends';
+  height?: number;
+}
+
+export function DataVisualization({ 
+  data, 
+  timeRange = 'month', 
+  focusArea = 'categories',
+  height = 300 
+}: DataVisualizationProps) {
+  // Preparar datos basados en el área de enfoque
+  const prepareData = () => {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return [];
+    }
+
+    switch (focusArea) {
+      case 'categories':
+        // Agrupar por categorías
+        const categoryGroups = data.reduce((acc: any, report: any) => {
+          const category = report.category || 'Sin categoría';
+          acc[category] = (acc[category] || 0) + 1;
+          return acc;
+        }, {});
+        
+        return Object.entries(categoryGroups).map(([name, value]) => ({
+          name,
+          value: value as number
+        }));
+
+      case 'timeline':
+        // Agrupar por fechas
+        const timeGroups = data.reduce((acc: any, report: any) => {
+          const date = new Date(report.createdAt?.seconds * 1000 || report.createdAt || new Date());
+          const key = date.toISOString().split('T')[0]; // YYYY-MM-DD
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {});
+
+        return Object.entries(timeGroups)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, value]) => ({
+            date,
+            value: value as number
+          }));
+
+      case 'status':
+        // Agrupar por estado
+        const statusGroups = data.reduce((acc: any, report: any) => {
+          const status = report.status || 'unknown';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {});
+        
+        return Object.entries(statusGroups).map(([name, value]) => ({
+          name,
+          value: value as number
+        }));
+
+      default:
+        return [];
+    }
+  };
+
+  const chartData = prepareData();
+
+  if (!chartData || chartData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-md border border-gray-200">
+        <p className="text-gray-500">No hay datos disponibles para mostrar</p>
+      </div>
+    );
+  }
+
+  // Renderizar el gráfico apropiado según el área de enfoque
+  if (focusArea === 'categories' || focusArea === 'status') {
+    return <PieChartComponent data={chartData} height={height} />;
+  } else if (focusArea === 'timeline') {
+    // Para timeline, usar gráfico de barras con los datos temporales
+    return <BarChartComponent data={chartData} height={height} />;
+  }
+
+  return <BarChartComponent data={chartData} height={height} />;
+}
+
 interface LineChartProps {
   data: ReportingChartData;
   height?: number;
