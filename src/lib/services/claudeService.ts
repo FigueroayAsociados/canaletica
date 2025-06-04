@@ -25,9 +25,16 @@ const DEFAULT_CONFIG = {
 
 /**
  * Verifica si Claude API está disponible
+ * En el cliente, siempre retorna true si estamos en desarrollo
  */
 export function isClaudeAvailable(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  // En el servidor, verificar la variable de entorno
+  if (typeof window === 'undefined') {
+    return !!process.env.ANTHROPIC_API_KEY;
+  }
+  
+  // En el cliente, usar las API routes del backend
+  return true; // Las API routes manejarán la verificación
 }
 
 /**

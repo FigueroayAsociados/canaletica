@@ -4,15 +4,13 @@ import { getFeatureFlags } from '@/lib/services/featureFlagService';
 import { normalizeCompanyId } from '@/lib/utils/helpers';
 import { logger } from '@/lib/utils/logger';
 
-// Importar servicios de Claude
+// Importar servicios de Claude (cliente seguro que usa API routes)
 import {
   isClaudeAvailable,
   analyzeRiskWithClaude,
   generateInsightsWithClaude,
-  predictCategoriesWithClaude,
-  getConversationalAssistanceWithClaude,
-  generateLegalDocumentWithClaude
-} from './claudeService';
+  predictCategoriesWithClaude
+} from './claudeClientService';
 
 /**
  * Tipo para los niveles de riesgo
