@@ -95,19 +95,19 @@ export default function ReportsPage() {
   
   // Aplicar filtros cuando cambien los datos o los filtros
   useEffect(() => {
-    if (!data?.success || !data?.reports?.length) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       console.log("No hay datos de reportes disponibles:", data);
       return;
     }
     
-    console.log(`Total de denuncias cargadas: ${data.reports.length}`);
+    console.log(`Total de denuncias cargadas: ${data.length}`);
     console.log("Filtros actuales:", filters);
     
     // Verificar los estados disponibles en las denuncias
-    const availableStatuses = [...new Set(data.reports.map(report => report.status))];
+    const availableStatuses = [...new Set(data.map(report => report.status))];
     console.log("Estados disponibles en las denuncias:", availableStatuses);
     
-    let result = [...data.reports];
+    let result = [...data];
     
     // Filtrar por estado
     if (filters.status) {
