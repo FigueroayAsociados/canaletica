@@ -78,22 +78,31 @@ export interface UserProfile {
   export async function getUserProfileById(companyId: string, userId: string) {
     try {
       // Verificar si estamos en un subdominio específico para asegurar que coincida con companyId
+      // EXCEPCIÓN: No aplicar override en panel super-admin
       if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        const hostParts = hostname.split('.');
-        const subdomain = hostParts[0]?.toLowerCase();
+        const pathname = window.location.pathname;
+        const isSuperAdminPanel = pathname.startsWith('/super-admin');
         
-        // Si estamos en un subdominio específico (no www, localhost, canaletica, canaletic)
-        if (subdomain && 
-            subdomain !== 'www' && 
-            subdomain !== 'localhost' && 
-            subdomain !== 'canaletic' && 
-            subdomain !== 'canaletica' &&
-            subdomain !== 'default' &&
-            subdomain !== companyId) {
+        // Si NO estamos en el panel super-admin, aplicar verificación de seguridad
+        if (!isSuperAdminPanel) {
+          const hostname = window.location.hostname;
+          const hostParts = hostname.split('.');
+          const subdomain = hostParts[0]?.toLowerCase();
           
-          console.warn(`Subdomain (${subdomain}) no coincide con companyId (${companyId}). Se utilizará el subdominio para mayor seguridad.`);
-          companyId = subdomain; // Por seguridad, usar el subdominio para asegurar aislamiento de datos
+          // Si estamos en un subdominio específico (no www, localhost, canaletica, canaletic)
+          if (subdomain && 
+              subdomain !== 'www' && 
+              subdomain !== 'localhost' && 
+              subdomain !== 'canaletic' && 
+              subdomain !== 'canaletica' &&
+              subdomain !== 'default' &&
+              subdomain !== companyId) {
+            
+            console.warn(`Subdomain (${subdomain}) no coincide con companyId (${companyId}). Se utilizará el subdominio para mayor seguridad.`);
+            companyId = subdomain; // Por seguridad, usar el subdominio para asegurar aislamiento de datos
+          }
+        } else {
+          console.log(`[SUPER-ADMIN] Skipping subdomain override for super-admin panel. Using companyId: ${companyId}`);
         }
       }
       
@@ -156,22 +165,31 @@ export interface UserProfile {
       }
 
       // Verificar si estamos en un subdominio específico para asegurar que coincida con companyId
+      // EXCEPCIÓN: No aplicar override en panel super-admin
       if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        const hostParts = hostname.split('.');
-        const subdomain = hostParts[0]?.toLowerCase();
+        const pathname = window.location.pathname;
+        const isSuperAdminPanel = pathname.startsWith('/super-admin');
         
-        // Si estamos en un subdominio específico (no www, localhost, canaletica, canaletic)
-        if (subdomain && 
-            subdomain !== 'www' && 
-            subdomain !== 'localhost' && 
-            subdomain !== 'canaletic' && 
-            subdomain !== 'canaletica' &&
-            subdomain !== 'default' &&
-            subdomain !== companyId) {
+        // Si NO estamos en el panel super-admin, aplicar verificación de seguridad
+        if (!isSuperAdminPanel) {
+          const hostname = window.location.hostname;
+          const hostParts = hostname.split('.');
+          const subdomain = hostParts[0]?.toLowerCase();
           
-          console.warn(`Subdomain (${subdomain}) no coincide con companyId (${companyId}). Se utilizará el subdominio para mayor seguridad.`);
-          companyId = subdomain; // Por seguridad, usar el subdominio para asegurar aislamiento de datos
+          // Si estamos en un subdominio específico (no www, localhost, canaletica, canaletic)
+          if (subdomain && 
+              subdomain !== 'www' && 
+              subdomain !== 'localhost' && 
+              subdomain !== 'canaletic' && 
+              subdomain !== 'canaletica' &&
+              subdomain !== 'default' &&
+              subdomain !== companyId) {
+            
+            console.warn(`Subdomain (${subdomain}) no coincide con companyId (${companyId}). Se utilizará el subdominio para mayor seguridad.`);
+            companyId = subdomain; // Por seguridad, usar el subdominio para asegurar aislamiento de datos
+          }
+        } else {
+          console.log(`[SUPER-ADMIN] Skipping subdomain override for getUserProfileByEmail. Using companyId: ${companyId}`);
         }
       }
       
