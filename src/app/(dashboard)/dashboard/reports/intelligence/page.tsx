@@ -20,13 +20,30 @@ export default function IntelligentReportsPage() {
   const { profile } = useCurrentUser();
   const { isEnabled } = useFeatureFlags();
   const { generateInsights, isGeneratingInsights, insights, error } = useAI();
-  const { reports, loading: reportsLoading, error: reportsError } = useReports();
+  const { data: reports, isLoading: reportsLoading, error: reportsError } = useReports(
+    companyId || '',
+    {},
+    profile?.role,
+    profile?.uid
+  );
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [refreshing, setRefreshing] = useState(false);
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
 
   // Verificar si la IA está habilitada
   const isAIEnabled = isEnabled('aiEnabled') && isEnabled('intelligentRiskAnalysisEnabled');
+
+  // Debug para verificar datos
+  useEffect(() => {
+    console.log('🔍 Debug Reportes Inteligentes:', {
+      companyId,
+      profileRole: profile?.role,
+      profileUid: profile?.uid,
+      reportsData: reports,
+      reportsLoading,
+      reportsError
+    });
+  }, [companyId, profile, reports, reportsLoading, reportsError]);
 
   // Generar insights al cargar la página
   useEffect(() => {

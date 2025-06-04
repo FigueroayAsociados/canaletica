@@ -25,7 +25,14 @@ export function useReport(
 ) {
   return useQuery({
     queryKey: ['reports', companyId, reportId, userRole],
-    queryFn: () => getReportById(companyId, reportId, userRole, userId),
+    queryFn: async () => {
+      const result = await getReportById(companyId, reportId, userRole, userId);
+      if (result.success) {
+        return result.report;
+      } else {
+        throw new Error(result.error || 'Error al obtener reporte');
+      }
+    },
     enabled: !!reportId && !!companyId,
   });
 }
@@ -41,7 +48,14 @@ export function useReports(
 ) {
   return useQuery({
     queryKey: ['reports', companyId, filters, userRole],
-    queryFn: () => getAllReports(companyId, userRole, userId),
+    queryFn: async () => {
+      const result = await getAllReports(companyId, userRole, userId);
+      if (result.success) {
+        return result.reports;
+      } else {
+        throw new Error(result.error || 'Error al obtener reportes');
+      }
+    },
     enabled: !!companyId,
   });
 }
@@ -60,7 +74,14 @@ export function useKarinReports(
   
   return useQuery({
     queryKey: ['karinReports', companyId, userRole, userId],
-    queryFn: () => getKarinReports(companyId, userRole, userId),
+    queryFn: async () => {
+      const result = await getKarinReports(companyId, userRole, userId);
+      if (result.success) {
+        return result.reports;
+      } else {
+        throw new Error(result.error || 'Error al obtener reportes Karin');
+      }
+    },
     // Solo habilitamos la consulta cuando tengamos todos los datos necesarios
     // Pero para super admin, permitimos consultar incluso sin userId explícito
     enabled: !!companyId && (
@@ -180,7 +201,14 @@ export function useUsersByRole(
 ) {
   return useQuery({
     queryKey: ['users', companyId, role, userRole],
-    queryFn: () => getUsersByRole(companyId, role, userRole, userId),
+    queryFn: async () => {
+      const result = await getUsersByRole(companyId, role, userRole, userId);
+      if (result.success) {
+        return result.users;
+      } else {
+        throw new Error(result.error || 'Error al obtener usuarios');
+      }
+    },
     enabled: !!companyId && !!role,
   });
 }

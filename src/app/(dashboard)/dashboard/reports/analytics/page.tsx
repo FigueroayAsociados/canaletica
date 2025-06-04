@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { useReports } from '@/lib/hooks/useReports';
+import { useCompany } from '@/lib/hooks';
 import { SafeRender } from '@/components/ui/safe-render';
 import { BarChart3, TrendingUp, PieChart, FileSpreadsheet, Download, Calendar, Shield, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
@@ -353,7 +354,13 @@ function RealAnalyticsView({
 export default function AdvancedReportsPage() {
   const { profile, loading } = useCurrentUser();
   const { isEnabled } = useFeatureFlags();
-  const { reports, loading: reportsLoading, error: reportsError } = useReports();
+  const { companyId } = useCompany();
+  const { data: reports, isLoading: reportsLoading, error: reportsError } = useReports(
+    companyId || '',
+    {},
+    profile?.role,
+    profile?.uid
+  );
   const [activeTab, setActiveTab] = useState('dashboard');
   const [filter, setFilter] = useState<Partial<AdvancedReportingOptions>>({
     timeframe: 'month'
@@ -369,6 +376,18 @@ export default function AdvancedReportsPage() {
   const handleTimeframeChange = (newTimeframe: string) => {
     setFilter({ ...filter, timeframe: newTimeframe });
   };
+
+  // Debug para verificar datos
+  useEffect(() => {
+    console.log('🔍 Debug Reportes Avanzados:', {
+      companyId,
+      profileRole: profile?.role,
+      profileUid: profile?.uid,
+      reportsData: reports,
+      reportsLoading,
+      reportsError
+    });
+  }, [companyId, profile, reports, reportsLoading, reportsError]);
 
   // Función para refrescar datos
   const handleRefresh = async () => {
