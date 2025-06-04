@@ -9,7 +9,9 @@ import {
   isClaudeAvailable,
   analyzeRiskWithClaude,
   generateInsightsWithClaude,
-  predictCategoriesWithClaude
+  predictCategoriesWithClaude,
+  getConversationalAssistanceWithClaude,
+  generateLegalDocumentWithClaude
 } from './claudeClientService';
 
 /**
@@ -207,9 +209,46 @@ export const aiService = {
 
       const { userRole, userMessage, previousMessages = [], context = {} } = params;
       
-      // En una implementación real, aquí se conectaría con un servicio de IA externo
-      // Para esta demostración, simulamos respuestas basadas en el rol y contexto
+      // Intentar usar Claude API si está disponible
+      if (isClaudeAvailable()) {
+        try {
+          logger.info('🤖 Usando Claude API para asistencia conversacional', companyId, { prefix: 'aiService' });
+          
+          // Construir contexto para Claude
+          let contextString = `Rol del usuario: ${userRole}`;
+          if (context.reportId) contextString += `\nID del reporte: ${context.reportId}`;
+          if (context.caseType) contextString += `\nTipo de caso: ${context.caseType}`;
+          if (context.module) contextString += `\nMódulo actual: ${context.module}`;
+          if (context.deadlines && context.deadlines.length > 0) {
+            contextString += `\nPlazos próximos: ${context.deadlines.map(d => `${d.label}: ${d.date}`).join(', ')}`;
+          }
+          
+          const claudeResponse = await getConversationalAssistanceWithClaude({
+            userMessage,
+            context: contextString,
+            reportId: context.reportId,
+            previousMessages: previousMessages.map(msg => ({
+              role: msg.role === 'system' ? 'assistant' : msg.role as 'user' | 'assistant',
+              content: msg.content
+            }))
+          });
+          
+          return {
+            success: true,
+            message: {
+              role: 'assistant',
+              content: claudeResponse.content,
+              timestamp: new Date()
+            }
+          };
+          
+        } catch (claudeError) {
+          logger.warn(`⚠️ Claude API falló en asistencia conversacional, usando respuestas simuladas: ${claudeError}`, companyId, { prefix: 'aiService' });
+          // Continuar con respuestas simuladas como fallback
+        }
+      }
       
+      // Fallback: respuestas simuladas basadas en el rol y contexto
       let responseContent = '';
       
       // Respuestas específicas basadas en el rol del usuario

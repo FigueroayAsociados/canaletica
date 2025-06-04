@@ -130,6 +130,81 @@ export async function predictCategoriesWithClaude(content: string): Promise<Arra
 }
 
 /**
+ * Obtiene asistencia conversacional usando API route
+ */
+export async function getConversationalAssistanceWithClaude(params: {
+  userMessage: string;
+  context?: string;
+  reportId?: string;
+  previousMessages?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+  }>;
+}): Promise<{
+  content: string;
+  suggestions?: string[];
+  confidence: number;
+}> {
+  
+  const response = await fetch('/api/ai/conversational-assistance', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error en asistencia conversacional: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Error en asistencia conversacional');
+  }
+
+  return result.assistance;
+}
+
+/**
+ * Genera documento legal usando API route
+ */
+export async function generateLegalDocumentWithClaude(params: {
+  type: 'investigation_plan' | 'preliminary_report' | 'final_report' | 'recommendation_letter';
+  reportData: any;
+  additionalContext?: string;
+}): Promise<{
+  title: string;
+  content: string;
+  sections: Array<{
+    title: string;
+    content: string;
+  }>;
+}> {
+  
+  const response = await fetch('/api/ai/generate-legal-document', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error generando documento legal: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Error generando documento legal');
+  }
+
+  return result.document;
+}
+
+/**
  * Verifica si Claude está disponible (siempre true en cliente)
  */
 export function isClaudeAvailable(): boolean {
