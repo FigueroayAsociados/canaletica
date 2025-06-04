@@ -120,7 +120,13 @@ export function LineChartComponent({
   height = 300,
   showLegend = true,
   showGridLines = true,
-  colors = ['#0369a1', '#4f46e5', '#0891b2', '#0d9488', '#6366f1']
+  colors = [
+    '#ea580c', // orange-600 (naranjo principal)
+    '#6b7280', // gray-500 (gris medio)
+    '#fb923c', // orange-400 (naranjo claro)
+    '#4b5563', // gray-600 (gris oscuro)
+    '#f97316'  // orange-500 (naranjo secundario)
+  ]
 }: LineChartProps) {
   
   // Validación de datos
@@ -167,7 +173,7 @@ export function LineChartComponent({
           data={formattedData}
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >
-          {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />}
+          {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />}
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
@@ -202,7 +208,7 @@ interface BarChartProps {
 export function BarChartComponent({
   data,
   height = 300,
-  color = '#4f46e5',
+  color = '#ea580c', // orange-600 (naranjo principal)
   showLegend = false,
   showGridLines = true,
   layout = 'horizontal'
@@ -238,7 +244,7 @@ export function BarChartComponent({
           layout={layout}
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >
-          {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />}
+          {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />}
           
           {layout === 'horizontal' ? (
             <>
@@ -271,7 +277,17 @@ interface PieChartProps {
 export function PieChartComponent({
   data,
   height = 300,
-  colors = ['#0369a1', '#4f46e5', '#0891b2', '#0d9488', '#6366f1', '#8b5cf6', '#d946ef'],
+  colors = [
+    '#ea580c', // orange-600 (naranjo principal)
+    '#fb923c', // orange-400 (naranjo claro)
+    '#6b7280', // gray-500 (gris medio)
+    '#9ca3af', // gray-400 (gris claro)
+    '#4b5563', // gray-600 (gris oscuro)
+    '#f97316', // orange-500 (naranjo secundario)
+    '#374151', // gray-700 (gris muy oscuro)
+    '#d1d5db', // gray-300 (gris muy claro)
+    '#fd7f28'  // orange-450 (naranjo intermedio)
+  ],
   showLegend = true
 }: PieChartProps) {
   // Validación de datos
@@ -325,7 +341,7 @@ export function PieChartComponent({
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{data.originalName || data.name}</p>
-          <p className="text-blue-600">
+          <p className="text-orange-600">
             <span className="font-medium">{data.value}</span> casos ({(payload[0].percent * 100).toFixed(1)}%)
           </p>
         </div>
@@ -386,7 +402,13 @@ interface AreaChartProps {
 export function AreaChartComponent({
   data,
   height = 300,
-  colors = ['#0369a1', '#4f46e5', '#0891b2', '#0d9488', '#6366f1'],
+  colors = [
+    '#ea580c', // orange-600 (naranjo principal)
+    '#6b7280', // gray-500 (gris medio)
+    '#fb923c', // orange-400 (naranjo claro)
+    '#4b5563', // gray-600 (gris oscuro)
+    '#f97316'  // orange-500 (naranjo secundario)
+  ],
   showLegend = true,
   stacked = false
 }: AreaChartProps) {
@@ -435,7 +457,7 @@ export function AreaChartComponent({
           data={formattedData}
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />

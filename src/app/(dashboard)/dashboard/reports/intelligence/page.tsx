@@ -236,7 +236,7 @@ export default function IntelligentReportsPage() {
                       <div className="flex items-center gap-2">
                         <div className="w-24 bg-gray-200 rounded-full h-2">
                           <div 
-                            className="bg-blue-600 h-2 rounded-full" 
+                            className="bg-orange-600 h-2 rounded-full" 
                             style={{ width: `${Math.min(100, (count / metrics.totalReports) * 100)}%` }}
                           ></div>
                         </div>
