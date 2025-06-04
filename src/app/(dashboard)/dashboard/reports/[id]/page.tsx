@@ -16,10 +16,11 @@ import { Label } from '@/components/ui/label';
 import { ReportStatusBadge } from '@/components/reports/ReportStatusBadge';
 import ExportReportPDF from '@/components/reports/ExportReportPDF';
 import RiskAnalysisCard from '@/components/ai/RiskAnalysisCard';
-import EvaluacionRiesgo from '@/components/compliance/EvaluacionRiesgo';
+import IntelligentRiskAnalysisCard from '@/components/ai/IntelligentRiskAnalysisCard';
 import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useCompany } from '@/lib/hooks';
 import { useAI } from '@/lib/hooks/useAI';
+import { useIntelligentRisk } from '@/lib/hooks/useIntelligentRisk';
 import { useFeatureFlags } from '@/lib/hooks/useFeatureFlags';
 import { Spinner } from '@/components/ui/spinner';
 import { 
@@ -43,6 +44,7 @@ export default function ReportDetailPage() {
   const { companyId: contextCompanyId } = useCompany();
   const { isEnabled } = useFeatureFlags();
   const { analyzeRisk, riskAnalysis, isLoading: isAiLoading } = useAI();
+  const { analyzeIntelligentRisk, analysis: intelligentAnalysis, isLoading: isIntelligentLoading } = useIntelligentRisk();
 
   // Estados para las acciones
   const [newStatus, setNewStatus] = useState<string>('');
@@ -96,27 +98,35 @@ export default function ReportDetailPage() {
       }
       setSelectedInvestigator(reportResult.report.assignedTo || '');
       
-      // Verificar si la IA está habilitada
-      const aiFeatureEnabled = isEnabled('aiEnabled');
-      setShowRiskAnalysis(aiFeatureEnabled);
+      // Verificar si el Análisis Inteligente está habilitado (nuevo sistema híbrido)
+      const intelligentRiskEnabled = isEnabled('intelligentRiskAnalysisEnabled');
+      setShowRiskAnalysis(intelligentRiskEnabled);
       
-      // Si la IA está habilitada, realizar análisis de riesgo
-      if (aiFeatureEnabled && !riskAnalysis) {
+      // Si el Análisis Inteligente está habilitado, realizar análisis híbrido
+      if (intelligentRiskEnabled && !intelligentAnalysis) {
         const report = reportResult.report;
         
-        // Preparar parámetros para análisis de riesgo
-        analyzeRisk({
-          reportContent: report.detailedDescription,
+        // Preparar datos del reporte para análisis inteligente
+        const reportData = {
+          id: reportId,
+          detailedDescription: report.detailedDescription,
           category: report.category,
           subcategory: report.subcategory,
           isAnonymous: report.isAnonymous,
           hasEvidence: report.hasEvidence,
           isKarinLaw: report.isKarinLaw,
-          involvedPositions: report.involvedPersons?.map((person: any) => person.position) || []
-        });
+          involvedPersons: report.involvedPersons || [],
+          previousActions: report.previousActions,
+          expectation: report.expectation,
+          exactLocation: report.exactLocation,
+          eventDate: report.eventDate,
+          priority: report.priority
+        } as any;
+        
+        analyzeIntelligentRisk(reportData);
       }
     }
-  }, [reportResult, isEnabled, analyzeRisk, riskAnalysis]);
+  }, [reportResult, isEnabled, analyzeIntelligentRisk, intelligentAnalysis, reportId]);
 
   // Obtener el reporte de los datos cargados
   const report = reportResult?.success ? reportResult.report : null;
@@ -324,9 +334,8 @@ export default function ReportDetailPage() {
       
       {/* Pestañas */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="details">Detalles</TabsTrigger>
-          <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="management">Gestión</TabsTrigger>
           <TabsTrigger value="communications">Comunicaciones</TabsTrigger>
           <TabsTrigger value="evidence">Evidencias</TabsTrigger>
@@ -334,31 +343,58 @@ export default function ReportDetailPage() {
         
         {/* Pestaña de Detalles */}
         <TabsContent value="details" className="space-y-6">
-          {/* Análisis de IA - Solo visible si está habilitado */}
+          {/* Análisis Inteligente de Riesgo - Solo visible si está habilitado */}
           {showRiskAnalysis && (
             <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-              {/* Panel de Análisis de Riesgo */}
+              {/* Panel de Análisis Inteligente (IA + Compliance) */}
               <div className="col-span-1">
-                {riskAnalysis ? (
-                  <RiskAnalysisCard analysis={riskAnalysis} />
+                {intelligentAnalysis ? (
+                  <IntelligentRiskAnalysisCard analysis={intelligentAnalysis} />
                 ) : (
                   <Card className="w-full">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
-                        Análisis de Riesgo (IA)
+                        🚀 Análisis Inteligente de Riesgo
+                        <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white px-2 py-1 rounded-full">
+                          PREMIUM
+                        </span>
                       </CardTitle>
+                      <p className="text-sm text-gray-600">
+                        Sistema híbrido que combina Inteligencia Artificial + Análisis Legal de Compliance
+                      </p>
                     </CardHeader>
                     <CardContent className="py-4">
-                      {isAiLoading ? (
+                      {(isIntelligentLoading || isAiLoading) ? (
                         <div className="flex flex-col items-center justify-center space-y-3">
                           <Spinner />
-                          <p className="text-sm text-gray-600">Analizando reporte...</p>
+                          <p className="text-sm text-gray-600">Realizando análisis inteligente híbrido...</p>
                         </div>
                       ) : (
                         <div className="text-center space-y-3">
-                          <p className="text-sm text-gray-500">
-                            El análisis de riesgo no está disponible para este reporte.
-                          </p>
+                          <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                            <h4 className="font-medium text-blue-900 mb-3">🚀 Sistema Premium Híbrido</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              <div className="text-left">
+                                <h5 className="font-medium text-blue-800 mb-2">🤖 Inteligencia Artificial:</h5>
+                                <ul className="text-blue-700 space-y-1">
+                                  <li>• Análisis semántico del texto</li>
+                                  <li>• Detección de patrones sospechosos</li>
+                                  <li>• Evaluación contextual inteligente</li>
+                                </ul>
+                              </div>
+                              <div className="text-left">
+                                <h5 className="font-medium text-purple-800 mb-2">⚖️ Compliance Legal:</h5>
+                                <ul className="text-purple-700 space-y-1">
+                                  <li>• Matriz de 15 delitos aplicables</li>
+                                  <li>• Cálculo matemático P×I</li>
+                                  <li>• Controles específicos por delito</li>
+                                </ul>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-4">
+                              Para activar este módulo, contacte a su administrador.
+                            </p>
+                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -551,15 +587,6 @@ export default function ReportDetailPage() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-        
-        {/* Pestaña de Compliance */}
-        <TabsContent value="compliance" className="space-y-6">
-          <EvaluacionRiesgo 
-            reportId={reportId} 
-            companyId={companyId} 
-            className="w-full"
-          />
         </TabsContent>
         
         {/* Pestaña de Gestión */}

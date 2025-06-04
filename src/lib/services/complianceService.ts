@@ -31,7 +31,7 @@ import delitosData from '@/lib/data/delitos-aplicables.json';
 /**
  * Motor de Evaluación de Riesgos para CanalEtica
  */
-class MotorEvaluacionRiesgos {
+export class MotorEvaluacionRiesgos {
   private catalogo: CatalogoCompliance;
 
   constructor() {

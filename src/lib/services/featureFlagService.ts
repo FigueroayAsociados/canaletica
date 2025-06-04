@@ -14,7 +14,8 @@ import { normalizeCompanyId } from '@/lib/utils/helpers';
 export interface FeatureFlags {
   // Core features
   modulesEnabled: boolean;      // Sistema modular habilitado
-  aiEnabled: boolean;           // Funcionalidades de IA habilitadas
+  aiEnabled: boolean;           // Funcionalidades básicas de IA
+  intelligentRiskAnalysisEnabled: boolean; // 🚀 Sistema Híbrido IA + Compliance (PREMIUM)
   
   // Módulos específicos
   karinModuleEnabled: boolean;  // Módulo Ley Karin
@@ -29,7 +30,7 @@ export interface FeatureFlags {
   
   // Características específicas
   emailNotificationsEnabled: boolean; // Notificaciones por correo
-  riskAnalysisEnabled: boolean;      // Análisis de riesgo
+  riskAnalysisEnabled: boolean;      // Análisis de riesgo básico (deprecated - usar intelligentRiskAnalysisEnabled)
   conversationalAssistantEnabled: boolean; // Asistente virtual conversacional
   aiInsightsEnabled: boolean;       // Dashboard de insights de IA
   smartAlertsEnabled: boolean;      // Alertas inteligentes y notificaciones
@@ -44,6 +45,7 @@ const DEFAULT_FEATURE_FLAGS: Omit<FeatureFlags, 'updatedAt' | 'updatedBy'> = {
   // Core features - desactivadas por defecto
   modulesEnabled: false,
   aiEnabled: false,
+  intelligentRiskAnalysisEnabled: false, // 🚀 Sistema Premium IA + Compliance
   
   // Módulos - solo Karin activado por defecto
   karinModuleEnabled: true,
@@ -58,7 +60,7 @@ const DEFAULT_FEATURE_FLAGS: Omit<FeatureFlags, 'updatedAt' | 'updatedBy'> = {
   
   // Características específicas
   emailNotificationsEnabled: true,
-  riskAnalysisEnabled: false,
+  riskAnalysisEnabled: false, // Deprecated
   conversationalAssistantEnabled: false,
   aiInsightsEnabled: false,
   smartAlertsEnabled: false
