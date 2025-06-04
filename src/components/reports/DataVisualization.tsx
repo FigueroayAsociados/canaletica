@@ -282,10 +282,57 @@ export function PieChartComponent({
                                       typeof item.name === 'string' && 
                                       typeof item.value === 'number');
   
-  // Filtrar datos válidos para evitar errores
+  // Filtrar datos válidos y acortar nombres largos
   const validData = isDataValid 
     ? data.filter(item => item && typeof item.name === 'string' && typeof item.value === 'number')
+          .map(item => ({
+            ...item,
+            // Acortar nombres largos para evitar sobreposición
+            displayName: item.name.length > 20 ? `${item.name.substring(0, 17)}...` : item.name,
+            originalName: item.name
+          }))
     : [];
+
+  // Función personalizada para renderizar etiquetas sin sobreposición
+  const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+    // Solo mostrar etiquetas si el porcentaje es mayor al 5%
+    if (percent < 0.05) return null;
+    
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        fontSize="12"
+        fontWeight="bold"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
+  // Tooltip personalizado
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900">{data.originalName || data.name}</p>
+          <p className="text-blue-600">
+            <span className="font-medium">{data.value}</span> casos ({(payload[0].percent * 100).toFixed(1)}%)
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   // Fallback para cuando no hay datos
   const NoDataView = () => (
@@ -306,17 +353,22 @@ export function PieChartComponent({
             cx="50%"
             cy="50%"
             labelLine={false}
-            outerRadius={80}
+            label={renderLabel}
+            outerRadius={Math.min(height * 0.35, 120)}
             fill="#8884d8"
             dataKey="value"
-            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
           >
             {validData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
             ))}
           </Pie>
-          <Tooltip />
-          {showLegend && <Legend />}
+          <Tooltip content={<CustomTooltip />} />
+          {showLegend && (
+            <Legend 
+              wrapperStyle={{ fontSize: '12px' }}
+              formatter={(value, entry: any) => entry.payload.originalName || value}
+            />
+          )}
         </PieChart>
       </ResponsiveContainer>
     </SafeRender>
