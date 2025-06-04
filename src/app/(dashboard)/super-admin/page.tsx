@@ -304,6 +304,22 @@ export default function SuperAdminPage() {
                           className="h-4 w-4"
                         />
                       </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="intelligent-risk-enabled" className="flex items-center gap-2">
+                          🚀 Análisis Inteligente de Riesgo
+                          <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white px-2 py-1 rounded-full">
+                            PREMIUM
+                          </span>
+                        </Label>
+                        <input
+                          type="checkbox"
+                          id="intelligent-risk-enabled"
+                          checked={features.intelligentRiskAnalysisEnabled}
+                          onChange={(e) => updateFlag('intelligentRiskAnalysisEnabled', e.target.checked)}
+                          className="h-4 w-4"
+                        />
+                      </div>
                     </div>
                   </div>
                   
