@@ -5,7 +5,8 @@ import Anthropic from '@anthropic-ai/sdk';
 
 // Configuración del cliente Claude
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  dangerouslyAllowBrowser: true // Solo para desarrollo - TODO: mover a backend
 });
 
 // Límites de seguridad
