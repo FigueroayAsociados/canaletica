@@ -137,12 +137,12 @@ export class MotorEvaluacionRiesgos {
     }
 
     // Factor 3: Múltiples personas denunciadas
-    if (reportData.accusedPersons.length > 1) {
+    if (reportData.accusedPersons && reportData.accusedPersons.length > 1) {
       probabilidad += 1;
     }
 
     // Factor 4: Evidencias aportadas (indica mayor seriedad)
-    if (reportData.evidences.length > 0) {
+    if (reportData.evidences && reportData.evidences.length > 0) {
       probabilidad += 1;
     }
 

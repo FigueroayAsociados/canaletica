@@ -88,13 +88,27 @@ export async function getFeatureFlags(companyId: string): Promise<{
       };
     }
     
+    // Para la empresa "default" (principal), activar todas las funcionalidades premium
+    const isDefaultCompany = normalizedCompanyId === 'default';
+    const defaultFeatures = isDefaultCompany ? {
+      ...DEFAULT_FEATURE_FLAGS,
+      // Activar todas las funcionalidades para la empresa principal
+      aiEnabled: true,
+      intelligentRiskAnalysisEnabled: true, // 🚀 Sistema Premium IA + Compliance
+      conversationalAssistantEnabled: true,
+      aiInsightsEnabled: true,
+      smartAlertsEnabled: true,
+      riskAnalysisEnabled: true, // Compatibility
+      updatedAt: new Date()
+    } : {
+      ...DEFAULT_FEATURE_FLAGS,
+      updatedAt: new Date()
+    };
+    
     // Si no existe configuración, devolver valores predeterminados
     return {
       success: true,
-      features: {
-        ...DEFAULT_FEATURE_FLAGS,
-        updatedAt: new Date()
-      }
+      features: defaultFeatures
     };
   } catch (error) {
     console.error('Error al obtener feature flags:', error);
@@ -124,12 +138,27 @@ export async function initializeFeatureFlags(
       return { success: true };
     }
     
-    // Crear nuevos feature flags con valores predeterminados
-    await setDoc(flagsRef, {
+    // Para la empresa "default" (principal), activar todas las funcionalidades premium
+    const isDefaultCompany = normalizedCompanyId === 'default';
+    const featuresData = isDefaultCompany ? {
+      ...DEFAULT_FEATURE_FLAGS,
+      // Activar todas las funcionalidades para la empresa principal
+      aiEnabled: true,
+      intelligentRiskAnalysisEnabled: true, // 🚀 Sistema Premium IA + Compliance
+      conversationalAssistantEnabled: true,
+      aiInsightsEnabled: true,
+      smartAlertsEnabled: true,
+      riskAnalysisEnabled: true, // Compatibility
+      updatedAt: serverTimestamp(),
+      updatedBy: userId || 'system'
+    } : {
       ...DEFAULT_FEATURE_FLAGS,
       updatedAt: serverTimestamp(),
       updatedBy: userId || 'system'
-    });
+    };
+    
+    // Crear nuevos feature flags con valores predeterminados
+    await setDoc(flagsRef, featuresData);
     
     console.log(`Feature flags para ${normalizedCompanyId} inicializados.`);
     return { success: true };
