@@ -40,7 +40,7 @@ export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
   const reportId = params.id as string;
-  const { uid, isAdmin, isInvestigator, profile } = useCurrentUser();
+  const { uid, isAdmin, isInvestigator, isSuperAdmin, profile } = useCurrentUser();
   const { companyId: contextCompanyId } = useCompany();
   const { isEnabled } = useFeatureFlags();
   const { analyzeRisk, riskAnalysis, isLoading: isAiLoading } = useAI();
@@ -68,13 +68,27 @@ export default function ReportDetailPage() {
     console.log(`[ReportDetailPage] Corrigiendo companyId de Vercel "${companyId}" a "default"`);
     companyId = 'default';
   }
+
+  // Determinar el rol de forma robusta basado en los flags del hook
+  const getUserRole = () => {
+    if (isSuperAdmin) return 'super_admin';
+    if (profile?.role) return profile.role;
+    if (isAdmin) return 'admin';
+    if (isInvestigator) return 'investigator';
+    return 'user';
+  };
+
+  const userRole = getUserRole();
+  
+  // Debug log para verificar que el rol se está determinando correctamente
+  console.log(`[ReportDetailPage] userRole determinado: ${userRole}, isSuperAdmin: ${isSuperAdmin}, profile?.role: ${profile?.role}`);
   
   const { 
     data: reportResult, 
     isLoading, 
     isError, 
     error 
-  } = useReport(companyId, reportId, profile?.role, uid);
+  } = useReport(companyId, reportId, userRole, uid);
 
   // Cargar investigadores si el usuario es admin
   const { 
