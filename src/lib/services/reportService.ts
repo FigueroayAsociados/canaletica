@@ -614,7 +614,10 @@ export async function getReportByCodeAndAccessCode(
       }
 
       // SEGUNDA CAPA DE SEGURIDAD: Verificación estricta de acceso multi-tenant
-      if (userId && userRole !== 'super_admin') {
+      // Saltear verificaciones estrictas en entornos de Vercel preview para super admins
+      const skipStrictVerification = isVercelPreview && userRole === 'super_admin';
+      
+      if (userId && userRole !== 'super_admin' && !skipStrictVerification) {
         const accessCheck = await verifyCompanyAccessStrict(userId, companyId, userRole);
         if (!accessCheck.success) {
           console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a todos los reportes de compañía ${companyId}`);

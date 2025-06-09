@@ -50,7 +50,7 @@ interface Report {
 export default function ReportsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { uid, isAdmin, isInvestigator, profile, isLoading: isUserLoading } = useCurrentUser();
+  const { uid, isAdmin, isInvestigator, profile, isLoading: isUserLoading, profileLoaded } = useCurrentUser();
   const { companyId } = useCompany();
   
   // Estado para los filtros
@@ -87,7 +87,7 @@ export default function ReportsPage() {
 
   // Usar React Query para cargar los datos
   // Pasar también el rol y el ID del usuario para las verificaciones de seguridad
-  const { data, isLoading, isError, error } = useReports(userCompanyId, {}, profile?.role, uid);
+  const { data, isLoading, isError, error } = useReports(userCompanyId, {}, profile?.role, uid, profileLoaded);
   
   // Estado para los reportes filtrados y seleccionados
   const [filteredReports, setFilteredReports] = useState<Report[]>([]);
@@ -95,8 +95,15 @@ export default function ReportsPage() {
   
   // Aplicar filtros cuando cambien los datos o los filtros
   useEffect(() => {
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      console.log("No hay datos de reportes disponibles:", data);
+    // Si data es undefined, aún se está cargando
+    if (data === undefined) {
+      return;
+    }
+    
+    // Si data no es un array o está vacío, no hay datos reales
+    if (!Array.isArray(data) || data.length === 0) {
+      console.log("No se encontraron denuncias para mostrar");
+      setFilteredReports([]);
       return;
     }
     

@@ -78,6 +78,7 @@ export function useCurrentUser(): CurrentUser {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => { 
     const isMountedRef = { current: true };
@@ -90,6 +91,7 @@ export function useCurrentUser(): CurrentUser {
           setProfile(null);
           setIsSuperAdmin(false);
           setIsLoading(false);
+          setProfileLoaded(true);
         }
         return;
       }
@@ -102,6 +104,7 @@ export function useCurrentUser(): CurrentUser {
           setProfile(null);
           setIsSuperAdmin(false);
           setIsLoading(false);
+          setProfileLoaded(true);
         }
         return;
       }
@@ -155,6 +158,7 @@ export function useCurrentUser(): CurrentUser {
               createdAt: new Date()
             });
             setIsLoading(false);
+            setProfileLoaded(true);
           }
           return;
         }
@@ -167,6 +171,7 @@ export function useCurrentUser(): CurrentUser {
           if (isMountedRef.current) {
             setProfile(result.profile);
             setIsSuperAdmin(false);
+            setProfileLoaded(true);
           }
         } else {
           // El perfil no se encuentra en esta compañía
@@ -214,6 +219,7 @@ export function useCurrentUser(): CurrentUser {
             setError('Usuario no tiene perfil en el sistema o está intentando acceder desde un dominio incorrecto');
             setProfile(null);
             setIsSuperAdmin(false);
+            setProfileLoaded(true);
           }
         }
       } catch (error) {
@@ -222,6 +228,7 @@ export function useCurrentUser(): CurrentUser {
           setError('Error al cargar perfil de usuario');
           setProfile(null);
           setIsSuperAdmin(false);
+          setProfileLoaded(true);
         }
       } finally {
         if (isMountedRef.current) {
@@ -271,5 +278,6 @@ export function useCurrentUser(): CurrentUser {
     isLoading,
     error,
     hasPermission,
+    profileLoaded,
   };
 }

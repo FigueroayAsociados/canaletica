@@ -44,7 +44,8 @@ export function useReports(
   companyId: string,
   filters = {},
   userRole?: string | null,
-  userId?: string | null
+  userId?: string | null,
+  profileLoaded: boolean = false
 ) {
   return useQuery({
     queryKey: ['reports', companyId, filters, userRole],
@@ -56,9 +57,11 @@ export function useReports(
         throw new Error(result.error || 'Error al obtener reportes');
       }
     },
-    // Solo habilitamos la consulta cuando tenemos companyId Y el userRole está definido
-    // Esto evita que se ejecute antes de que el perfil esté cargado
-    enabled: !!companyId && userRole !== undefined && userRole !== null,
+    // Solo habilitamos la consulta cuando:
+    // 1. Tenemos companyId
+    // 2. El perfil está completamente cargado
+    // 3. userRole está definido (incluso si es null para usuarios sin rol)
+    enabled: !!companyId && profileLoaded && userRole !== undefined,
   });
 }
 
