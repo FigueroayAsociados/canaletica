@@ -17,6 +17,9 @@ const nextConfig = {
   
   // Configuración de cabeceras de seguridad (ISO 37002:2021)
   async headers() {
+    // En entornos de Vercel preview, usar CSP más permisivo
+    const isVercelPreview = process.env.VERCEL_ENV === 'preview';
+    
     return [
       {
         // Aplicar a todas las rutas
@@ -45,22 +48,36 @@ const nextConfig = {
           // Content Security Policy para prevenir XSS (ISO 37002:2021)
           {
             key: 'Content-Security-Policy',
-            value: `
-              default-src 'self';
-              script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseio.com https://*.firebaseapp.com https://*.googletagmanager.com https://www.googletagmanager.com https://*.google-analytics.com;
-              style-src 'self' 'unsafe-inline';
-              img-src 'self' data: https://storage.googleapis.com https://*.googleapis.com https://firebasestorage.googleapis.com https://*.ytimg.com;
-              font-src 'self' data:;
-              connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudfunctions.net https://us-central1-canaletica-e0f81.cloudfunctions.net https://southamerica-east1-canaletica-e0f81.cloudfunctions.net https://southamerica-west1-canaletica-e0f81.cloudfunctions.net https://*.canaletic.app;
-              frame-src 'self' https://*.firebaseapp.com https://www.youtube.com https://youtube.com https://*.youtube-nocookie.com;
-              object-src 'none';
-              base-uri 'self';
-              form-action 'self';
-              frame-ancestors 'self';
-              trusted-types 'none';
-              block-all-mixed-content;
-              upgrade-insecure-requests;
-            `.replace(/\s{2,}/g, ' ').trim()
+            value: isVercelPreview ? 
+              // CSP más permisivo para entornos de preview
+              `
+                default-src 'self' 'unsafe-inline' 'unsafe-eval' data: *;
+                script-src 'self' 'unsafe-inline' 'unsafe-eval' *;
+                style-src 'self' 'unsafe-inline' *;
+                img-src 'self' data: *;
+                font-src 'self' data: *;
+                connect-src 'self' *;
+                frame-src 'self' *;
+                object-src 'none';
+              `.replace(/\s{2,}/g, ' ').trim()
+              :
+              // CSP estricto para producción
+              `
+                default-src 'self';
+                script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseio.com https://*.firebaseapp.com https://*.googletagmanager.com https://www.googletagmanager.com https://*.google-analytics.com;
+                style-src 'self' 'unsafe-inline';
+                img-src 'self' data: https://storage.googleapis.com https://*.googleapis.com https://firebasestorage.googleapis.com https://*.ytimg.com https://www.google.com https://*.google.com;
+                font-src 'self' data:;
+                connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://firestore.googleapis.com https://*.googleapis.com https://*.google-analytics.com https://*.cloudfunctions.net https://us-central1-canaletica-e0f81.cloudfunctions.net https://southamerica-east1-canaletica-e0f81.cloudfunctions.net https://southamerica-west1-canaletica-e0f81.cloudfunctions.net https://*.canaletic.app https://*.vercel.app;
+                frame-src 'self' https://*.firebaseapp.com https://www.youtube.com https://youtube.com https://*.youtube-nocookie.com;
+                object-src 'none';
+                base-uri 'self';
+                form-action 'self';
+                frame-ancestors 'self';
+                trusted-types 'none';
+                block-all-mixed-content;
+                upgrade-insecure-requests;
+              `.replace(/\s{2,}/g, ' ').trim()
           },
           // Permisos de características del navegador
           {
