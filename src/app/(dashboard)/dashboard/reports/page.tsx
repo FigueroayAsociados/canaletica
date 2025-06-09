@@ -50,7 +50,7 @@ interface Report {
 export default function ReportsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAdmin, isInvestigator, profile } = useCurrentUser();
+  const { uid, isAdmin, isInvestigator, profile } = useCurrentUser();
   const { companyId } = useCompany();
   
   // Estado para los filtros
@@ -87,7 +87,7 @@ export default function ReportsPage() {
 
   // Usar React Query para cargar los datos
   // Pasar también el rol y el ID del usuario para las verificaciones de seguridad
-  const { data, isLoading, isError, error } = useReports(userCompanyId, {}, profile?.role, profile?.uid);
+  const { data, isLoading, isError, error } = useReports(userCompanyId, {}, profile?.role, uid);
   
   // Estado para los reportes filtrados y seleccionados
   const [filteredReports, setFilteredReports] = useState<Report[]>([]);
