@@ -703,8 +703,12 @@ export async function getReportByCodeAndAccessCode(
     userId?: string | null
   ) {
     try {
+      console.log(`[getReportById] DEBUG: Iniciando búsqueda - companyId: ${companyId}, reportId: ${reportId}, userRole: ${userRole}, userId: ${userId}`);
+      
       // Verificación centralizada de acceso multi-tenant
       const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
+      console.log(`[getReportById] DEBUG: Resultado verifyCompanyAccess:`, accessCheck);
+      
       if (!accessCheck.success) {
         console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder al reporte ${reportId} de compañía ${companyId}`);
         return {
@@ -714,9 +718,13 @@ export async function getReportByCodeAndAccessCode(
       }
 
       const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+      console.log(`[getReportById] DEBUG: Buscando en path: companies/${companyId}/reports/${reportId}`);
+      
       const reportSnap = await getDoc(reportRef);
+      console.log(`[getReportById] DEBUG: Documento existe:`, reportSnap.exists());
       
       if (!reportSnap.exists()) {
+        console.log(`[getReportById] DEBUG: Documento no encontrado en Firestore`);
         return {
           success: false,
           error: 'Denuncia no encontrada',
@@ -768,6 +776,7 @@ export async function getReportByCodeAndAccessCode(
         ...doc.data()
       }));
       
+      console.log(`[getReportById] DEBUG: Éxito - Devolviendo reporte para ${reportId}`);
       return {
         success: true,
         report: {
@@ -1132,9 +1141,13 @@ export async function addCommunicationByCode(
   ) {
     try {
       const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+      console.log(`[getReportById] DEBUG: Buscando en path: companies/${companyId}/reports/${reportId}`);
+      
       const reportSnap = await getDoc(reportRef);
+      console.log(`[getReportById] DEBUG: Documento existe:`, reportSnap.exists());
       
       if (!reportSnap.exists()) {
+        console.log(`[getReportById] DEBUG: Documento no encontrado en Firestore`);
         return {
           success: false,
           error: 'Denuncia no encontrada',
