@@ -73,8 +73,8 @@ export async function verifyCompanyAccess(
   userRole?: string | null,
   userId?: string | null
 ) {
-  // Los super_admin siempre tienen acceso
-  if (userRole === UserRole.SUPER_ADMIN) {
+  // Los super_admin siempre tienen acceso sin verificaciones adicionales
+  if (userRole === UserRole.SUPER_ADMIN || userRole === 'super_admin') {
     return { success: true };
   }
 
@@ -99,6 +99,11 @@ export async function verifyCompanyAccess(
     
     if (globalUserSnap.exists()) {
       const globalUserData = globalUserSnap.data();
+      
+      // Si el usuario es super_admin globalmente, permitir acceso
+      if (globalUserData.role === 'super_admin' || globalUserData.role === UserRole.SUPER_ADMIN) {
+        return { success: true };
+      }
       
       // Si el usuario tiene una compañía asignada y es diferente, bloquear acceso
       if (globalUserData.companyId && globalUserData.companyId !== companyId) {
