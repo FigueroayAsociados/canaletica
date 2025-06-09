@@ -56,7 +56,9 @@ export function useReports(
         throw new Error(result.error || 'Error al obtener reportes');
       }
     },
-    enabled: !!companyId,
+    // Solo habilitamos la consulta cuando tenemos companyId Y el userRole está definido
+    // Esto evita que se ejecute antes de que el perfil esté cargado
+    enabled: !!companyId && userRole !== undefined && userRole !== null,
   });
 }
 

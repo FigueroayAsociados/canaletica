@@ -50,7 +50,7 @@ interface Report {
 export default function ReportsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { uid, isAdmin, isInvestigator, profile } = useCurrentUser();
+  const { uid, isAdmin, isInvestigator, profile, isLoading: isUserLoading } = useCurrentUser();
   const { companyId } = useCompany();
   
   // Estado para los filtros
@@ -268,11 +268,15 @@ export default function ReportsPage() {
     }
   };
   
-  // Mostrar spinner mientras se redirige o si está cargando
-  if ((isInvestigator && !isAdmin && profile?.role !== 'super_admin') || isLoading) {
-    return <Spinner text={isInvestigator && !isAdmin && profile?.role !== 'super_admin' 
-      ? "Redirigiendo a la página de investigaciones..." 
-      : "Cargando denuncias..."} />;
+  // Mostrar spinner mientras se redirige, si está cargando el usuario o los datos
+  if ((isInvestigator && !isAdmin && profile?.role !== 'super_admin') || isUserLoading || isLoading) {
+    return <Spinner text={
+      (isInvestigator && !isAdmin && profile?.role !== 'super_admin') 
+        ? "Redirigiendo a la página de investigaciones..." 
+        : isUserLoading 
+          ? "Cargando información del usuario..."
+          : "Cargando denuncias..."
+    } />;
   }
   
   if (isError) {
