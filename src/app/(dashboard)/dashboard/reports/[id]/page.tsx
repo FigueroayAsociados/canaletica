@@ -75,7 +75,7 @@ export default function ReportDetailPage() {
     if (profile?.role) return profile.role;
     if (isAdmin) return 'admin';
     if (isInvestigator) return 'investigator';
-    return 'user';
+    return null; // No devolver 'user' hasta que el perfil esté completamente cargado
   };
 
   const userRole = getUserRole();
