@@ -5597,3 +5597,233 @@ export async function deleteReport(
     };
   }
 }
+
+/**
+ * FUNCIONES PARA GESTIÓN DE SUBSANACIÓN LEY KARIN
+ */
+
+/**
+ * Registrar una solicitud de subsanación para casos Ley Karin
+ */
+export async function registerSubsanationRequest(
+  companyId: string,
+  reportId: string,
+  items: Array<{
+    id: string;
+    description: string;
+    docType: string;
+    required: boolean;
+  }>,
+  deadline: Date,
+  comments?: string
+) {
+  try {
+    // Verificar que el reporte existe y es de Ley Karin
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return { success: false, error: 'Reporte no encontrado' };
+    }
+    
+    const reportData = reportDoc.data();
+    if (!reportData.isKarinLaw) {
+      return { success: false, error: 'Esta función solo está disponible para casos Ley Karin' };
+    }
+    
+    // Actualizar el documento con la información de subsanación
+    const subsanationData = {
+      'karinProcess.subsanationRequested': true,
+      'karinProcess.subsanationRequestDate': serverTimestamp(),
+      'karinProcess.subsanationDeadline': Timestamp.fromDate(deadline),
+      'karinProcess.subsanationItems': items,
+      'karinProcess.subsanationComments': comments || '',
+      'karinProcess.subsanationReceived': false,
+      'karinProcess.subsanationDocuments': [],
+      'karinProcess.stage': 'subsanation',
+      updatedAt: serverTimestamp()
+    };
+    
+    await updateDoc(reportRef, subsanationData);
+    
+    // Crear notificación para el denunciante si no es anónimo
+    if (!reportData.reporter?.isAnonymous && reportData.reporter?.contactInfo?.email) {
+      await createNotification(companyId, {
+        type: 'subsanation_requested',
+        title: 'Solicitud de Subsanación',
+        message: `Se ha solicitado información adicional para su denuncia ${reportData.code}`,
+        targetUserId: reportData.reporter.contactInfo.email,
+        reportId: reportId,
+        data: {
+          reportCode: reportData.code,
+          deadline: deadline.toISOString(),
+          itemsCount: items.length
+        }
+      });
+    }
+    
+    return { 
+      success: true,
+      message: 'Solicitud de subsanación registrada exitosamente',
+      data: { items, deadline, reportCode: reportData.code }
+    };
+    
+  } catch (error) {
+    console.error('Error al registrar solicitud de subsanación:', error);
+    return {
+      success: false,
+      error: 'Error al registrar la solicitud de subsanación'
+    };
+  }
+}
+
+/**
+ * Subir documento de respuesta a solicitud de subsanación
+ */
+export async function uploadSubsanationDocument(
+  companyId: string,
+  reportId: string,
+  file: File,
+  itemId: string,
+  description: string
+) {
+  try {
+    // Verificar que el reporte existe
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return { success: false, error: 'Reporte no encontrado' };
+    }
+    
+    // Validar el archivo
+    const maxSize = 15 * 1024 * 1024; // 15MB
+    if (file.size > maxSize) {
+      return { success: false, error: 'El archivo es demasiado grande (máximo 15MB)' };
+    }
+    
+    // Generar nombre único para el archivo
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `subsanation_${itemId}_${Date.now()}.${fileExtension}`;
+    const filePath = `companies/${companyId}/reports/${reportId}/subsanation/${fileName}`;
+    
+    // Subir archivo a Firebase Storage
+    const storageRef = ref(storage, filePath);
+    const uploadResult = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+    
+    // Crear documento de subsanación
+    const documentData = {
+      id: uuidv4(),
+      itemId: itemId,
+      fileName: file.name,
+      originalName: file.name,
+      description: description,
+      fileSize: file.size,
+      fileType: file.type,
+      downloadURL: downloadURL,
+      uploadedAt: serverTimestamp(),
+      status: 'uploaded'
+    };
+    
+    // Actualizar el reporte agregando el documento a la lista
+    const reportData = reportDoc.data();
+    const currentDocuments = reportData.karinProcess?.subsanationDocuments || [];
+    const updatedDocuments = [...currentDocuments, documentData];
+    
+    await updateDoc(reportRef, {
+      'karinProcess.subsanationDocuments': updatedDocuments,
+      updatedAt: serverTimestamp()
+    });
+    
+    return {
+      success: true,
+      message: 'Documento subido exitosamente',
+      data: {
+        documentId: documentData.id,
+        fileName: file.name,
+        downloadURL: downloadURL
+      }
+    };
+    
+  } catch (error) {
+    console.error('Error al subir documento de subsanación:', error);
+    return {
+      success: false,
+      error: 'Error al subir el documento'
+    };
+  }
+}
+
+/**
+ * Marcar un elemento de subsanación como completado/pendiente
+ */
+export async function markSubsanationItem(
+  companyId: string,
+  reportId: string,
+  itemId: string,
+  completed: boolean
+) {
+  try {
+    // Verificar que el reporte existe
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return { success: false, error: 'Reporte no encontrado' };
+    }
+    
+    const reportData = reportDoc.data();
+    const subsanationItems = reportData.karinProcess?.subsanationItems || [];
+    
+    // Buscar y actualizar el elemento específico
+    const updatedItems = subsanationItems.map((item: any) => {
+      if (item.id === itemId) {
+        return {
+          ...item,
+          completed: completed,
+          completedAt: completed ? new Date().toISOString() : null
+        };
+      }
+      return item;
+    });
+    
+    // Verificar si todos los elementos requeridos están completados
+    const requiredItems = updatedItems.filter((item: any) => item.required);
+    const completedRequiredItems = requiredItems.filter((item: any) => item.completed);
+    const allRequiredCompleted = requiredItems.length === completedRequiredItems.length;
+    
+    // Actualizar el documento
+    const updateData: any = {
+      'karinProcess.subsanationItems': updatedItems,
+      updatedAt: serverTimestamp()
+    };
+    
+    // Si todos los elementos requeridos están completados, marcar subsanación como recibida
+    if (allRequiredCompleted) {
+      updateData['karinProcess.subsanationReceived'] = true;
+      updateData['karinProcess.subsanationCompletedDate'] = serverTimestamp();
+      // Permitir avanzar a la siguiente etapa
+      updateData['karinProcess.stage'] = 'precautionary_measures';
+    }
+    
+    await updateDoc(reportRef, updateData);
+    
+    return {
+      success: true,
+      message: `Elemento ${completed ? 'marcado como completado' : 'desmarcado'}`,
+      data: {
+        itemId: itemId,
+        completed: completed,
+        allRequiredCompleted: allRequiredCompleted
+      }
+    };
+    
+  } catch (error) {
+    console.error('Error al marcar elemento de subsanación:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar el elemento de subsanación'
+    };
+  }
+}
