@@ -97,7 +97,7 @@ export function updateDeadlinesStatus(deadlines: KarinDeadline[]): KarinDeadline
       return {
         ...deadline,
         status,
-        daysRemaining
+        daysRemaining: daysRemaining ?? 0
       };
     }
     
@@ -107,7 +107,7 @@ export function updateDeadlinesStatus(deadlines: KarinDeadline[]): KarinDeadline
     return {
       ...deadline,
       status: status.status as DeadlineStatus,
-      daysRemaining: status.daysRemaining
+      daysRemaining: status.daysRemaining ?? 0
     };
   });
 }
