@@ -1183,9 +1183,12 @@ export async function initializeKarinDeadlines(
     // Generar plazos iniciales
     const deadlines = initializeKarinDeadlines(startDate);
     
-    // Actualizar el documento
+    // Sanitizar deadlines antes de actualizar
+    const sanitizedDeadlines = sanitizeDeadlines(deadlines);
+    
+    // Actualizar el documento con deadlines sanitizados
     await updateDoc(reportRef, {
-      'karinProcess.deadlines': deadlines,
+      'karinProcess.deadlines': sanitizedDeadlines,
       updatedAt: serverTimestamp()
     });
     
@@ -1213,6 +1216,56 @@ export async function initializeKarinDeadlines(
 }
 
 /**
+ * Sanitiza un deadline eliminando propiedades undefined
+ * @param deadline Deadline a sanitizar
+ * @returns Deadline sanitizado
+ */
+function sanitizeDeadline(deadline: any): any {
+  if (!deadline || typeof deadline !== 'object') {
+    return null;
+  }
+  
+  const sanitized: any = {};
+  
+  // Copiar solo propiedades que no sean undefined
+  Object.keys(deadline).forEach(key => {
+    if (deadline[key] !== undefined) {
+      sanitized[key] = deadline[key];
+    }
+  });
+  
+  // Validar que tenga propiedades esenciales
+  if (!sanitized.id || !sanitized.name || !sanitized.endDate) {
+    console.warn('Deadline no válido encontrado:', deadline);
+    return null;
+  }
+  
+  return sanitized;
+}
+
+/**
+ * Sanitiza un array de deadlines eliminando valores undefined y objetos inválidos
+ * @param deadlines Array de deadlines a sanitizar
+ * @returns Array de deadlines sanitizado
+ */
+function sanitizeDeadlines(deadlines: any[]): any[] {
+  if (!Array.isArray(deadlines)) {
+    console.warn('Se esperaba un array de deadlines, recibido:', typeof deadlines);
+    return [];
+  }
+  
+  const sanitized = deadlines
+    .map(deadline => sanitizeDeadline(deadline))
+    .filter(deadline => deadline !== null);
+  
+  if (sanitized.length !== deadlines.length) {
+    console.warn(`Se filtraron ${deadlines.length - sanitized.length} deadlines inválidos`);
+  }
+  
+  return sanitized;
+}
+
+/**
  * Actualiza los plazos para un caso de Ley Karin
  * @param companyId ID de la compañía
  * @param reportId ID del reporte
@@ -1227,11 +1280,38 @@ export async function updateKarinDeadlines(
   deadlines: any[]
 ) {
   try {
+    // Validar parámetros de entrada
+    if (!companyId || !reportId || !userId) {
+      return {
+        success: false,
+        error: 'Parámetros requeridos faltantes'
+      };
+    }
+    
+    // Sanitizar deadlines para evitar valores undefined
+    const sanitizedDeadlines = sanitizeDeadlines(deadlines);
+    
+    if (sanitizedDeadlines.length === 0) {
+      return {
+        success: false,
+        error: 'No hay plazos válidos para actualizar'
+      };
+    }
+    
     const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
     
-    // Actualizar el documento
+    // Verificar que el documento existe antes de actualizar
+    const reportDoc = await getDoc(reportRef);
+    if (!reportDoc.exists()) {
+      return {
+        success: false,
+        error: 'Reporte no encontrado'
+      };
+    }
+    
+    // Actualizar el documento con deadlines sanitizados
     await updateDoc(reportRef, {
-      'karinProcess.deadlines': deadlines,
+      'karinProcess.deadlines': sanitizedDeadlines,
       updatedAt: serverTimestamp()
     });
     
@@ -1304,9 +1384,12 @@ export async function completeKarinDeadline(
     // Marcar como completado
     updatedDeadlines = completeDeadline(updatedDeadlines, deadlineId, userId);
     
+    // Sanitizar deadlines antes de actualizar
+    const sanitizedDeadlines = sanitizeDeadlines(updatedDeadlines);
+    
     // Actualizar el documento
     await updateDoc(reportRef, {
-      'karinProcess.deadlines': updatedDeadlines,
+      'karinProcess.deadlines': sanitizedDeadlines,
       updatedAt: serverTimestamp()
     });
     
@@ -1314,7 +1397,7 @@ export async function completeKarinDeadline(
     const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
     
     // Encontrar el plazo completado para el registro
-    const completedDeadline = updatedDeadlines.find(d => d.id === deadlineId);
+    const completedDeadline = sanitizedDeadlines.find(d => d.id === deadlineId);
     
     await addDoc(activitiesRef, {
       timestamp: serverTimestamp(),
@@ -1327,7 +1410,7 @@ export async function completeKarinDeadline(
     
     return {
       success: true,
-      deadlines: updatedDeadlines
+      deadlines: sanitizedDeadlines
     };
   } catch (error) {
     console.error('Error completing Karin deadline:', error);
@@ -1389,9 +1472,12 @@ export async function extendKarinDeadline(
     // Extender el plazo
     updatedDeadlines = extendDeadline(updatedDeadlines, deadlineId, additionalDays, reason, userId);
     
+    // Sanitizar deadlines antes de actualizar
+    const sanitizedDeadlines = sanitizeDeadlines(updatedDeadlines);
+    
     // Actualizar el documento
     await updateDoc(reportRef, {
-      'karinProcess.deadlines': updatedDeadlines,
+      'karinProcess.deadlines': sanitizedDeadlines,
       updatedAt: serverTimestamp()
     });
     
@@ -1399,7 +1485,7 @@ export async function extendKarinDeadline(
     const activitiesRef = collection(db, `companies/${companyId}/reports/${reportId}/activities`);
     
     // Encontrar el plazo extendido para el registro
-    const extendedDeadline = updatedDeadlines.find(d => d.id === deadlineId);
+    const extendedDeadline = sanitizedDeadlines.find(d => d.id === deadlineId);
     
     await addDoc(activitiesRef, {
       timestamp: serverTimestamp(),
@@ -1416,7 +1502,7 @@ export async function extendKarinDeadline(
     
     return {
       success: true,
-      deadlines: updatedDeadlines
+      deadlines: sanitizedDeadlines
     };
   } catch (error) {
     console.error('Error extending Karin deadline:', error);
@@ -1485,9 +1571,12 @@ export async function addCustomKarinDeadline(
     // Añadir el plazo personalizado
     updatedDeadlines = addCustomDeadline(updatedDeadlines, deadlineData);
     
+    // Sanitizar deadlines antes de actualizar
+    const sanitizedDeadlines = sanitizeDeadlines(updatedDeadlines);
+    
     // Actualizar el documento
     await updateDoc(reportRef, {
-      'karinProcess.deadlines': updatedDeadlines,
+      'karinProcess.deadlines': sanitizedDeadlines,
       updatedAt: serverTimestamp()
     });
     
@@ -1503,7 +1592,7 @@ export async function addCustomKarinDeadline(
     
     return {
       success: true,
-      deadlines: updatedDeadlines
+      deadlines: sanitizedDeadlines
     };
   } catch (error) {
     console.error('Error adding custom Karin deadline:', error);
@@ -1553,15 +1642,18 @@ export async function refreshKarinDeadlines(
     // Actualizar estados
     const updatedDeadlines = updateDeadlinesStatus(reportData.karinProcess.deadlines);
     
+    // Sanitizar deadlines antes de actualizar
+    const sanitizedDeadlines = sanitizeDeadlines(updatedDeadlines);
+    
     // Actualizar el documento
     await updateDoc(reportRef, {
-      'karinProcess.deadlines': updatedDeadlines,
+      'karinProcess.deadlines': sanitizedDeadlines,
       updatedAt: serverTimestamp()
     });
     
     return {
       success: true,
-      deadlines: updatedDeadlines
+      deadlines: sanitizedDeadlines
     };
   } catch (error) {
     console.error('Error refreshing Karin deadlines:', error);
