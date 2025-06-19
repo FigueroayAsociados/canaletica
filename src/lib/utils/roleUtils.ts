@@ -18,22 +18,8 @@ export function isSuperAdmin(
 ): boolean {
   if (!role && !userId) return false;
   
-  // Verificación principal por rol
+  // Verificación estricta solo por rol - Sin bypass por ID por seguridad
   if (role === UserRole.SUPER_ADMIN || role === 'super_admin') return true;
-  
-  // Verificaciones secundarias por ID, para casos especiales
-  // Esto debe usarse solo como fallback, preferiblemente todos los superadmins deberían tener el rol correcto
-  if (userId) {
-    const lowerUserId = userId.toLowerCase();
-    if (
-      lowerUserId.includes('superadmin') || 
-      lowerUserId === 'admin' || 
-      lowerUserId === 'superadmin'
-    ) {
-      console.warn('Usuario identificado como superadmin por ID, no por rol:', userId);
-      return true;
-    }
-  }
   
   return false;
 }
