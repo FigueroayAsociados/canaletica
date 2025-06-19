@@ -21,6 +21,7 @@ import {
   import { db, storage } from '@/lib/firebase/config';
   import { v4 as uuidv4 } from 'uuid';
   import { ReportFormValues, KarinProcessStage } from '@/types/report';
+  import { ReportStatus, ReportStatusSpanish, ReviewStatus, RecommendationStatus, ProcessingStatus, FileStatus } from '@/lib/utils/constants';
   import { getUserProfileById } from './userService';
   import {
     notifyReportCreated,
@@ -66,7 +67,7 @@ export async function assignReport(
       investigatorName,
       assignedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      status: 'in_progress' // Actualizar estado a "en progreso"
+      status: ReportStatus.IN_PROGRESS // Actualizar estado a "en progreso"
     });
     
     // Obtener datos para notificación
@@ -115,7 +116,7 @@ export async function assignReport(
         code: reportCode,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        status: 'Nuevo',
+        status: ReportStatus.NEW,
         priority: reportData.isKarinLaw ? 'Alta' : 'Media',
         
         // Categorización
@@ -820,7 +821,7 @@ export async function getReportByCodeAndAccessCode(
       // Actualizar la asignación
       await updateDoc(reportRef, {
         assignedTo: investigatorId,
-        status: reportData.status === 'Nuevo' || reportData.status === 'Admitida' ? 'Asignada' : reportData.status,
+        status: reportData.status === ReportStatus.NEW || reportData.status === ReportStatusSpanish.ADMITIDA ? ReportStatusSpanish.ASIGNADA : reportData.status,
         updatedAt: serverTimestamp(),
       });
       
@@ -1914,7 +1915,7 @@ export async function createKarinFinalReport(
           date: todayISO,
           reviewer: userId,
           comments: 'Informe creado, pendiente de revisión',
-          status: 'needs_review'
+          status: ReviewStatus.NEEDS_REVIEW
         }]
       },
       userId
@@ -1979,7 +1980,7 @@ export async function reviewKarinReport(
   companyId: string,
   reportId: string,
   reviewData: {
-    status: 'approved' | 'rejected' | 'needs_changes';
+    status: ReviewStatus.APPROVED | ReviewStatus.REJECTED | ReviewStatus.NEEDS_CHANGES;
     comments: string;
   },
   userId: string
@@ -2033,7 +2034,7 @@ export async function reviewKarinReport(
     });
     
     // Si es aprobado, cambiar a la siguiente etapa
-    if (reviewData.status === 'approved') {
+    if (reviewData.status === ReviewStatus.APPROVED) {
       return await updateKarinProcessStage(
         companyId,
         reportId,
@@ -2060,7 +2061,7 @@ export async function reviewKarinReport(
           actorId: userId,
           actionType: 'karin_report_review',
           description: `Informe revisado: ${
-            reviewData.status === 'needs_changes' ? 'Se solicitaron cambios' : 'Informe rechazado'
+            reviewData.status === ReviewStatus.NEEDS_CHANGES ? 'Se solicitaron cambios' : 'Informe rechazado'
           }`,
           reviewStatus: reviewData.status,
           comments: reviewData.comments,
@@ -2386,7 +2387,7 @@ export async function addKarinMeasures(
           date: measure.implementationDate.toISOString(),
           implementedBy: measure.responsibleId || userId,
           implementedByName: responsibleName || 'Sin asignar',
-          status: 'pending',
+          status: RecommendationStatus.PENDING,
           registerDate: todayISO
         };
       })
@@ -2461,7 +2462,7 @@ export async function updateKarinMeasureStatus(
   reportId: string,
   measureData: {
     measureIndex: number;
-    newStatus: 'pending' | 'in_progress' | 'implemented' | 'verified';
+    newStatus: RecommendationStatus.PENDING | RecommendationStatus.IN_PROGRESS | RecommendationStatus.IMPLEMENTED | RecommendationStatus.VERIFIED;
     verificationDate?: Date;
     comments?: string;
   },
@@ -3920,7 +3921,7 @@ export async function generateDigitalFilePDF(
         storagePath,
         fileSize: 0, // Se actualizará al generar el archivo real
         generatedBy: exportOptions.userId,
-        status: 'processing',
+        status: ProcessingStatus.PROCESSING,
         options: {
           ...exportOptions,
           // No incluir la contraseña en la BD por seguridad
@@ -4720,7 +4721,7 @@ export async function generateDigitalFilePDF(
       
       // Actualizar la exportación con la información final
       await updateDoc(exportRef, {
-        status: 'completed',
+        status: ProcessingStatus.COMPLETED,
         completedAt: serverTimestamp(),
         fileSize: pdfBuffer.length,
         downloadUrl: downloadURL,
@@ -4760,7 +4761,7 @@ export async function generateDigitalFilePDF(
       
       // Actualizar el estado de la exportación a error
       await updateDoc(exportRef, {
-        status: 'error',
+        status: ProcessingStatus.ERROR,
         error: pdfError.message || 'Error al generar el PDF',
         errorDetails: JSON.stringify(pdfError)
       });
@@ -4928,7 +4929,7 @@ export async function getDigitalFileExports(
     downloadUrl?: string;
     generatedBy: string;
     generatedByName?: string;
-    status: 'processing' | 'completed' | 'error';
+    status: ProcessingStatus.PROCESSING | ProcessingStatus.COMPLETED | ProcessingStatus.ERROR;
     options?: Record<string, any>;
   }>;
   error?: string;
@@ -4976,7 +4977,7 @@ export async function getDigitalFileExports(
         downloadUrl: exportData.downloadUrl || `https://storage.googleapis.com/bucket-name/${exportData.storagePath}`,
         generatedBy: exportData.generatedBy || 'system',
         generatedByName,
-        status: exportData.status || 'completed',
+        status: exportData.status || ProcessingStatus.COMPLETED,
         options: exportData.options
       };
     }));
@@ -5026,7 +5027,7 @@ export async function addRecommendation(
       // Preparar datos para guardar
       const dataToSave = {
         ...recommendationData,
-        status: 'Pendiente',
+        status: ReportStatusSpanish.PENDIENTE,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: userId,
@@ -5080,12 +5081,12 @@ export async function addRecommendation(
       const reportData = reportSnap.data();
       if (reportData.status === 'Resuelta') {
         await updateDoc(reportRef, {
-          status: 'En Seguimiento',
+          status: ReportStatusSpanish.EN_SEGUIMIENTO,
           updatedAt: serverTimestamp(),
         });
         
         // Actualizar estadísticas
-        await updateReportStats(companyId, 'Resuelta', 'En Seguimiento');
+        await updateReportStats(companyId, ReportStatusSpanish.RESUELTA, ReportStatusSpanish.EN_SEGUIMIENTO);
         
         // Registrar cambio de estado
         await addDoc(
@@ -5096,7 +5097,7 @@ export async function addRecommendation(
             actionType: 'statusChange',
             description: 'Estado cambiado a: En Seguimiento',
             previousStatus: 'Resuelta',
-            newStatus: 'En Seguimiento',
+            newStatus: ReportStatusSpanish.EN_SEGUIMIENTO,
             visibleToReporter: true,
           }
         );
@@ -5243,14 +5244,14 @@ if (updates.status === 'Completado') {
         const reportSnap = await getDoc(reportRef);
         if (reportSnap.exists()) {
           const reportData = reportSnap.data();
-          if (reportData.status === 'En Seguimiento') {
+          if (reportData.status === ReportStatusSpanish.EN_SEGUIMIENTO) {
             await updateDoc(reportRef, {
-              status: 'Cerrada',
+              status: ReportStatusSpanish.CERRADA,
               updatedAt: serverTimestamp(),
             });
             
             // Actualizar estadísticas
-            await updateReportStats(companyId, 'En Seguimiento', 'Cerrada');
+            await updateReportStats(companyId, ReportStatusSpanish.EN_SEGUIMIENTO, ReportStatusSpanish.CERRADA);
             
             // Registrar cambio de estado
             await addDoc(
@@ -5260,8 +5261,8 @@ if (updates.status === 'Completado') {
                 actorId: updates.updatedBy,
                 actionType: 'statusChange',
                 description: 'Estado cambiado a: Cerrada',
-                previousStatus: 'En Seguimiento',
-                newStatus: 'Cerrada',
+                previousStatus: ReportStatusSpanish.EN_SEGUIMIENTO,
+                newStatus: ReportStatusSpanish.CERRADA,
                 visibleToReporter: true,
                 comment: 'Todas las recomendaciones han sido completadas',
               }
@@ -5337,7 +5338,7 @@ if (updates.status === 'Completado') {
       const reportsRef = collection(db, `companies/${companyId}/reports`);
       const q = query(
         reportsRef,
-        where('status', 'in', ['Resuelta', 'En Seguimiento']),
+        where('status', 'in', [ReportStatusSpanish.RESUELTA, ReportStatusSpanish.EN_SEGUIMIENTO]),
         orderBy('updatedAt', 'desc')
       );
       
@@ -5723,7 +5724,7 @@ export async function uploadSubsanationDocument(
       fileType: file.type,
       downloadURL: downloadURL,
       uploadedAt: serverTimestamp(),
-      status: 'uploaded'
+      status: FileStatus.UPLOADED
     };
     
     // Actualizar el reporte agregando el documento a la lista

@@ -34,6 +34,48 @@ export enum ReportStatus {
   ARCHIVED = 'archived'
 }
 
+// Estados de informes en español (compatibilidad con legacy)
+export enum ReportStatusSpanish {
+  NUEVO = 'Nuevo',
+  ADMITIDA = 'Admitida',
+  ASIGNADA = 'Asignada',
+  PENDIENTE = 'Pendiente',
+  EN_SEGUIMIENTO = 'En Seguimiento',
+  RESUELTA = 'Resuelta',
+  CERRADA = 'Cerrada'
+}
+
+// Estados de revisión
+export enum ReviewStatus {
+  NEEDS_REVIEW = 'needs_review',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  NEEDS_CHANGES = 'needs_changes'
+}
+
+// Estados de recomendaciones
+export enum RecommendationStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in_progress',
+  IMPLEMENTED = 'implemented',
+  VERIFIED = 'verified'
+}
+
+// Estados de procesamiento
+export enum ProcessingStatus {
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  ERROR = 'error'
+}
+
+// Estados de archivos
+export enum FileStatus {
+  UPLOADED = 'uploaded',
+  PROCESSING = 'processing',
+  READY = 'ready',
+  ERROR = 'error'
+}
+
 // Valores por defecto para nuevos usuarios
 export const DEFAULT_USER_VALUES = {
   isActive: true,
