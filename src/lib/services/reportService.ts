@@ -1446,7 +1446,7 @@ export async function updateKarinProcessStage(
         stage: karinProcess.stage,
         date: nowISO,
         user: userId,
-        notes: additionalData.stageNotes || ''
+        notes: additionalData.notes || additionalData.stageNotes || ''
       });
     }
     
