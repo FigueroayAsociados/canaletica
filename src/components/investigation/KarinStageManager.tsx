@@ -12,6 +12,7 @@ import { AuthorityNotificationForm } from './AuthorityNotificationForm';
 import { PrecautionaryMeasures } from './PrecautionaryMeasures';
 import { updateKarinStage } from '@/lib/services/investigationService';
 import { formatChileanDate } from '@/lib/utils/dateUtils';
+import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 
 interface KarinStageManagerProps {
   investigation: any;
@@ -26,6 +27,7 @@ export const KarinStageManager: React.FC<KarinStageManagerProps> = ({
   onStageUpdate,
   userCompanyId
 }) => {
+  const { uid } = useCurrentUser();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
@@ -140,7 +142,7 @@ export const KarinStageManager: React.FC<KarinStageManagerProps> = ({
 
     try {
       const nextStage = getNextStage(currentStage);
-      await updateKarinStage(userCompanyId, investigation.id, nextStage, { notes });
+      await updateKarinStage(userCompanyId, investigation.id, uid, nextStage, notes);
       setNotes('');
       await onStageUpdate();
     } catch (error) {
