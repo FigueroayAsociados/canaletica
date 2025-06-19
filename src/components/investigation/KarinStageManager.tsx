@@ -134,6 +134,145 @@ export const KarinStageManager: React.FC<KarinStageManagerProps> = ({
     }
   };
 
+  const getRequiredTasks = () => {
+    const tasks = [];
+    
+    switch (currentStage) {
+      case 'reception':
+        if (!investigation.karinProcess?.informedRights) {
+          tasks.push({
+            description: 'Marcar que se informó al trabajador sobre sus derechos legales',
+            actionButton: {
+              label: 'Marcar como Informado',
+              onClick: () => markRightsInformed()
+            }
+          });
+        }
+        break;
+        
+      case 'precautionary_measures':
+        if (!investigation.karinProcess?.precautionaryMeasures?.length) {
+          tasks.push({
+            description: 'Definir e implementar medidas precautorias',
+            actionButton: {
+              label: 'Gestionar Medidas',
+              onClick: () => handleAlternativeAction('precautionary')
+            }
+          });
+        }
+        break;
+        
+      case 'decision_to_investigate':
+        if (!investigation.plan) {
+          tasks.push({
+            description: 'Crear un plan de investigación detallado',
+            actionButton: {
+              label: 'Ir a Plan',
+              onClick: () => window.open(`/dashboard/investigation/${investigation.id}?tab=plan`, '_blank')
+            }
+          });
+        }
+        break;
+        
+      case 'investigation':
+        if (!investigation.interviews?.length) {
+          tasks.push({
+            description: 'Registrar al menos una entrevista',
+            actionButton: {
+              label: 'Ir a Entrevistas',
+              onClick: () => window.open(`/dashboard/investigation/${investigation.id}?tab=interviews`, '_blank')
+            }
+          });
+        }
+        if (investigation.karinProcess?.testimonies?.some((t: any) => !t.hasSigned)) {
+          tasks.push({
+            description: 'Firmar todos los testimonios pendientes',
+            actionButton: {
+              label: 'Ver Testimonios',
+              onClick: () => window.open(`/dashboard/investigation/${investigation.id}?tab=interviews`, '_blank')
+            }
+          });
+        }
+        break;
+        
+      case 'dt_notification':
+        if (!investigation.karinProcess?.dtInitialNotificationDate) {
+          tasks.push({
+            description: 'Notificar formalmente a la Dirección del Trabajo',
+            actionButton: {
+              label: 'Gestionar Notificación',
+              onClick: () => handleAlternativeAction('notifications')
+            }
+          });
+        }
+        break;
+        
+      case 'suseso_notification':
+        if (!investigation.karinProcess?.susesoNotificationDate) {
+          tasks.push({
+            description: 'Notificar a SUSESO o Mutualidad',
+            actionButton: {
+              label: 'Gestionar Notificación',
+              onClick: () => handleAlternativeAction('notifications')
+            }
+          });
+        }
+        break;
+        
+      case 'report_creation':
+        if (!investigation.preliminaryReport) {
+          tasks.push({
+            description: 'Crear informe preliminar con hallazgos',
+            actionButton: {
+              label: 'Ir a Informe',
+              onClick: () => window.open(`/dashboard/investigation/${investigation.id}?tab=report`, '_blank')
+            }
+          });
+        }
+        break;
+        
+      case 'final_report':
+        if (!investigation.finalReport) {
+          tasks.push({
+            description: 'Crear informe final con conclusiones',
+            actionButton: {
+              label: 'Ir a Informe Final',
+              onClick: () => window.open(`/dashboard/investigation/${investigation.id}?tab=report`, '_blank')
+            }
+          });
+        }
+        break;
+    }
+    
+    return tasks;
+  };
+
+  const markRightsInformed = async () => {
+    if (!canEdit) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Actualizar el campo informedRights en karinProcess
+      const { updateInvestigation } = await import('@/lib/services/investigationService');
+      
+      await updateInvestigation(userCompanyId, investigation.id, {
+        'karinProcess.informedRights': true,
+        'karinProcess.rightsInformedDate': new Date().toISOString(),
+        'karinProcess.rightsInformedBy': uid
+      });
+      
+      // Recargar datos
+      await onStageUpdate();
+    } catch (error) {
+      console.error('Error al marcar derechos:', error);
+      setError('Error al marcar derechos como informados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAdvanceStage = async () => {
     if (!canEdit || !canAdvanceStage()) return;
 
@@ -204,11 +343,33 @@ export const KarinStageManager: React.FC<KarinStageManagerProps> = ({
               </div>
             </div>
 
-            {/* Verificación de requisitos */}
+            {/* Verificación de requisitos con guía interactiva */}
             {!canAdvanceStage() && (
-              <Alert className="border-yellow-300 bg-yellow-50">
-                <AlertDescription className="text-yellow-800">
-                  <strong>Requisitos pendientes:</strong> Complete las tareas requeridas para esta etapa antes de continuar.
+              <Alert className="border-blue-300 bg-blue-50">
+                <AlertDescription className="text-blue-800">
+                  <strong>📋 Tareas pendientes para avanzar:</strong>
+                  <div className="mt-3">
+                    {getRequiredTasks().map((task, index) => (
+                      <div key={index} className="flex items-center justify-between py-2 px-3 bg-white rounded border border-blue-200 mb-2">
+                        <div className="flex items-center space-x-3">
+                          <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
+                            {index + 1}
+                          </span>
+                          <span className="text-sm font-medium">{task.description}</span>
+                        </div>
+                        {task.actionButton && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={task.actionButton.onClick}
+                            className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+                          >
+                            {task.actionButton.label}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
