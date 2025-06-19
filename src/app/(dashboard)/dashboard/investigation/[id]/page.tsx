@@ -61,12 +61,7 @@ export default function InvestigationDetailPage() {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [showAiTab, setShowAiTab] = useState(false);
 
-  // Determinar la pestaña inicial para casos de Ley Karin
-  useEffect(() => {
-    if (investigation?.isKarinLaw) {
-      setActiveTab('karin'); // Cambiar a la pestaña de Ley Karin para estos casos
-    }
-  }, [investigation?.isKarinLaw]);
+  // La pestaña inicial se mantiene en 'overview' para todos los casos
   const [concludingComment, setConcludingComment] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState<boolean>(false);
@@ -404,6 +399,15 @@ export default function InvestigationDetailPage() {
             <Button variant="outline">Ver Denuncia</Button>
           </Link>
           
+          {/* Botón especial para gestión unificada Ley Karin */}
+          {investigation.isKarinLaw && (
+            <Link href={`/dashboard/investigation/${reportId}/karin`}>
+              <Button className="bg-red-600 hover:bg-red-700 text-white">
+                🏛️ Gestión Ley Karin
+              </Button>
+            </Link>
+          )}
+          
           {canEdit && canComplete && (
             <Button 
               onClick={() => setShowCompleteDialog(true)}
@@ -460,22 +464,15 @@ export default function InvestigationDetailPage() {
       {/* Pestañas */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className={`grid w-full ${
-          (showAiTab && investigation?.isKarinLaw) ? 'grid-cols-8' : 
-          (showAiTab || investigation?.isKarinLaw) ? 'grid-cols-7' : 'grid-cols-6'
+          showAiTab ? 'grid-cols-6' : 'grid-cols-5'
         }`}>
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="plan">Plan</TabsTrigger>
-          {investigation?.isKarinLaw && (
-            <TabsTrigger value="preliminary" className="bg-red-50 text-red-800 hover:bg-red-100">Inf. Preliminar</TabsTrigger>
-          )}
           <TabsTrigger value="interviews">Entrevistas</TabsTrigger>
           <TabsTrigger value="findings">Hallazgos</TabsTrigger>
           <TabsTrigger value="report">Informe Final</TabsTrigger>
           {showAiTab && (
             <TabsTrigger value="ai" className="bg-blue-50 text-blue-800 hover:bg-blue-100">Asistente IA</TabsTrigger>
-          )}
-          {investigation?.isKarinLaw && (
-            <TabsTrigger value="karin" className="bg-red-50 text-red-800 hover:bg-red-100">Ley Karin</TabsTrigger>
           )}
         </TabsList>
         
@@ -797,19 +794,6 @@ export default function InvestigationDetailPage() {
           />
         </TabsContent>
         
-        {/* Pestaña de Informe Preliminar */}
-        {investigation?.isKarinLaw && (
-          <TabsContent value="preliminary">
-            <PreliminaryReport 
-              reportId={reportId}
-              reportData={investigation || {}}
-              preliminaryReport={investigation?.preliminaryReport || null}
-              isKarinLaw={investigation?.isKarinLaw || false}
-              canEdit={canEdit}
-              onReportUpdated={handlePreliminaryReportUpdated}
-            />
-          </TabsContent>
-        )}
         
         {/* Pestaña de Entrevistas */}
         <TabsContent value="interviews">
@@ -856,76 +840,6 @@ export default function InvestigationDetailPage() {
           />
         </TabsContent>
         
-        {/* Pestaña de Ley Karin */}
-        {investigation?.isKarinLaw && (
-          <TabsContent value="karin" className="space-y-6">
-            <KarinTimeline
-              report={investigation}
-              onUpdateStage={handleUpdateKarinStage}
-            />
-            
-            {/* Plazos y Visualización - nueva sección para gestión centralizada de plazos */}
-            <KarinDeadlinesTimeline
-              report={investigation}
-              onUpdateDeadlines={handleUpdateDeadlines}
-            />
-            
-            {/* Inicializar plazos si no existen */}
-            {(!investigation?.karinProcess?.deadlines || investigation.karinProcess.deadlines.length === 0) && canEdit && (
-              <Card className="mt-4">
-                <CardContent className="pt-6">
-                  <Alert className="mb-4 bg-yellow-50 border-yellow-200">
-                    <AlertDescription className="text-yellow-800">
-                      Este caso Ley Karin no tiene plazos inicializados. Para cumplir con los 
-                      plazos legales, inicialice el sistema de seguimiento de plazos.
-                    </AlertDescription>
-                  </Alert>
-                  <div className="flex justify-end">
-                    <Button onClick={handleInitializeDeadlines}>
-                      Inicializar Plazos Ley Karin
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            {/* Subsanación de Denuncias - mostrado cuando estamos en etapa de subsanación */}
-            {investigation?.karinProcess?.stage === 'subsanation' && (
-              <SubsanationForm
-                report={investigation}
-                companyId={userCompanyId}
-                onUpdate={() => {
-                  const fetchUpdatedData = async () => {
-                    const result = await getInvestigationDetails(userCompanyId, reportId);
-                    if (result.success) {
-                      setInvestigation(result.investigation);
-                    }
-                  };
-                  fetchUpdatedData();
-                }}
-                readOnly={!canEdit}
-              />
-            )}
-
-            {/* Notificaciones a Autoridades - mostrado para etapas relevantes */}
-            {(['reception', 'subsanation', 'dt_notification', 'suseso_notification', 'dt_submission'].includes(investigation?.karinProcess?.stage || '')) && (
-              <AuthorityNotificationForm
-                report={investigation}
-                companyId={userCompanyId}
-                onUpdate={() => {
-                  const fetchUpdatedData = async () => {
-                    const result = await getInvestigationDetails(userCompanyId, reportId);
-                    if (result.success) {
-                      setInvestigation(result.investigation);
-                    }
-                  };
-                  fetchUpdatedData();
-                }}
-                readOnly={!canEdit}
-              />
-            )}
-          </TabsContent>
-        )}
         
         {/* Pestaña de Asistente IA */}
         {showAiTab && (
