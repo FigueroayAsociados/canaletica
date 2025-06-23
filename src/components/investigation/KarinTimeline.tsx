@@ -257,9 +257,25 @@ export const KarinTimeline: React.FC<KarinTimelineProps> = ({
   const formatDate = (date: any) => {
     if (!date) return 'No disponible';
     
-    const dateObj = date.toDate ? new Date(date.toDate()) : new Date(date);
-    
-    return formatChileanDate(dateObj);
+    try {
+      // Si es un Timestamp de Firebase
+      if (date.toDate && typeof date.toDate === 'function') {
+        return formatChileanDate(date.toDate());
+      }
+      
+      // Si es un string ISO o cualquier otro formato válido
+      const dateObj = new Date(date);
+      
+      // Verificar que la fecha sea válida
+      if (isNaN(dateObj.getTime())) {
+        return 'Fecha inválida';
+      }
+      
+      return formatChileanDate(dateObj);
+    } catch (error) {
+      console.error('Error al formatear fecha:', error, date);
+      return 'Error en fecha';
+    }
   };
   
   // Verificar si es posible avanzar a la siguiente etapa

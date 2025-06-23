@@ -308,8 +308,65 @@ export const KarinStageManager: React.FC<KarinStageManagerProps> = ({
 
   const formatDate = (date: any) => {
     if (!date) return 'No disponible';
-    const dateObj = date.toDate ? new Date(date.toDate()) : new Date(date);
-    return formatChileanDate(dateObj);
+    
+    try {
+      // Si es un Timestamp de Firebase
+      if (date.toDate && typeof date.toDate === 'function') {
+        return formatChileanDate(date.toDate());
+      }
+      
+      // Si es un string ISO o cualquier otro formato válido
+      const dateObj = new Date(date);
+      
+      // Verificar que la fecha sea válida
+      if (isNaN(dateObj.getTime())) {
+        return 'Fecha inválida';
+      }
+      
+      return formatChileanDate(dateObj);
+    } catch (error) {
+      console.error('Error al formatear fecha:', error, date);
+      return 'Error en fecha';
+    }
+  };
+
+  // Obtener fecha de inicio de la etapa actual
+  const getCurrentStageStartDate = () => {
+    if (!investigation.karinProcess) return null;
+    
+    // Buscar la fecha específica de la etapa actual
+    const stageProperty = `${currentStage}Date`;
+    if (investigation.karinProcess[stageProperty]) {
+      return investigation.karinProcess[stageProperty];
+    }
+    
+    // Si no existe, buscar en el historial de etapas
+    const stageHistory = investigation.karinProcess.stageHistory || [];
+    const currentStageEntry = stageHistory.find(entry => entry.stage === currentStage);
+    if (currentStageEntry) {
+      return currentStageEntry.date;
+    }
+    
+    // Fallback: usar la fecha de creación si es la primera etapa
+    if (currentStage === 'complaint_filed' || currentStage === 'reception') {
+      return investigation.createdAt;
+    }
+    
+    return null;
+  };
+
+  // Obtener fecha de última actualización
+  const getLastUpdateDate = () => {
+    if (!investigation.karinProcess) return investigation.updatedAt || investigation.createdAt;
+    
+    // Buscar la entrada más reciente en el historial
+    const stageHistory = investigation.karinProcess.stageHistory || [];
+    if (stageHistory.length > 0) {
+      return stageHistory[stageHistory.length - 1].date;
+    }
+    
+    // Fallback: fecha general de actualización
+    return investigation.updatedAt || investigation.createdAt;
   };
 
   return (
@@ -334,11 +391,11 @@ export const KarinStageManager: React.FC<KarinStageManagerProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-500">Fecha de inicio:</span>
-                  <span className="ml-2">{formatDate(investigation.karinProcess?.stageStartDate)}</span>
+                  <span className="ml-2">{formatDate(getCurrentStageStartDate())}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Última actualización:</span>
-                  <span className="ml-2">{formatDate(investigation.karinProcess?.lastUpdated)}</span>
+                  <span className="ml-2">{formatDate(getLastUpdateDate())}</span>
                 </div>
               </div>
             </div>

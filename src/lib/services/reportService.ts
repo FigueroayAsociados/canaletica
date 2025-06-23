@@ -3515,11 +3515,16 @@ export async function generateDigitalFile(
         
         // Añadir a timeline
         evidences.forEach(evidence => {
-          const date = evidence.date instanceof Date ? evidence.date : new Date(evidence.date);
-          digitalFile.summary.timeline.push({
-            date,
-            event: `Evidencia subida: ${evidence.title}`
-          });
+          if (evidence.date) {
+            const date = evidence.date instanceof Date ? evidence.date : new Date(evidence.date);
+            // Solo agregar si la fecha es válida
+            if (!isNaN(date.getTime())) {
+              digitalFile.summary.timeline.push({
+                date,
+                event: `Evidencia subida: ${evidence.title}`
+              });
+            }
+          }
         });
       });
     
@@ -3569,11 +3574,16 @@ export async function generateDigitalFile(
       
       // Añadir a timeline
       activities.forEach(activity => {
-        const date = activity.date instanceof Date ? activity.date : new Date(activity.date);
-        digitalFile.summary.timeline.push({
-          date,
-          event: activity.description
-        });
+        if (activity.date) {
+          const date = activity.date instanceof Date ? activity.date : new Date(activity.date);
+          // Solo agregar si la fecha es válida
+          if (!isNaN(date.getTime())) {
+            digitalFile.summary.timeline.push({
+              date,
+              event: activity.description
+            });
+          }
+        }
       });
     });
     
@@ -3630,11 +3640,16 @@ export async function generateDigitalFile(
       communications
         .filter(comm => !comm.metadata.isInternal)
         .forEach(comm => {
-          const date = comm.date instanceof Date ? comm.date : new Date(comm.date);
-          digitalFile.summary.timeline.push({
-            date,
-            event: `Comunicación: ${comm.authorName}`
-          });
+          if (comm.date) {
+            const date = comm.date instanceof Date ? comm.date : new Date(comm.date);
+            // Solo agregar si la fecha es válida
+            if (!isNaN(date.getTime())) {
+              digitalFile.summary.timeline.push({
+                date,
+                event: `Comunicación: ${comm.authorName}`
+              });
+            }
+          }
         });
     });
     
@@ -3685,11 +3700,16 @@ export async function generateDigitalFile(
         
         // Añadir a timeline
         karinDocuments.forEach(doc => {
-          const date = doc.date instanceof Date ? doc.date : new Date(doc.date);
-          digitalFile.summary.timeline.push({
-            date,
-            event: `Documento registrado: ${doc.title} (${doc.folioNumber || 'Sin folio'})`
-          });
+          if (doc.date) {
+            const date = doc.date instanceof Date ? doc.date : new Date(doc.date);
+            // Solo agregar si la fecha es válida
+            if (!isNaN(date.getTime())) {
+              digitalFile.summary.timeline.push({
+                date,
+                event: `Documento registrado: ${doc.title} (${doc.folioNumber || 'Sin folio'})`
+              });
+            }
+          }
         });
       });
       
@@ -3756,18 +3776,26 @@ export async function generateDigitalFile(
         
         // Añadir a timeline
         recommendations.forEach(rec => {
-          const date = rec.date instanceof Date ? rec.date : new Date(rec.date);
-          digitalFile.summary.timeline.push({
-            date,
-            event: `Recomendación creada: ${rec.title}`
-          });
+          if (rec.date) {
+            const date = rec.date instanceof Date ? rec.date : new Date(rec.date);
+            // Solo agregar si la fecha es válida
+            if (!isNaN(date.getTime())) {
+              digitalFile.summary.timeline.push({
+                date,
+                event: `Recomendación creada: ${rec.title}`
+              });
+            }
+          }
           
           // Si está completada, añadir también ese evento
           if (rec.metadata.completedAt) {
-            digitalFile.summary.timeline.push({
-              date: rec.metadata.completedAt,
-              event: `Recomendación completada: ${rec.title}`
-            });
+            const completedDate = rec.metadata.completedAt instanceof Date ? rec.metadata.completedAt : new Date(rec.metadata.completedAt);
+            if (!isNaN(completedDate.getTime())) {
+              digitalFile.summary.timeline.push({
+                date: completedDate,
+                event: `Recomendación completada: ${rec.title}`
+              });
+            }
           }
         });
       }
@@ -4143,15 +4171,26 @@ export async function generateDigitalFilePDF(
            .text('LÍNEA DE TIEMPO', { align: 'center' })
            .moveDown(1);
         
-        // Ordenar eventos cronológicamente
-        const sortedEvents = [...expediente.summary.timeline].sort((a, b) => 
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
+        // Filtrar eventos con fechas válidas y ordenar cronológicamente
+        const sortedEvents = [...expediente.summary.timeline]
+          .filter(event => {
+            const date = new Date(event.date);
+            return !isNaN(date.getTime());
+          })
+          .sort((a, b) => 
+            new Date(a.date).getTime() - new Date(b.date).getTime()
+          );
         
         // Dibujar línea de tiempo
         let timelineY = pdfDoc.y;
         sortedEvents.forEach((event, i) => {
           const date = new Date(event.date);
+          
+          // Validar que la fecha sea válida
+          if (isNaN(date.getTime())) {
+            console.warn('Fecha inválida en timeline:', event.date);
+            return; // Saltar este evento si la fecha es inválida
+          }
           
           // Dibujar punto en la línea
           pdfDoc.circle(100, timelineY + 10, 5)
@@ -4159,13 +4198,13 @@ export async function generateDigitalFilePDF(
           
           // Si no es el último evento, dibujar línea al siguiente punto
           if (i < sortedEvents.length - 1) {
-            doc.moveTo(100, timelineY + 15)
+            pdfDoc.moveTo(100, timelineY + 15)
                .lineTo(100, timelineY + 35)
                .stroke('#003366');
           }
           
           // Fecha y descripción
-          doc.fontSize(10)
+          pdfDoc.fontSize(10)
              .fillColor('#666666')
              .text(date.toLocaleDateString(), 120, timelineY, { width: 100 })
              .fontSize(11)
@@ -4224,7 +4263,7 @@ export async function generateDigitalFilePDF(
           // Fecha y autor
           pdfDoc.fontSize(10)
              .fillColor('#666666')
-             .text(`Fecha: ${new Date(document.date).toLocaleDateString()}`, 70, docsY)
+             .text(`Fecha: ${document.date ? new Date(document.date).toLocaleDateString() : 'Sin fecha'}`, 70, docsY)
              .moveDown(0.2);
           
           docsY = pdfDoc.y;
@@ -4310,7 +4349,7 @@ export async function generateDigitalFilePDF(
           // Fecha y autor
           pdfDoc.fontSize(10)
              .fillColor('#666666')
-             .text(`Fecha: ${new Date(evidence.date).toLocaleDateString()}`, 70, evidenceY)
+             .text(`Fecha: ${evidence.date ? new Date(evidence.date).toLocaleDateString() : 'Sin fecha'}`, 70, evidenceY)
              .moveDown(0.2);
           
           evidenceY = pdfDoc.y;
