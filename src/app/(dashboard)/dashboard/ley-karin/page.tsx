@@ -14,7 +14,7 @@ import { useCurrentUser } from '@/lib/hooks/useCurrentUser';
 import { useCompany } from '@/lib/hooks';
 import { getKarinReports } from '@/lib/services/reportService';
 import { Spinner } from '@/components/ui/spinner';
-import { formatChileanDate } from '@/lib/utils/dateUtils';
+import { formatChileanDate, toDate } from '@/lib/utils/dateUtils';
 
 export default function LeyKarinPage() {
   const { uid, isAdmin, isInvestigator, isSuperAdmin, profile } = useCurrentUser();
@@ -252,7 +252,7 @@ export default function LeyKarinPage() {
                             <span className="font-medium">Categoría:</span> {case_.category}
                           </div>
                           <div>
-                            <span className="font-medium">Creado:</span> {formatChileanDate(case_.createdAt)}
+                            <span className="font-medium">Creado:</span> {formatChileanDate(toDate(case_.createdAt))}
                           </div>
                           <div>
                             <span className="font-medium">Investigador:</span> {case_.investigatorName || 'Sin asignar'}
