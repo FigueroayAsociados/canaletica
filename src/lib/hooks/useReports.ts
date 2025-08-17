@@ -26,7 +26,7 @@ export function useReport(
   return useQuery({
     queryKey: ['reports', companyId, reportId, userRole, userId],
     queryFn: () => getReportById(companyId, reportId, userRole, userId),
-    enabled: !!reportId && !!companyId && !!userId,
+    enabled: !!reportId && !!companyId && !!userId && !!userRole,
   });
 }
 

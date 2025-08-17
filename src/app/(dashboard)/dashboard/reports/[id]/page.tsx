@@ -71,7 +71,7 @@ export default function ReportDetailPage() {
     isLoading, 
     isError, 
     error 
-  } = useReport(companyId, reportId, profile?.role, profile?.uid);
+  } = useReport(companyId, reportId, profile?.role, uid);
 
   // Cargar investigadores si el usuario es admin
   const { 
