@@ -37,11 +37,11 @@ export default function LeyKarinPage() {
   // Cargar casos Ley Karin
   useEffect(() => {
     async function fetchKarinCases() {
-      if (!uid || !userCompanyId) return;
+      if (!uid || !userCompanyId || !profile?.role) return;
 
       try {
         setLoading(true);
-        const result = await getKarinReports(userCompanyId);
+        const result = await getKarinReports(userCompanyId, profile.role, uid);
 
         if (result.success) {
           setKarinCases(result.reports || []);
@@ -57,7 +57,7 @@ export default function LeyKarinPage() {
     }
 
     fetchKarinCases();
-  }, [uid, userCompanyId]);
+  }, [uid, userCompanyId, profile?.role]);
 
   // Filtrar casos
   const filteredCases = karinCases.filter(case_ => {
