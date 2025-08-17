@@ -258,8 +258,8 @@ export function useCurrentUser(): CurrentUser {
     return profile.permissions?.includes(permission) ?? false;
   };
 
-  // Asegurar que uid no sea undefined
-  const safeUid = currentUser ? currentUser.uid : '';
+  // Asegurar que uid no sea undefined y esté disponible
+  const safeUid = currentUser?.uid || '';
   
   return {
     uid: safeUid,

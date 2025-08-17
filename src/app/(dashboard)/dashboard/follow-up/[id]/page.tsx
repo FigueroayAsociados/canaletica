@@ -46,7 +46,7 @@ export default function FollowUpDetailPage() {
         setLoading(true);
         
         // Obtener detalles de la denuncia
-        const result = await getReportById(companyId, reportId);
+        const result = await getReportById(companyId, reportId, profile?.role, profile?.uid);
         
         if (result.success) {
           setReport(result.report);

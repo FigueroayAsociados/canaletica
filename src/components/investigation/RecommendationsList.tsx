@@ -45,7 +45,7 @@ export default function RecommendationsList({
 }: RecommendationsListProps) {
   // Estado para guardar información del reporte principal
   const [report, setReport] = useState<any>(null);
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,7 +60,7 @@ export default function RecommendationsList({
         console.log('Obteniendo recomendaciones para:', { companyId, reportId });
         
         // Obtener el reporte principal para saber si es Ley Karin
-        const reportResult = await getReportById(companyId, reportId);
+        const reportResult = await getReportById(companyId, reportId, profile?.role, uid);
         if (reportResult.success) {
           setReport(reportResult.report);
         }

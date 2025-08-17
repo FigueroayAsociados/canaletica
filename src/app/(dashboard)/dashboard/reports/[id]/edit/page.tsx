@@ -55,7 +55,7 @@ export default function EditReportPage() {
       try {
         setLoading(true);
 
-        const result = await getReportById(userCompanyId, reportId);
+        const result = await getReportById(userCompanyId, reportId, profile?.role, uid);
         
         if (result.success) {
           setReport(result.report);
