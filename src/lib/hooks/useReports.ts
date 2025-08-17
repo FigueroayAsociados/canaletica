@@ -88,8 +88,10 @@ export function useUpdateKarinStage() {
       newStage: KarinProcessStage | string; // Acepta tanto KarinProcessStage como string para mantener compatibilidad
       additionalData?: any;
     }) => {
+      // Extraer userId de additionalData si existe, sino usar 'system'
+      const userId = additionalData.actorId || 'system';
       // Asegurarnos de que newStage sea tratado como KarinProcessStage
-      return updateKarinProcessStage(companyId, reportId, newStage as KarinProcessStage, additionalData);
+      return updateKarinProcessStage(companyId, reportId, newStage as KarinProcessStage, additionalData, userId);
     },
     
     onSuccess: (_, variables) => {

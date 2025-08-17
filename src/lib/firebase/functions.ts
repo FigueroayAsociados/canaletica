@@ -3,8 +3,8 @@
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from 'firebase/functions';
 import { app } from './config';
 
-// Inicializar Firebase Functions
-const functions = getFunctions(app);
+// Inicializar Firebase Functions con región específica
+const functions = getFunctions(app, 'southamerica-east1');
 
 // Si estamos en desarrollo, conectar al emulador de funciones
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {

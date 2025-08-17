@@ -33,12 +33,14 @@ function setupMailTransport() {
     const password = emailPassword.value();
     
     mailTransport = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'mail.canaletica.cl',
+      port: 465,
+      secure: true, // true para SSL/TLS en puerto 465
       auth: {
         user: user,
         pass: password
       },
-      // Configuración adicional para mayor compatibilidad con Gmail
+      // Configuración adicional para servidor SMTP canaletica.cl
       tls: {
         rejectUnauthorized: false
       }

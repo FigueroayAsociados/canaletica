@@ -85,12 +85,15 @@ export const SubsanationForm: React.FC<SubsanationFormProps> = ({
       const updatedItems = [...items, newItem];
       setItems(updatedItems);
       
+      // Calcular deadline (5 días hábiles desde ahora)
+      const deadline = addBusinessDays(new Date(), 5);
+      
       // Guardar en Firestore
       await registerSubsanationRequest(
         companyId,
         report.id,
         updatedItems,
-        documents,
+        deadline,
         comments
       );
       
@@ -200,12 +203,15 @@ export const SubsanationForm: React.FC<SubsanationFormProps> = ({
     setError(null);
     
     try {
+      // Calcular deadline (5 días hábiles desde ahora)
+      const deadline = addBusinessDays(new Date(), 5);
+      
       // Guardar en Firestore
       await registerSubsanationRequest(
         companyId,
         report.id,
         items,
-        documents,
+        deadline,
         comments
       );
       

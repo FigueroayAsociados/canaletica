@@ -239,8 +239,8 @@ export function useCurrentUser(): CurrentUser {
 
   // Determinar los roles del usuario
   // Si es super admin, también tiene los roles de admin e investigador
-  const isAdmin = (isSuperAdmin || profile?.role === 'admin') && (isSuperAdmin || profile?.isActive);
-  const isInvestigator = (isSuperAdmin || profile?.role === 'investigator') && (isSuperAdmin || profile?.isActive);
+  const isAdmin = isSuperAdmin || (profile?.role === 'admin' && profile?.isActive);
+  const isInvestigator = isSuperAdmin || (profile?.role === 'investigator' && profile?.isActive);
 
   /**
    * Verifica si el usuario tiene un permiso específico
@@ -258,8 +258,8 @@ export function useCurrentUser(): CurrentUser {
     return profile.permissions?.includes(permission) ?? false;
   };
 
-  // Asegurar que uid no sea undefined
-  const safeUid = currentUser ? currentUser.uid : '';
+  // Asegurar que uid no sea undefined y esté disponible
+  const safeUid = currentUser?.uid || '';
   
   return {
     uid: safeUid,

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SafeRender } from '@/components/ui/safe-render';
 import { useCompany } from '@/lib/hooks';
 import { getReportByCode, getReportByCodeAndAccessCode, addCommunicationByCode } from '@/lib/services/reportService';
+import { v4 as uuidv4 } from 'uuid';
 
 // Aseguramos que estos estados coincidan exactamente con los utilizados en ReportStatusBadge
 const STATUS_COLORS: Record<string, string> = {
@@ -103,7 +104,7 @@ export default function ReportDetailsPage() {
       if (result.success) {
         // Actualizar la lista de comunicaciones en el estado local
         const newMsg = {
-          id: Date.now().toString(),
+          id: uuidv4(),
           timestamp: new Date(),
           senderId: 'reporter',
           content: newMessage,

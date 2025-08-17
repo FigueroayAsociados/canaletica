@@ -61,7 +61,7 @@ async function loadData() {
   try {
     setLoading(true);
 
-    const result = await getReportById(userCompanyId, id);
+    const result = await getReportById(userCompanyId, id, profile?.role, uid);
     if (result.success && result.report) {
       setReport(result.report);
 

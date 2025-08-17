@@ -66,13 +66,19 @@ export function updateDeadlinesStatus(deadlines: KarinDeadline[]): KarinDeadline
   const now = new Date();
   
   return deadlines.map(deadline => {
+    // Validar que el deadline tenga propiedades esenciales
+    if (!deadline || !deadline.id || !deadline.endDate) {
+      console.warn('Deadline inválido encontrado:', deadline);
+      return deadline; // Devolver el deadline tal como está para evitar errores
+    }
+    
     // Si ya está completado, mantener ese estado
     if (deadline.status === 'completed') {
       return deadline;
     }
     
-    // Si está prorrogado, utilizar la nueva fecha final
-    const endDate = new Date(deadline.isExtended ? deadline.originalEndDate : deadline.endDate);
+    // Si está prorrogado, utilizar la fecha original o la fecha final
+    const endDate = new Date(deadline.isExtended && deadline.originalEndDate ? deadline.originalEndDate : deadline.endDate);
     
     // Para deadlines en días corridos (adopción de medidas)
     if (deadline.name === 'Adopción de medidas') {
@@ -91,7 +97,7 @@ export function updateDeadlinesStatus(deadlines: KarinDeadline[]): KarinDeadline
       return {
         ...deadline,
         status,
-        daysRemaining
+        daysRemaining: daysRemaining ?? 0
       };
     }
     
@@ -101,7 +107,7 @@ export function updateDeadlinesStatus(deadlines: KarinDeadline[]): KarinDeadline
     return {
       ...deadline,
       status: status.status as DeadlineStatus,
-      daysRemaining: status.daysRemaining
+      daysRemaining: status.daysRemaining ?? 0
     };
   });
 }

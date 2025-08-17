@@ -21,6 +21,7 @@ import {
   import { db, storage } from '@/lib/firebase/config';
   import { v4 as uuidv4 } from 'uuid';
   import { ReportFormValues, KarinProcessStage } from '@/types/report';
+  import { ReportStatus, ReportStatusSpanish, ReviewStatus, RecommendationStatus, ProcessingStatus, FileStatus } from '@/lib/utils/constants';
   import { getUserProfileById } from './userService';
   import {
     notifyReportCreated,
@@ -66,7 +67,7 @@ export async function assignReport(
       investigatorName,
       assignedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      status: 'in_progress' // Actualizar estado a "en progreso"
+      status: ReportStatus.IN_PROGRESS // Actualizar estado a "en progreso"
     });
     
     // Obtener datos para notificación
@@ -115,7 +116,7 @@ export async function assignReport(
         code: reportCode,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        status: 'Nuevo',
+        status: ReportStatus.NEW,
         priority: reportData.isKarinLaw ? 'Alta' : 'Media',
         
         // Categorización
@@ -820,7 +821,7 @@ export async function getReportByCodeAndAccessCode(
       // Actualizar la asignación
       await updateDoc(reportRef, {
         assignedTo: investigatorId,
-        status: reportData.status === 'Nuevo' || reportData.status === 'Admitida' ? 'Asignada' : reportData.status,
+        status: reportData.status === ReportStatus.NEW || reportData.status === ReportStatusSpanish.ADMITIDA ? ReportStatusSpanish.ASIGNADA : reportData.status,
         updatedAt: serverTimestamp(),
       });
       
@@ -1446,7 +1447,7 @@ export async function updateKarinProcessStage(
         stage: karinProcess.stage,
         date: nowISO,
         user: userId,
-        notes: additionalData.stageNotes || ''
+        notes: additionalData.notes || additionalData.stageNotes || ''
       });
     }
     
@@ -1914,7 +1915,7 @@ export async function createKarinFinalReport(
           date: todayISO,
           reviewer: userId,
           comments: 'Informe creado, pendiente de revisión',
-          status: 'needs_review'
+          status: ReviewStatus.NEEDS_REVIEW
         }]
       },
       userId
@@ -1979,7 +1980,7 @@ export async function reviewKarinReport(
   companyId: string,
   reportId: string,
   reviewData: {
-    status: 'approved' | 'rejected' | 'needs_changes';
+    status: ReviewStatus.APPROVED | ReviewStatus.REJECTED | ReviewStatus.NEEDS_CHANGES;
     comments: string;
   },
   userId: string
@@ -2033,7 +2034,7 @@ export async function reviewKarinReport(
     });
     
     // Si es aprobado, cambiar a la siguiente etapa
-    if (reviewData.status === 'approved') {
+    if (reviewData.status === ReviewStatus.APPROVED) {
       return await updateKarinProcessStage(
         companyId,
         reportId,
@@ -2060,7 +2061,7 @@ export async function reviewKarinReport(
           actorId: userId,
           actionType: 'karin_report_review',
           description: `Informe revisado: ${
-            reviewData.status === 'needs_changes' ? 'Se solicitaron cambios' : 'Informe rechazado'
+            reviewData.status === ReviewStatus.NEEDS_CHANGES ? 'Se solicitaron cambios' : 'Informe rechazado'
           }`,
           reviewStatus: reviewData.status,
           comments: reviewData.comments,
@@ -2386,7 +2387,7 @@ export async function addKarinMeasures(
           date: measure.implementationDate.toISOString(),
           implementedBy: measure.responsibleId || userId,
           implementedByName: responsibleName || 'Sin asignar',
-          status: 'pending',
+          status: RecommendationStatus.PENDING,
           registerDate: todayISO
         };
       })
@@ -2461,7 +2462,7 @@ export async function updateKarinMeasureStatus(
   reportId: string,
   measureData: {
     measureIndex: number;
-    newStatus: 'pending' | 'in_progress' | 'implemented' | 'verified';
+    newStatus: RecommendationStatus.PENDING | RecommendationStatus.IN_PROGRESS | RecommendationStatus.IMPLEMENTED | RecommendationStatus.VERIFIED;
     verificationDate?: Date;
     comments?: string;
   },
@@ -3514,11 +3515,16 @@ export async function generateDigitalFile(
         
         // Añadir a timeline
         evidences.forEach(evidence => {
-          const date = evidence.date instanceof Date ? evidence.date : new Date(evidence.date);
-          digitalFile.summary.timeline.push({
-            date,
-            event: `Evidencia subida: ${evidence.title}`
-          });
+          if (evidence.date) {
+            const date = evidence.date instanceof Date ? evidence.date : new Date(evidence.date);
+            // Solo agregar si la fecha es válida
+            if (!isNaN(date.getTime())) {
+              digitalFile.summary.timeline.push({
+                date,
+                event: `Evidencia subida: ${evidence.title}`
+              });
+            }
+          }
         });
       });
     
@@ -3568,11 +3574,16 @@ export async function generateDigitalFile(
       
       // Añadir a timeline
       activities.forEach(activity => {
-        const date = activity.date instanceof Date ? activity.date : new Date(activity.date);
-        digitalFile.summary.timeline.push({
-          date,
-          event: activity.description
-        });
+        if (activity.date) {
+          const date = activity.date instanceof Date ? activity.date : new Date(activity.date);
+          // Solo agregar si la fecha es válida
+          if (!isNaN(date.getTime())) {
+            digitalFile.summary.timeline.push({
+              date,
+              event: activity.description
+            });
+          }
+        }
       });
     });
     
@@ -3629,11 +3640,16 @@ export async function generateDigitalFile(
       communications
         .filter(comm => !comm.metadata.isInternal)
         .forEach(comm => {
-          const date = comm.date instanceof Date ? comm.date : new Date(comm.date);
-          digitalFile.summary.timeline.push({
-            date,
-            event: `Comunicación: ${comm.authorName}`
-          });
+          if (comm.date) {
+            const date = comm.date instanceof Date ? comm.date : new Date(comm.date);
+            // Solo agregar si la fecha es válida
+            if (!isNaN(date.getTime())) {
+              digitalFile.summary.timeline.push({
+                date,
+                event: `Comunicación: ${comm.authorName}`
+              });
+            }
+          }
         });
     });
     
@@ -3684,11 +3700,16 @@ export async function generateDigitalFile(
         
         // Añadir a timeline
         karinDocuments.forEach(doc => {
-          const date = doc.date instanceof Date ? doc.date : new Date(doc.date);
-          digitalFile.summary.timeline.push({
-            date,
-            event: `Documento registrado: ${doc.title} (${doc.folioNumber || 'Sin folio'})`
-          });
+          if (doc.date) {
+            const date = doc.date instanceof Date ? doc.date : new Date(doc.date);
+            // Solo agregar si la fecha es válida
+            if (!isNaN(date.getTime())) {
+              digitalFile.summary.timeline.push({
+                date,
+                event: `Documento registrado: ${doc.title} (${doc.folioNumber || 'Sin folio'})`
+              });
+            }
+          }
         });
       });
       
@@ -3755,18 +3776,26 @@ export async function generateDigitalFile(
         
         // Añadir a timeline
         recommendations.forEach(rec => {
-          const date = rec.date instanceof Date ? rec.date : new Date(rec.date);
-          digitalFile.summary.timeline.push({
-            date,
-            event: `Recomendación creada: ${rec.title}`
-          });
+          if (rec.date) {
+            const date = rec.date instanceof Date ? rec.date : new Date(rec.date);
+            // Solo agregar si la fecha es válida
+            if (!isNaN(date.getTime())) {
+              digitalFile.summary.timeline.push({
+                date,
+                event: `Recomendación creada: ${rec.title}`
+              });
+            }
+          }
           
           // Si está completada, añadir también ese evento
           if (rec.metadata.completedAt) {
-            digitalFile.summary.timeline.push({
-              date: rec.metadata.completedAt,
-              event: `Recomendación completada: ${rec.title}`
-            });
+            const completedDate = rec.metadata.completedAt instanceof Date ? rec.metadata.completedAt : new Date(rec.metadata.completedAt);
+            if (!isNaN(completedDate.getTime())) {
+              digitalFile.summary.timeline.push({
+                date: completedDate,
+                event: `Recomendación completada: ${rec.title}`
+              });
+            }
           }
         });
       }
@@ -3920,7 +3949,7 @@ export async function generateDigitalFilePDF(
         storagePath,
         fileSize: 0, // Se actualizará al generar el archivo real
         generatedBy: exportOptions.userId,
-        status: 'processing',
+        status: ProcessingStatus.PROCESSING,
         options: {
           ...exportOptions,
           // No incluir la contraseña en la BD por seguridad
@@ -4142,15 +4171,26 @@ export async function generateDigitalFilePDF(
            .text('LÍNEA DE TIEMPO', { align: 'center' })
            .moveDown(1);
         
-        // Ordenar eventos cronológicamente
-        const sortedEvents = [...expediente.summary.timeline].sort((a, b) => 
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
+        // Filtrar eventos con fechas válidas y ordenar cronológicamente
+        const sortedEvents = [...expediente.summary.timeline]
+          .filter(event => {
+            const date = new Date(event.date);
+            return !isNaN(date.getTime());
+          })
+          .sort((a, b) => 
+            new Date(a.date).getTime() - new Date(b.date).getTime()
+          );
         
         // Dibujar línea de tiempo
         let timelineY = pdfDoc.y;
         sortedEvents.forEach((event, i) => {
           const date = new Date(event.date);
+          
+          // Validar que la fecha sea válida
+          if (isNaN(date.getTime())) {
+            console.warn('Fecha inválida en timeline:', event.date);
+            return; // Saltar este evento si la fecha es inválida
+          }
           
           // Dibujar punto en la línea
           pdfDoc.circle(100, timelineY + 10, 5)
@@ -4158,13 +4198,13 @@ export async function generateDigitalFilePDF(
           
           // Si no es el último evento, dibujar línea al siguiente punto
           if (i < sortedEvents.length - 1) {
-            doc.moveTo(100, timelineY + 15)
+            pdfDoc.moveTo(100, timelineY + 15)
                .lineTo(100, timelineY + 35)
                .stroke('#003366');
           }
           
           // Fecha y descripción
-          doc.fontSize(10)
+          pdfDoc.fontSize(10)
              .fillColor('#666666')
              .text(date.toLocaleDateString(), 120, timelineY, { width: 100 })
              .fontSize(11)
@@ -4223,7 +4263,7 @@ export async function generateDigitalFilePDF(
           // Fecha y autor
           pdfDoc.fontSize(10)
              .fillColor('#666666')
-             .text(`Fecha: ${new Date(document.date).toLocaleDateString()}`, 70, docsY)
+             .text(`Fecha: ${document.date ? new Date(document.date).toLocaleDateString() : 'Sin fecha'}`, 70, docsY)
              .moveDown(0.2);
           
           docsY = pdfDoc.y;
@@ -4309,7 +4349,7 @@ export async function generateDigitalFilePDF(
           // Fecha y autor
           pdfDoc.fontSize(10)
              .fillColor('#666666')
-             .text(`Fecha: ${new Date(evidence.date).toLocaleDateString()}`, 70, evidenceY)
+             .text(`Fecha: ${evidence.date ? new Date(evidence.date).toLocaleDateString() : 'Sin fecha'}`, 70, evidenceY)
              .moveDown(0.2);
           
           evidenceY = pdfDoc.y;
@@ -4720,7 +4760,7 @@ export async function generateDigitalFilePDF(
       
       // Actualizar la exportación con la información final
       await updateDoc(exportRef, {
-        status: 'completed',
+        status: ProcessingStatus.COMPLETED,
         completedAt: serverTimestamp(),
         fileSize: pdfBuffer.length,
         downloadUrl: downloadURL,
@@ -4760,7 +4800,7 @@ export async function generateDigitalFilePDF(
       
       // Actualizar el estado de la exportación a error
       await updateDoc(exportRef, {
-        status: 'error',
+        status: ProcessingStatus.ERROR,
         error: pdfError.message || 'Error al generar el PDF',
         errorDetails: JSON.stringify(pdfError)
       });
@@ -4928,7 +4968,7 @@ export async function getDigitalFileExports(
     downloadUrl?: string;
     generatedBy: string;
     generatedByName?: string;
-    status: 'processing' | 'completed' | 'error';
+    status: ProcessingStatus.PROCESSING | ProcessingStatus.COMPLETED | ProcessingStatus.ERROR;
     options?: Record<string, any>;
   }>;
   error?: string;
@@ -4976,7 +5016,7 @@ export async function getDigitalFileExports(
         downloadUrl: exportData.downloadUrl || `https://storage.googleapis.com/bucket-name/${exportData.storagePath}`,
         generatedBy: exportData.generatedBy || 'system',
         generatedByName,
-        status: exportData.status || 'completed',
+        status: exportData.status || ProcessingStatus.COMPLETED,
         options: exportData.options
       };
     }));
@@ -5026,7 +5066,7 @@ export async function addRecommendation(
       // Preparar datos para guardar
       const dataToSave = {
         ...recommendationData,
-        status: 'Pendiente',
+        status: ReportStatusSpanish.PENDIENTE,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: userId,
@@ -5080,12 +5120,12 @@ export async function addRecommendation(
       const reportData = reportSnap.data();
       if (reportData.status === 'Resuelta') {
         await updateDoc(reportRef, {
-          status: 'En Seguimiento',
+          status: ReportStatusSpanish.EN_SEGUIMIENTO,
           updatedAt: serverTimestamp(),
         });
         
         // Actualizar estadísticas
-        await updateReportStats(companyId, 'Resuelta', 'En Seguimiento');
+        await updateReportStats(companyId, ReportStatusSpanish.RESUELTA, ReportStatusSpanish.EN_SEGUIMIENTO);
         
         // Registrar cambio de estado
         await addDoc(
@@ -5096,7 +5136,7 @@ export async function addRecommendation(
             actionType: 'statusChange',
             description: 'Estado cambiado a: En Seguimiento',
             previousStatus: 'Resuelta',
-            newStatus: 'En Seguimiento',
+            newStatus: ReportStatusSpanish.EN_SEGUIMIENTO,
             visibleToReporter: true,
           }
         );
@@ -5243,14 +5283,14 @@ if (updates.status === 'Completado') {
         const reportSnap = await getDoc(reportRef);
         if (reportSnap.exists()) {
           const reportData = reportSnap.data();
-          if (reportData.status === 'En Seguimiento') {
+          if (reportData.status === ReportStatusSpanish.EN_SEGUIMIENTO) {
             await updateDoc(reportRef, {
-              status: 'Cerrada',
+              status: ReportStatusSpanish.CERRADA,
               updatedAt: serverTimestamp(),
             });
             
             // Actualizar estadísticas
-            await updateReportStats(companyId, 'En Seguimiento', 'Cerrada');
+            await updateReportStats(companyId, ReportStatusSpanish.EN_SEGUIMIENTO, ReportStatusSpanish.CERRADA);
             
             // Registrar cambio de estado
             await addDoc(
@@ -5260,8 +5300,8 @@ if (updates.status === 'Completado') {
                 actorId: updates.updatedBy,
                 actionType: 'statusChange',
                 description: 'Estado cambiado a: Cerrada',
-                previousStatus: 'En Seguimiento',
-                newStatus: 'Cerrada',
+                previousStatus: ReportStatusSpanish.EN_SEGUIMIENTO,
+                newStatus: ReportStatusSpanish.CERRADA,
                 visibleToReporter: true,
                 comment: 'Todas las recomendaciones han sido completadas',
               }
@@ -5337,7 +5377,7 @@ if (updates.status === 'Completado') {
       const reportsRef = collection(db, `companies/${companyId}/reports`);
       const q = query(
         reportsRef,
-        where('status', 'in', ['Resuelta', 'En Seguimiento']),
+        where('status', 'in', [ReportStatusSpanish.RESUELTA, ReportStatusSpanish.EN_SEGUIMIENTO]),
         orderBy('updatedAt', 'desc')
       );
       
@@ -5594,6 +5634,236 @@ export async function deleteReport(
     return {
       success: false,
       error: 'Error al eliminar la denuncia'
+    };
+  }
+}
+
+/**
+ * FUNCIONES PARA GESTIÓN DE SUBSANACIÓN LEY KARIN
+ */
+
+/**
+ * Registrar una solicitud de subsanación para casos Ley Karin
+ */
+export async function registerSubsanationRequest(
+  companyId: string,
+  reportId: string,
+  items: Array<{
+    id: string;
+    description: string;
+    docType: string;
+    required: boolean;
+  }>,
+  deadline: Date,
+  comments?: string
+) {
+  try {
+    // Verificar que el reporte existe y es de Ley Karin
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return { success: false, error: 'Reporte no encontrado' };
+    }
+    
+    const reportData = reportDoc.data();
+    if (!reportData.isKarinLaw) {
+      return { success: false, error: 'Esta función solo está disponible para casos Ley Karin' };
+    }
+    
+    // Actualizar el documento con la información de subsanación
+    const subsanationData = {
+      'karinProcess.subsanationRequested': true,
+      'karinProcess.subsanationRequestDate': serverTimestamp(),
+      'karinProcess.subsanationDeadline': Timestamp.fromDate(deadline),
+      'karinProcess.subsanationItems': items,
+      'karinProcess.subsanationComments': comments || '',
+      'karinProcess.subsanationReceived': false,
+      'karinProcess.subsanationDocuments': [],
+      'karinProcess.stage': 'subsanation',
+      updatedAt: serverTimestamp()
+    };
+    
+    await updateDoc(reportRef, subsanationData);
+    
+    // Crear notificación para el denunciante si no es anónimo
+    if (!reportData.reporter?.isAnonymous && reportData.reporter?.contactInfo?.email) {
+      await createNotification(companyId, {
+        type: 'subsanation_requested',
+        title: 'Solicitud de Subsanación',
+        message: `Se ha solicitado información adicional para su denuncia ${reportData.code}`,
+        targetUserId: reportData.reporter.contactInfo.email,
+        reportId: reportId,
+        data: {
+          reportCode: reportData.code,
+          deadline: deadline.toISOString(),
+          itemsCount: items.length
+        }
+      });
+    }
+    
+    return { 
+      success: true,
+      message: 'Solicitud de subsanación registrada exitosamente',
+      data: { items, deadline, reportCode: reportData.code }
+    };
+    
+  } catch (error) {
+    console.error('Error al registrar solicitud de subsanación:', error);
+    return {
+      success: false,
+      error: 'Error al registrar la solicitud de subsanación'
+    };
+  }
+}
+
+/**
+ * Subir documento de respuesta a solicitud de subsanación
+ */
+export async function uploadSubsanationDocument(
+  companyId: string,
+  reportId: string,
+  file: File,
+  itemId: string,
+  description: string
+) {
+  try {
+    // Verificar que el reporte existe
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return { success: false, error: 'Reporte no encontrado' };
+    }
+    
+    // Validar el archivo
+    const maxSize = 15 * 1024 * 1024; // 15MB
+    if (file.size > maxSize) {
+      return { success: false, error: 'El archivo es demasiado grande (máximo 15MB)' };
+    }
+    
+    // Generar nombre único para el archivo
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `subsanation_${itemId}_${Date.now()}.${fileExtension}`;
+    const filePath = `companies/${companyId}/reports/${reportId}/subsanation/${fileName}`;
+    
+    // Subir archivo a Firebase Storage
+    const storageRef = ref(storage, filePath);
+    const uploadResult = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+    
+    // Crear documento de subsanación
+    const documentData = {
+      id: uuidv4(),
+      itemId: itemId,
+      fileName: file.name,
+      originalName: file.name,
+      description: description,
+      fileSize: file.size,
+      fileType: file.type,
+      downloadURL: downloadURL,
+      uploadedAt: serverTimestamp(),
+      status: FileStatus.UPLOADED
+    };
+    
+    // Actualizar el reporte agregando el documento a la lista
+    const reportData = reportDoc.data();
+    const currentDocuments = reportData.karinProcess?.subsanationDocuments || [];
+    const updatedDocuments = [...currentDocuments, documentData];
+    
+    await updateDoc(reportRef, {
+      'karinProcess.subsanationDocuments': updatedDocuments,
+      updatedAt: serverTimestamp()
+    });
+    
+    return {
+      success: true,
+      message: 'Documento subido exitosamente',
+      data: {
+        documentId: documentData.id,
+        fileName: file.name,
+        downloadURL: downloadURL
+      }
+    };
+    
+  } catch (error) {
+    console.error('Error al subir documento de subsanación:', error);
+    return {
+      success: false,
+      error: 'Error al subir el documento'
+    };
+  }
+}
+
+/**
+ * Marcar un elemento de subsanación como completado/pendiente
+ */
+export async function markSubsanationItem(
+  companyId: string,
+  reportId: string,
+  itemId: string,
+  completed: boolean
+) {
+  try {
+    // Verificar que el reporte existe
+    const reportRef = doc(db, `companies/${companyId}/reports/${reportId}`);
+    const reportDoc = await getDoc(reportRef);
+    
+    if (!reportDoc.exists()) {
+      return { success: false, error: 'Reporte no encontrado' };
+    }
+    
+    const reportData = reportDoc.data();
+    const subsanationItems = reportData.karinProcess?.subsanationItems || [];
+    
+    // Buscar y actualizar el elemento específico
+    const updatedItems = subsanationItems.map((item: any) => {
+      if (item.id === itemId) {
+        return {
+          ...item,
+          completed: completed,
+          completedAt: completed ? new Date().toISOString() : null
+        };
+      }
+      return item;
+    });
+    
+    // Verificar si todos los elementos requeridos están completados
+    const requiredItems = updatedItems.filter((item: any) => item.required);
+    const completedRequiredItems = requiredItems.filter((item: any) => item.completed);
+    const allRequiredCompleted = requiredItems.length === completedRequiredItems.length;
+    
+    // Actualizar el documento
+    const updateData: any = {
+      'karinProcess.subsanationItems': updatedItems,
+      updatedAt: serverTimestamp()
+    };
+    
+    // Si todos los elementos requeridos están completados, marcar subsanación como recibida
+    if (allRequiredCompleted) {
+      updateData['karinProcess.subsanationReceived'] = true;
+      updateData['karinProcess.subsanationCompletedDate'] = serverTimestamp();
+      // Permitir avanzar a la siguiente etapa
+      updateData['karinProcess.stage'] = 'precautionary_measures';
+    }
+    
+    await updateDoc(reportRef, updateData);
+    
+    return {
+      success: true,
+      message: `Elemento ${completed ? 'marcado como completado' : 'desmarcado'}`,
+      data: {
+        itemId: itemId,
+        completed: completed,
+        allRequiredCompleted: allRequiredCompleted
+      }
+    };
+    
+  } catch (error) {
+    console.error('Error al marcar elemento de subsanación:', error);
+    return {
+      success: false,
+      error: 'Error al actualizar el elemento de subsanación'
     };
   }
 }
