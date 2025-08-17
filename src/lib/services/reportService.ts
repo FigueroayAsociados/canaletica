@@ -3186,9 +3186,29 @@ export async function getKarinReports(
       };
     }
 
-    // Obtener todas las denuncias de Ley Karin
+    // Obtener denuncias de Ley Karin según el rol del usuario (misma lógica que getAssignedReports)
     const reportsRef = collection(db, `companies/${companyId}/reports`);
-    const q = query(reportsRef, where('isKarinLaw', '==', true), orderBy('createdAt', 'desc'));
+    let q;
+    
+    // Aplicar la misma lógica de roles que en getAssignedReports
+    const isSuperAdminUser = userRole === 'super_admin';
+    const isUserAdmin = isSuperAdminUser || userRole === 'admin';
+    
+    if (isUserAdmin) {
+      // Admins y super_admins ven todas las denuncias de Ley Karin de la empresa
+      console.log(`Admin/Super_admin - mostrando todas las denuncias Ley Karin de la compañía: ${companyId}`);
+      q = query(reportsRef, where('isKarinLaw', '==', true), orderBy('createdAt', 'desc'));
+    } else {
+      // Investigadores solo ven las denuncias Ley Karin que tienen asignadas
+      console.log(`Investigador - mostrando solo denuncias Ley Karin asignadas a: ${userId}`);
+      q = query(
+        reportsRef,
+        where('isKarinLaw', '==', true),
+        where('assignedTo', '==', userId),
+        orderBy('createdAt', 'desc')
+      );
+    }
+    
     const snapshot = await getDocs(q);
     
     if (snapshot.empty) {
