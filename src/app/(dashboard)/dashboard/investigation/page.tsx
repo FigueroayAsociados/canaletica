@@ -37,11 +37,11 @@ export default function InvestigationPage() {
   // Cargar las denuncias asignadas
   useEffect(() => {
     async function fetchAssignedReports() {
-      if (!uid) return;
+      if (!uid || !profile?.role) return;
 
       try {
         setLoading(true);
-        const result = await getAssignedReports(userCompanyId, uid, profile?.role);
+        const result = await getAssignedReports(userCompanyId, uid, profile.role);
 
         if (result.success) {
           console.log('Denuncias asignadas:', result.reports); // Para depuración
@@ -59,7 +59,7 @@ export default function InvestigationPage() {
     }
 
     fetchAssignedReports();
-  }, [uid]);
+  }, [uid, profile?.role, userCompanyId]);
 
   // Aplicar filtros
   useEffect(() => {
