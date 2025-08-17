@@ -58,11 +58,24 @@ export default function RegisterPage() {
       
       // Crear el perfil del usuario en Firestore
       // Utilizamos el ID de compañía del contexto
-      await createUserProfile(contextCompanyId, user.uid, {
+      const profileResult = await createUserProfile(contextCompanyId, user.uid, {
         displayName,
         email,
         role,
         createdAt: new Date(),
+      });
+      
+      // Verificar que el perfil se creó correctamente
+      if (!profileResult.success) {
+        throw new Error(profileResult.error || 'Error al crear el perfil de usuario');
+      }
+      
+      console.log('✅ Usuario y perfil creados exitosamente:', {
+        uid: user.uid,
+        email,
+        displayName,
+        role,
+        companyId: contextCompanyId
       });
       
       // Redireccionar al dashboard o a una página de confirmación
