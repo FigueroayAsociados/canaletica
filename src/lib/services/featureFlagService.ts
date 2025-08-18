@@ -41,9 +41,9 @@ export interface FeatureFlags {
 
 // Valores predeterminados para los feature flags
 const DEFAULT_FEATURE_FLAGS: Omit<FeatureFlags, 'updatedAt' | 'updatedBy'> = {
-  // Core features - desactivadas por defecto
-  modulesEnabled: false,
-  aiEnabled: false,
+  // Core features - IA ACTIVADA para testing
+  modulesEnabled: true,
+  aiEnabled: true,
   
   // Módulos - solo Karin activado por defecto
   karinModuleEnabled: true,
@@ -58,10 +58,10 @@ const DEFAULT_FEATURE_FLAGS: Omit<FeatureFlags, 'updatedAt' | 'updatedBy'> = {
   
   // Características específicas
   emailNotificationsEnabled: true,
-  riskAnalysisEnabled: false,
-  conversationalAssistantEnabled: false,
-  aiInsightsEnabled: false,
-  smartAlertsEnabled: false
+  riskAnalysisEnabled: true,
+  conversationalAssistantEnabled: true,
+  aiInsightsEnabled: true,
+  smartAlertsEnabled: true
 };
 
 /**
