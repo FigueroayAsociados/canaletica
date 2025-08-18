@@ -3,6 +3,7 @@
 import { getFeatureFlags } from '@/lib/services/featureFlagService';
 import { normalizeCompanyId } from '@/lib/utils/helpers';
 import { logger } from '@/lib/utils/logger';
+import { analyzeRiskWithClaude, generateDocumentWithClaude, chatWithClaude } from '@/lib/services/claudeClient';
 
 /**
  * Tipo para los niveles de riesgo
@@ -199,12 +200,26 @@ export const aiService = {
 
       const { userRole, userMessage, previousMessages = [], context = {} } = params;
       
-      // En una implementación real, aquí se conectaría con un servicio de IA externo
-      // Para esta demostración, simulamos respuestas basadas en el rol y contexto
+      // INTEGRACIÓN REAL CON CLAUDE
+      try {
+        const responseContent = await chatWithClaude(userMessage, context, userRole);
+        
+        return {
+          success: true,
+          response: {
+            role: 'assistant',
+            content: responseContent,
+            timestamp: new Date()
+          }
+        };
+      } catch (error) {
+        console.error('Error con Claude, usando fallback:', error);
+        // Fallback a respuestas simuladas si Claude falla
+      }
       
       let responseContent = '';
       
-      // Respuestas específicas basadas en el rol del usuario
+      // FALLBACK: Respuestas simuladas si Claude no está disponible
       if (userRole === 'investigator') {
         // Lógica para investigadores: ayuda con investigaciones y uso de la app
         if (userMessage.toLowerCase().includes('plazo') || userMessage.toLowerCase().includes('tiempo')) {
@@ -287,10 +302,32 @@ export const aiService = {
         };
       }
 
-      // En una implementación real, aquí se conectaría con un servicio de IA externo
-      // Para esta demostración, simulamos un análisis basado en palabras clave
+      // INTEGRACIÓN REAL CON CLAUDE PARA ANÁLISIS DE RIESGO
+      try {
+        const claudeAnalysis = await analyzeRiskWithClaude(
+          params.reportContent, 
+          params.category || 'general'
+        );
+        
+        return {
+          success: true,
+          analysis: {
+            riskScore: claudeAnalysis.riskScore,
+            riskLevel: claudeAnalysis.riskLevel as RiskLevel,
+            riskFactors: claudeAnalysis.factors,
+            urgency: claudeAnalysis.urgency,
+            recommendations: claudeAnalysis.recommendations,
+            detectedPatterns: [],
+            confidence: 0.95,
+            timestamp: new Date()
+          }
+        };
+      } catch (error) {
+        console.error('Error con Claude para análisis de riesgo, usando fallback:', error);
+        // Fallback a análisis simulado
+      }
       
-      // Convertir el contenido a minúsculas para análisis
+      // FALLBACK: Análisis simulado si Claude no está disponible
       const content = params.reportContent.toLowerCase();
       
       // Criterios básicos para detección de riesgo
