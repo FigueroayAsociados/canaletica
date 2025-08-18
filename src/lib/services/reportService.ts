@@ -3304,6 +3304,7 @@ export async function getKarinReports(
         id: doc.id,
         ...reportData,
         assignedToName,
+        investigatorName: assignedToName, // Mantener consistencia con otras funciones
         deadlineInfo,
         latestDocument
       };
