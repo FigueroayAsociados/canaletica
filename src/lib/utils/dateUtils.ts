@@ -17,7 +17,13 @@ export enum BusinessDayType {
   /**
    * Día hábil administrativo (lunes a viernes, sin festivos)
    */
-  ADMINISTRATIVE = 'administrative'
+  ADMINISTRATIVE = 'administrative',
+
+  /**
+   * Días corridos/calendario (incluye todos los días)
+   * Usado para casos específicos como adopción de medidas Ley Karin
+   */
+  CALENDAR = 'calendar'
 }
 
 // Lista de feriados chilenos (actualizar cada año)
@@ -418,4 +424,99 @@ export function getRelativeTimeText(date: any, referenceDate: any = new Date()):
     if (absDays < 60) return `Hace 1 mes`;
     return `Hace ${Math.floor(absDays / 30)} meses`;
   }
+}
+
+// ========================================
+// FUNCIONES ESPECÍFICAS LEY KARIN
+// ========================================
+
+/**
+ * Añade días corridos (calendario) a una fecha
+ * Usado específicamente para plazos de adopción de medidas (15 días corridos)
+ * @param date Fecha inicial
+ * @param days Número de días corridos a añadir
+ * @returns Nueva fecha con los días añadidos
+ */
+export function addCalendarDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+/**
+ * Calcula días restantes considerando el tipo de días
+ * @param endDate Fecha límite
+ * @param type Tipo de días (hábiles administrativos, laborales o corridos)
+ * @returns Número de días restantes
+ */
+export function calculateDaysRemaining(
+  endDate: Date, 
+  type: BusinessDayType = BusinessDayType.ADMINISTRATIVE
+): number {
+  const now = new Date();
+  
+  if (endDate <= now) {
+    return 0;
+  }
+
+  if (type === BusinessDayType.CALENDAR) {
+    // Para días corridos, simple diferencia
+    return Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  // Para días hábiles, contar solo días válidos
+  let remainingDays = 0;
+  let current = new Date(now);
+  
+  while (current < endDate) {
+    current.setDate(current.getDate() + 1);
+    if (isBusinessDay(current, type)) {
+      remainingDays++;
+    }
+  }
+  
+  return remainingDays;
+}
+
+/**
+ * Determina el tipo de días según normativa Ley Karin
+ * @param stageName Nombre de la etapa o plazo
+ * @returns Tipo de días apropiado
+ */
+export function getKarinDeadlineType(stageName: string): BusinessDayType {
+  // Casos específicos que usan días corridos
+  if (
+    stageName.toLowerCase().includes('adopción de medidas') ||
+    stageName.toLowerCase().includes('measures_adoption') ||
+    stageName.toLowerCase().includes('calendar') ||
+    stageName.toLowerCase().includes('corridos')
+  ) {
+    return BusinessDayType.CALENDAR;
+  }
+
+  // Por defecto, días hábiles administrativos (Ley Karin estándar)
+  return BusinessDayType.ADMINISTRATIVE;
+}
+
+/**
+ * Calcula fecha límite según tipo de plazo Ley Karin
+ * @param startDate Fecha de inicio
+ * @param days Número de días
+ * @param type Tipo de días (si no se especifica, se infiere)
+ * @param context Contexto para inferir tipo (opcional)
+ * @returns Fecha límite calculada
+ */
+export function calculateKarinDeadline(
+  startDate: Date,
+  days: number,
+  type?: BusinessDayType,
+  context?: string
+): Date {
+  const deadlineType = type || getKarinDeadlineType(context || '');
+  
+  if (deadlineType === BusinessDayType.CALENDAR) {
+    return addCalendarDays(startDate, days);
+  }
+  
+  return addBusinessDays(startDate, days, deadlineType);
 }

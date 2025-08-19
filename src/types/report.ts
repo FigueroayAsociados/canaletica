@@ -251,8 +251,9 @@ export type KarinDeadline = {
   startDate: string;                // Fecha de inicio del plazo
   endDate: string;                  // Fecha de vencimiento
   businessDays: number;             // Días hábiles de plazo
+  calendarDays?: number;            // Días corridos (para casos específicos como adopción de medidas)
   status: DeadlineStatus;           // Estado actual del plazo
-  daysRemaining?: number;           // Días hábiles restantes (calculados)
+  daysRemaining?: number;           // Días restantes (calculados)
   completedDate?: string;           // Fecha en que se completó la tarea
   completedBy?: string;             // Usuario que completó la tarea
   isLegalRequirement: boolean;      // Si es un plazo legal obligatorio
@@ -274,95 +275,142 @@ export type KarinDeadline = {
   progressPercentage?: number;      // Porcentaje de avance (0-100)
 };
 
-// Lista de plazos legales para Ley Karin
+// Lista de plazos legales para Ley Karin - CORREGIDA SEGÚN NORMATIVA OFICIAL
 export const DEFAULT_KARIN_DEADLINES: Partial<KarinDeadline>[] = [
-  {
-    name: 'Notificación inicial a DT',
-    description: 'Plazo para notificar a la Dirección del Trabajo sobre la denuncia',
-    businessDays: 3,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
-    associatedStage: 'reception',
-    priority: 'high'
-  },
-  {
-    name: 'Adopción de medidas precautorias',
-    description: 'Plazo para implementar medidas de resguardo o precautorias',
-    businessDays: 3,
-    isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
-    associatedStage: 'reception',
-    priority: 'high'
-  },
   {
     name: 'Subsanación de denuncia',
     description: 'Plazo para que el denunciante subsane información faltante o incompleta',
     businessDays: 5,
     isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-A del Código del Trabajo',
+    legalReference: 'Ley Karin N° 21.643, artículo 211-A del Código del Trabajo',
     associatedStage: 'subsanation',
     priority: 'high'
   },
   {
-    name: 'Notificación a SUSESO/Mutualidad',
-    description: 'Plazo para notificar a la mutualidad correspondiente',
-    businessDays: 5,
+    name: 'Adopción de medidas de resguardo',
+    description: 'Plazo para implementar medidas de resguardo (inmediato, máximo 3 días hábiles)',
+    businessDays: 3,
     isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-B del Código del Trabajo',
-    associatedStage: 'dt_notification',
-    priority: 'medium'
+    legalReference: 'Ley Karin N° 21.643, Decreto N° 21/2024',
+    associatedStage: 'precautionary_measures',
+    priority: 'high'
   },
   {
-    name: 'Investigación interna',
-    description: 'Plazo para completar la investigación interna',
+    name: 'Notificación inicial a DT',
+    description: 'Plazo para notificar a la Dirección del Trabajo sobre la denuncia',
+    businessDays: 3,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin N° 21.643, Circular DT N° 3/2024',
+    associatedStage: 'dt_notification',
+    priority: 'high'
+  },
+  {
+    name: 'Notificación a SUSESO/Mutualidad',
+    description: 'Plazo para notificar a SUSESO y organismos administradores',
+    businessDays: 5,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin N° 21.643, Circular SUSESO N° 3813/2024',
+    associatedStage: 'dt_notification',
+    priority: 'high'
+  },
+  {
+    name: 'Nombramiento del investigador',
+    description: 'Plazo para designar investigador capacitado',
+    businessDays: 3,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin N° 21.643, Circular DT N° 4/2024',
+    associatedStage: 'investigation',
+    priority: 'high'
+  },
+  {
+    name: 'Notificaciones inicio investigación',
+    description: 'Plazo para notificar a las partes el inicio de investigación',
+    businessDays: 3,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin N° 21.643, Circular DT N° 4/2024',
+    associatedStage: 'investigation',
+    priority: 'high'
+  },
+  {
+    name: 'Citaciones y declaraciones',
+    description: 'Plazo para realizar citaciones (primeros 10 días de investigación)',
+    businessDays: 10,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin N° 21.643, Decreto N° 21/2024',
+    associatedStage: 'investigation',
+    priority: 'high'
+  },
+  {
+    name: 'Recopilación de pruebas',
+    description: 'Plazo para recopilar todas las pruebas (primeros 25 días)',
+    businessDays: 25,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin N° 21.643, Decreto N° 21/2024',
+    associatedStage: 'investigation',
+    priority: 'high'
+  },
+  {
+    name: 'Investigación interna total',
+    description: 'Plazo total para completar la investigación interna',
     businessDays: 30,
     isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-C del Código del Trabajo',
+    legalReference: 'Ley Karin N° 21.643, artículo 211-C del Código del Trabajo',
     associatedStage: 'investigation',
     priority: 'high'
   },
   {
     name: 'Prórroga investigación',
-    description: 'Extensión del plazo de investigación (si se solicita)',
+    description: 'Extensión del plazo de investigación (+30 días adicionales)',
     businessDays: 30,
     isLegalRequirement: false,
-    legalReference: 'Ley Karin, artículo 211-C del Código del Trabajo',
-    associatedStage: 'investigation',
+    legalReference: 'Ley Karin N° 21.643, artículo 211-C del Código del Trabajo',
+    associatedStage: 'investigation_extension',
     priority: 'medium'
   },
   {
     name: 'Remisión a DT',
-    description: 'Plazo para enviar el informe final y expediente a la DT',
+    description: 'Plazo para enviar expediente completo a la Dirección del Trabajo',
     businessDays: 2,
     isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-D del Código del Trabajo',
-    associatedStage: 'investigation_complete',
+    legalReference: 'Ley Karin N° 21.643, artículo 211-D del Código del Trabajo',
+    associatedStage: 'dt_submission',
     priority: 'high'
   },
   {
-    name: 'Respuesta DT',
-    description: 'Plazo para que la DT revise y responda sobre el caso',
+    name: 'Pronunciamiento DT',
+    description: 'Plazo para que la DT se pronuncie sobre el caso',
     businessDays: 30,
     isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-E del Código del Trabajo',
-    associatedStage: 'dt_submission',
+    legalReference: 'Ley Karin N° 21.643, artículo 211-E del Código del Trabajo',
+    associatedStage: 'dt_resolution',
     priority: 'medium'
   },
   {
-    name: 'Adopción de medidas',
-    description: 'Plazo para implementar medidas dispuestas (días corridos, no hábiles)',
-    businessDays: 0, // Se maneja diferente por ser días corridos
+    name: 'Adopción de medidas (con pronunciamiento DT)',
+    description: 'Plazo para implementar medidas tras pronunciamiento DT (15 días CORRIDOS)',
+    businessDays: 0, // CORRIDOS, no hábiles - se maneja por separado
+    calendarDays: 15,
     isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-F del Código del Trabajo',
+    legalReference: 'Ley Karin N° 21.643, artículo 211-F del Código del Trabajo',
+    associatedStage: 'measures_adoption',
+    priority: 'high'
+  },
+  {
+    name: 'Adopción de medidas (sin pronunciamiento DT)',
+    description: 'Plazo para implementar medidas si DT no se pronuncia (15 días CORRIDOS tras vencer plazo DT)',
+    businessDays: 0, // CORRIDOS, no hábiles - se maneja por separado
+    calendarDays: 15,
+    isLegalRequirement: true,
+    legalReference: 'Ley Karin N° 21.643, artículo 211-F del Código del Trabajo',
     associatedStage: 'measures_adoption',
     priority: 'high'
   },
   {
     name: 'Reclamación de multas',
-    description: 'Plazo para reclamar las multas aplicadas',
+    description: 'Plazo para reclamar las multas aplicadas por la DT',
     businessDays: 15,
     isLegalRequirement: true,
-    legalReference: 'Ley Karin, artículo 211-G del Código del Trabajo',
+    legalReference: 'Ley Karin N° 21.643, artículo 211-G del Código del Trabajo',
     associatedStage: 'sanctions',
     priority: 'medium'
   }
