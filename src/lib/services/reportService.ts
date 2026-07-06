@@ -227,46 +227,12 @@ export async function assignReport(
         }
       );
   
-  // Enviar notificaciones - Ahora con mejor manejo de errores
-try {
-  console.log('Inicio de proceso de notificaciones');
-  
-  // 1. Si no es anónimo y proporcionó correo, notificar al denunciante
-  if (!reportData.isAnonymous && reportData.contactInfo?.email) {
-    try {
-      console.log(`Intentando notificar al denunciante: ${reportData.contactInfo.email}`);
-      const notifyResult = await notifyReportCreated(
-        companyId,
-        reportRef.id,
-        reportCode,
-        reportData.contactInfo.email
-      );
-      console.log('Resultado notificación denunciante:', notifyResult);
-    } catch (reporterError) {
-      console.error('Error específico al notificar denunciante:', reporterError);
-      // Continuar con el flujo
-    }
-  }
-
-  // 2. Notificar a los administradores (en un bloque try independiente)
-  try {
-    console.log('Intentando notificar a administradores');
-    const adminNotifyResult = await notifyAdminsNewReport(
-      companyId,
-      reportRef.id,
-      reportCode,
-      reportData.category,
-      reportData.isKarinLaw
-    );
-    console.log('Resultado notificación administradores:', adminNotifyResult);
-  } catch (adminError) {
-    console.error('Error específico al notificar administradores:', adminError);
-    // Continuar con el flujo
-  }
-} catch (notificationError) {
-  console.error('Error general al enviar notificaciones:', notificationError);
-  // No interrumpir el flujo por error en notificaciones
-}    
+  // NOTA: las notificaciones por correo (al denunciante y a los
+  // administradores) las envía el disparador de servidor `onReportCreated`
+  // (functions/src/index.ts), que corre con permisos de admin y es fiable.
+  // Antes también se enviaban aquí desde el navegador, lo que producía
+  // correos DUPLICADOS y —tras cerrar las reglas— errores de permiso al
+  // leer la lista de usuarios. Se deja un solo camino (el servidor).
       return {
         success: true,
         reportId: reportRef.id,
