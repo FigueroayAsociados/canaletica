@@ -114,33 +114,33 @@ service cloud.firestore {
         // Cualquiera puede CREAR una denuncia (canal público/anónimo).
         allow create: if true;
 
-        // ⚠️ CAPA 2 (pendiente): la LECTURA sigue abierta porque el
-        // seguimiento anónimo lee la denuncia desde el navegador
-        // (getReportByCode + accessCode). Cerrar esto requiere mover el
-        // seguimiento a un endpoint de servidor (Cloud Function con admin
-        // SDK que valide el accessCode). Hecho eso, cambiar a:
-        //   allow read: if isCompanyStaff(companyId) || isPrimaryAdmin();
-        allow read: if true;
+        // LECTURA cerrada a personal de la empresa (o super admin).
+        // 'read' en Firestore cubre también LISTAR la colección completa,
+        // así que dejarlo abierto permitía descargar TODAS las denuncias.
+        // ⚠️ CAPA 2: el seguimiento anónimo (getReportByCode, que hace una
+        // consulta) queda temporalmente inhabilitado hasta mover esa
+        // búsqueda a un endpoint de servidor que valide el accessCode.
+        allow read: if isCompanyStaff(companyId) || isPrimaryAdmin();
 
-        // ACTUALIZAR/BORRAR: solo personal (antes cualquiera podía
-        // modificar cualquier denuncia). Esto SÍ se cierra ahora.
+        // ACTUALIZAR/BORRAR: solo personal.
         allow update: if isCompanyStaff(companyId) || isPrimaryAdmin();
         allow delete: if false; // nunca borrar, solo archivar
 
-        // Subcolecciones (evidencias, hallazgos, reporter/info…):
-        // creación y lectura abiertas (las necesita el envío público y el
-        // seguimiento — CAPA 2), pero editar/borrar solo personal:
-        // así se evita la manipulación anónima de una denuncia existente.
+        // Subcolecciones (evidencias, testigos, actividades, reporter/info…):
+        // CREAR permitido para el envío público (sin sesión); leer/editar/
+        // borrar solo personal (protege identidad del denunciante y evita
+        // manipulación anónima).
         match /{sub}/{docId} {
-          allow create, read: if true;
-          allow update, delete: if isCompanyStaff(companyId) || isPrimaryAdmin();
+          allow create: if true;
+          allow read, update, delete: if isCompanyStaff(companyId) || isPrimaryAdmin();
         }
 
-        // Comunicaciones: el denunciante anónimo puede escribir/leer sus
-        // mensajes; editar/borrar solo personal.
+        // Comunicaciones: crear permitido (mensaje del denunciante);
+        // leer/editar/borrar solo personal. (El acceso del denunciante a
+        // sus mensajes volverá con el endpoint de servidor — Capa 2.)
         match /communications/{messageId} {
-          allow create, read: if true;
-          allow update, delete: if isCompanyStaff(companyId) || isPrimaryAdmin();
+          allow create: if true;
+          allow read, update, delete: if isCompanyStaff(companyId) || isPrimaryAdmin();
         }
       }
 
