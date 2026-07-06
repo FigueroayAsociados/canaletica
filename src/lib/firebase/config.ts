@@ -28,7 +28,13 @@ if (typeof window !== 'undefined') {
   analytics = getAnalytics(app);
 }
 
-const auth = getAuth(app);
+// getAuth() valida la API key y LANZA 'auth/invalid-api-key' si falta.
+// Durante el build (recolección de páginas) puede no haber variables de
+// entorno, lo que rompía la compilación en Vercel. Inicializamos auth solo
+// cuando hay API key; en tiempo de ejecución siempre está presente.
+const auth = firebaseConfig.apiKey
+  ? getAuth(app)
+  : (undefined as unknown as ReturnType<typeof getAuth>);
 const db = getFirestore(app);
 const storage = getStorage(app);
 const functions = getFunctions(app);
