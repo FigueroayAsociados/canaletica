@@ -175,26 +175,48 @@ export async function notifyAdminsNewReport(
   isKarinLaw: boolean
 ) {
   try {
-    // Buscar todos los usuarios con rol de administrador
+    // Buscar todos los usuarios con rol de administrador de ESTA empresa
     const usersRef = collection(db, `companies/${companyId}/users`);
     const q = query(usersRef, where('role', '==', 'admin'));
     const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      return { success: false, error: 'No se encontraron administradores' };
+
+    // Destinatarios: admins de la empresa { email, userId }
+    const recipients: Array<{ email: string; userId?: string }> = querySnapshot.docs
+      .map((userDoc) => ({ email: userDoc.data().email, userId: userDoc.id }))
+      .filter((r) => !!r.email);
+
+    // Copiar SIEMPRE al/los operador(es) de la plataforma (Figueroa y Asociados).
+    // Configurable vía NEXT_PUBLIC_PLATFORM_NOTIFICATION_EMAILS (correos separados por coma).
+    const operatorEmails = (process.env.NEXT_PUBLIC_PLATFORM_NOTIFICATION_EMAILS ||
+      'rfigueroaf@figueroayasociados.cl')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    // Combinar y deduplicar por email (evita doble correo si el operador ya es admin)
+    const seen = new Set(recipients.map((r) => r.email.toLowerCase()));
+    for (const email of operatorEmails) {
+      if (!seen.has(email)) {
+        recipients.push({ email });
+        seen.add(email);
+      }
     }
 
-    // Notificar a cada administrador
-    const notifications = querySnapshot.docs.map(async (userDoc) => {
-      const adminData = userDoc.data();
-      
-      // Título especial para Ley Karin por su urgencia
-      const title = isKarinLaw 
-        ? '⚠️ URGENTE: Nueva denuncia Ley Karin recibida' 
-        : 'Nueva denuncia recibida';
-      
-      return await createNotification(companyId, {
-        recipient: adminData.email,
+    if (recipients.length === 0) {
+      return { success: false, error: 'No se encontraron destinatarios' };
+    }
+
+    // Título especial para Ley Karin por su urgencia
+    const title = isKarinLaw
+      ? '⚠️ URGENTE: Nueva denuncia Ley Karin recibida'
+      : 'Nueva denuncia recibida';
+
+    // Notificar a cada destinatario
+    const notifications = recipients.map(async (recipient) => {
+      // Construir el payload sin incluir userId cuando no existe:
+      // Firestore (addDoc) rechaza valores `undefined`.
+      const payload: Omit<Notification, 'status'> = {
+        recipient: recipient.email,
         type: 'new_report',
         title,
         content: `
@@ -202,14 +224,16 @@ export async function notifyAdminsNewReport(
           <ul>
             <li>Código: <strong>${reportCode}</strong></li>
             <li>Categoría: ${category}</li>
+            <li>Empresa (ID): ${companyId}</li>
             ${isKarinLaw ? '<li><strong>Denuncia Ley Karin: Requiere atención prioritaria</strong></li>' : ''}
           </ul>
           <p>Por favor, revise la denuncia para asignarla a un investigador.</p>
         `,
         reportId,
         reportCode,
-        userId: userDoc.id
-      });
+        ...(recipient.userId ? { userId: recipient.userId } : {})
+      };
+      return await createNotification(companyId, payload);
     });
 
     // Esperar a que todas las notificaciones se envíen

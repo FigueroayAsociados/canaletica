@@ -1173,17 +1173,38 @@ export async function addCommunicationByCode(
   }
   
   // Funciones de ayuda
-  function generateReportCode() {
-    // Generar código alfanumérico único de 8 caracteres
-    return (
-      Math.random().toString(36).substring(2, 6).toUpperCase() +
-      Math.random().toString(36).substring(2, 6).toUpperCase()
-    );
+
+  // Genera una cadena aleatoria criptográficamente segura.
+  // Alfabeto de 32 caracteres sin símbolos ambiguos (0/O, 1/I) para que
+  // el código sea fácil de leer y dictar. 256 % 32 === 0 → sin sesgo de módulo.
+  function secureRandomCode(length: number) {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const cryptoObj = (typeof globalThis !== 'undefined' && globalThis.crypto)
+      ? globalThis.crypto
+      : (typeof window !== 'undefined' ? window.crypto : undefined);
+    if (!cryptoObj || !cryptoObj.getRandomValues) {
+      // Sin API criptográfica disponible: fallar de forma segura en lugar
+      // de generar un código débil y predecible.
+      throw new Error('Generador criptográfico no disponible en este entorno');
+    }
+    const bytes = new Uint8Array(length);
+    cryptoObj.getRandomValues(bytes);
+    let code = '';
+    for (let i = 0; i < bytes.length; i++) {
+      code += alphabet[bytes[i] % alphabet.length];
+    }
+    return code;
   }
-  
+
+  function generateReportCode() {
+    // Código de seguimiento legible de 10 caracteres (~51 bits de entropía).
+    return secureRandomCode(10);
+  }
+
   function generateAccessCode() {
-    // Generar código de acceso seguro para denunciantes anónimos
-    return uuidv4().substring(0, 8);
+    // Código de acceso para denunciantes anónimos: 16 caracteres
+    // (~80 bits). Ya no es un UUID truncado a 8 (que era adivinable).
+    return secureRandomCode(16);
   }
   
   /**

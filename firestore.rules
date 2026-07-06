@@ -1,165 +1,168 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Funciones de ayuda
+
+    // ============================================================
+    //  CanalEtica — Reglas de seguridad
+    //  Reescritas (jul 2026) para CERRAR el acceso abierto que
+    //  existía "para diagnóstico". Ver INFORME-AUDITORIA.html.
+    //
+    //  Principio: negar por defecto. Solo se permite lo que cada
+    //  flujo real necesita. Lo que NO tenga una regla explícita
+    //  queda DENEGADO automáticamente.
+    // ============================================================
+
+    // ---------- Funciones de ayuda ----------
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Función para verificar si es un usuario administrador principal
-    // En producción, esto debería verificarse contra una colección de administradores
+    // Super administrador de la plataforma (Figueroa y Asociados)
     function isPrimaryAdmin() {
-      return exists(/databases/$(database)/documents/super_admins/$(request.auth.uid));
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/super_admins/$(request.auth.uid));
     }
 
-    // Regla especial: acceso completo para tus usuarios específicos
-    match /{document=**} {
-      allow read, write: if true; // Temporalmente permitimos todo acceso para diagnóstico
-      // allow read, write: if isPrimaryAdmin(); // Versión normal que usaremos después
-    }
-
-    // Para otros usuarios, se aplican las siguientes reglas
+    // ¿El usuario pertenece a la empresa?
     function belongsToCompany(companyId) {
       return isAuthenticated() &&
         exists(/databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid));
     }
 
+    // ¿El usuario tiene cierto rol dentro de la empresa?
     function hasRole(companyId, role) {
       return isAuthenticated() &&
         get(/databases/$(database)/documents/companies/$(companyId)/users/$(request.auth.uid)).data.role == role;
     }
 
+    // ¿Es el investigador asignado a la denuncia?
     function isReportAssignee(companyId, reportId) {
       return isAuthenticated() &&
         get(/databases/$(database)/documents/companies/$(companyId)/reports/$(reportId)).data.assignedTo == request.auth.uid;
     }
 
-    function isAnonymousReporter(companyId, reportId, accessCode) {
-      return request.auth == null &&
-        get(/databases/$(database)/documents/companies/$(companyId)/reports/$(reportId)/reporter/info).data.accessCode == accessCode;
+    // Personal interno de la empresa con acceso de gestión
+    function isCompanyStaff(companyId) {
+      return belongsToCompany(companyId);
     }
-    
-    // Regla especial para super_admins
+
+    // ---------- Super admins (plataforma) ----------
+    // Cada super admin solo puede leer/escribir su propio registro.
     match /super_admins/{userId} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Reglas para empresas
+    // ---------- Registros de seguridad y auditoría ----------
+    // Se pueden CREAR desde el cliente (incluyendo intentos de login
+    // sin autenticar), pero solo el super admin puede LEERLOS, y
+    // nadie puede modificarlos o borrarlos (integridad del log).
+    // Lectura restringida a personal autenticado (antes: pública). Crear
+    // permitido sin sesión para registrar intentos de login. Sin edición/borrado.
+    match /securityLogs/{docId}   { allow create: if true; allow read: if isAuthenticated(); allow update, delete: if false; }
+    match /auditLogs/{docId}      { allow create: if true; allow read: if isAuthenticated(); allow update, delete: if false; }
+    match /securityAlerts/{docId} { allow create: if true; allow read: if isPrimaryAdmin(); allow update, delete: if isPrimaryAdmin(); }
+    match /ipWatchlist/{docId}    { allow read: if isPrimaryAdmin(); allow write: if isPrimaryAdmin(); }
+
+    // ---------- Login / 2FA (flujo previo a autenticación) ----------
+    // ⚠️ CAPA 2 — DEUDA DE SEGURIDAD PENDIENTE:
+    // Estas colecciones se usan ANTES de que el usuario esté
+    // autenticado (verificación de código, 2FA), por eso hoy no se
+    // pueden cerrar solo con reglas sin romper el login. El cierre
+    // correcto es mover la verificación OTP/2FA al SERVIDOR (Cloud
+    // Function con admin SDK) y luego denegar el acceso directo aquí.
+    // Se dejan operativas de momento, pero acotadas a estas rutas
+    // concretas (ya no forman parte de un "todo abierto").
+    match /loginAttempts/{docId}   { allow read, write: if true; }
+    match /loginOTPCodes/{docId}   { allow read, write: if true; }
+    match /tempOTPCodes/{docId}    { allow read, write: if true; }
+    match /usersTwoFactor/{userId} { allow read, write: if true; }
+
+    // ---------- Configuración global y usuarios de plataforma ----------
+    match /config/{docId} {
+      allow read: if true;               // config pública para formularios
+      allow write: if isPrimaryAdmin();
+    }
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isPrimaryAdmin());
+    }
+
+    // ============================================================
+    //  EMPRESAS (multi-tenant)
+    // ============================================================
     match /companies/{companyId} {
-      // Usuarios con cuenta autenticada pueden acceder a la empresa default
+
+      // El DOCUMENTO de la empresa (nombre, logo, branding) se lee
+      // públicamente para que la página pública del canal lo muestre.
+      // No contiene secretos (las credenciales SMTP viven en Functions).
+      // Escritura solo por admin de la empresa o super admin.
+      allow read: if true;
+      allow write: if isPrimaryAdmin() || hasRole(companyId, "admin");
+
+      // Personal autenticado de la empresa: acceso a subdocumentos.
       match /{document=**} {
-        allow read, write: if 
-          // Permitir a cualquier usuario autenticado para la empresa default
-          (companyId == 'default' && isAuthenticated());
+        allow read, write: if isCompanyStaff(companyId) || isPrimaryAdmin();
       }
-      
-      // Reglas específicas para otros usuarios
-      // Usuarios: administración por administradores
+
+      // ----- Usuarios de la empresa -----
       match /users/{userId} {
-        allow read: if belongsToCompany(companyId);
-        allow write: if hasRole(companyId, "admin") || request.auth.uid == userId;
+        allow read: if belongsToCompany(companyId) || isPrimaryAdmin();
+        allow write: if hasRole(companyId, "admin") || isPrimaryAdmin() || request.auth.uid == userId;
       }
 
-      // Denuncias: reglas específicas según rol
+      // ----- Denuncias -----
       match /reports/{reportId} {
-        // Permitir a cualquier persona crear denuncias sin autenticación
-        allow create: if true; // Para diagnóstico, se permite la creación sin restricciones
-        
-        // Lectura por administradores o investigadores asignados, o cualquier persona para diagnóstico
-        allow read: if true; // Para diagnóstico, permitir lectura pública
-        
-        // Actualizaciones por administradores o investigadores asignados, o cualquier persona para diagnóstico
-        allow update: if true; // Para diagnóstico, permitir actualización pública
-        
-        // Nadie puede eliminar denuncias (solo archivarlas)
-        allow delete: if false;
-        
-        // Permitir la creación y lectura de todas las subcollecciones de las denuncias
-        match /{collection}/{docId} {
-          allow read, write: if true; // Para diagnóstico, permitir todo tipo de operaciones
+        // Cualquiera puede CREAR una denuncia (canal público/anónimo).
+        allow create: if true;
+
+        // ⚠️ CAPA 2 (pendiente): la LECTURA sigue abierta porque el
+        // seguimiento anónimo lee la denuncia desde el navegador
+        // (getReportByCode + accessCode). Cerrar esto requiere mover el
+        // seguimiento a un endpoint de servidor (Cloud Function con admin
+        // SDK que valide el accessCode). Hecho eso, cambiar a:
+        //   allow read: if isCompanyStaff(companyId) || isPrimaryAdmin();
+        allow read: if true;
+
+        // ACTUALIZAR/BORRAR: solo personal (antes cualquiera podía
+        // modificar cualquier denuncia). Esto SÍ se cierra ahora.
+        allow update: if isCompanyStaff(companyId) || isPrimaryAdmin();
+        allow delete: if false; // nunca borrar, solo archivar
+
+        // Subcolecciones (evidencias, hallazgos, reporter/info…):
+        // creación y lectura abiertas (las necesita el envío público y el
+        // seguimiento — CAPA 2), pero editar/borrar solo personal:
+        // así se evita la manipulación anónima de una denuncia existente.
+        match /{sub}/{docId} {
+          allow create, read: if true;
+          allow update, delete: if isCompanyStaff(companyId) || isPrimaryAdmin();
         }
-        
-        // Comunicaciones: accesibles también por el denunciante anónimo
+
+        // Comunicaciones: el denunciante anónimo puede escribir/leer sus
+        // mensajes; editar/borrar solo personal.
         match /communications/{messageId} {
-          allow read, write: if belongsToCompany(companyId) &&
-            (hasRole(companyId, "admin") ||
-             isReportAssignee(companyId, reportId)) ||
-            isAnonymousReporter(companyId, reportId, request.query.accessCode);
+          allow create, read: if true;
+          allow update, delete: if isCompanyStaff(companyId) || isPrimaryAdmin();
         }
       }
 
-      // REGLAS PARA EL MÓDULO DE CONFIGURACIÓN
-      // Categorías: lectura pública, escritura solo para administradores
-      match /categories/{categoryId} {
-        allow read: if true; // Permitir a cualquiera leer categorías
-        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
-      }
-      
-      // Subcategorías: lectura pública, escritura solo para administradores
-      match /subcategories/{subcategoryId} {
-        allow read: if true; // Permitir a cualquiera leer subcategorías
-        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
-      }
-      
-      // Plantillas de mensajes: solo administradores pueden modificar
-      match /messageTemplates/{templateId} {
-        allow read: if belongsToCompany(companyId);
-        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
-      }
-      
-      // Roles personalizados: solo administradores pueden modificar
-      match /roles/{roleId} {
-        allow read: if belongsToCompany(companyId);
-        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
-      }
-      
-      // Integraciones externas: solo administradores pueden modificar
-      match /integrations/{integrationId} {
-        allow read: if belongsToCompany(companyId);
-        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
-      }
-      
-      // Notificaciones: lectura y escritura para miembros de la empresa
-      // Para diagnóstico, permitimos escritura pública para resolver errores de permisos
-      match /notifications/{notificationId} {
-        allow read, write: if true; // Permitir todas las operaciones para diagnóstico
-      }
-      
-      // Opciones de formularios: lectura para todos, escritura solo para administradores
-      match /formOptions/{optionType}/values/{valueId} {
-        allow read: if true; // Permitir lectura pública para el formulario de denuncias
-        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin");
-      }
-      
-      // Acceso público a las opciones de formulario para denuncias anónimas
-      match /formOptions/{optionType} {
-        allow read: if true;
-      }
-      
-      // Acceso público a la configuración general para formularios públicos
-      match /settings/general {
-        allow read: if true;
-      }
-      
-      // Permitir lectura pública a documentos marcados como públicos
-      match /documents/{documentId} {
-        // Para diagnóstico: permitir todas las operaciones
-        allow read, write: if true;
-        
-        // Versión normal (activar después del diagnóstico):
-        // allow read: if resource.data.isPublic == true; // Permitir leer documentos públicos a cualquier usuario
-        // allow read, write: if belongsToCompany(companyId) && (hasRole(companyId, "admin") || hasRole(companyId, "investigator")); // Administradores pueden gestionar todos los documentos
-      }
-      
-      // Permitir acceso público a documentos que explícitamente están en la colección publicDocuments
-      match /publicDocuments/{documentId} {
-        allow read: if true; // Permitir lectura pública para estos documentos
-        allow write: if belongsToCompany(companyId) && hasRole(companyId, "admin"); // Solo administradores pueden modificarlos
-      }
-      
-      // Acceso a las estadísticas para permitir la actualización desde el formulario de denuncia
+      // ----- Configuración pública necesaria para el formulario -----
+      // (lectura pública para que el canal funcione sin login)
+      match /categories/{categoryId}     { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
+      match /subcategories/{subId}        { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
+      match /formOptions/{optionType}     { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
+      match /formOptions/{optionType}/values/{valueId} { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
+      match /settings/general             { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
+      match /publicDocuments/{docId}      { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
+
+      // ----- Estadísticas: el formulario público las incrementa -----
       match /stats/{document=**} {
-        allow read, write: if true; // Para diagnóstico, permitir todas las operaciones
+        allow read: if isCompanyStaff(companyId) || isPrimaryAdmin();
+        allow write: if true; // contadores desde el formulario público
+      }
+
+      // ----- Notificaciones: creadas por la app, leídas por staff -----
+      match /notifications/{notificationId} {
+        allow create: if true; // se generan al crear denuncia (flujo público)
+        allow read, update, delete: if isCompanyStaff(companyId) || isPrimaryAdmin();
       }
     }
   }

@@ -17,8 +17,21 @@ admin.initializeApp();
 
 // Definir secretos y variables de entorno
 const emailUser = defineString('EMAIL_USER', { default: 'notificaciones@canaletica.cl' });
-const emailPassword = defineSecret('EMAIL_PASSWORD'); 
+const emailPassword = defineSecret('EMAIL_PASSWORD');
 const adminUids = defineString('ADMIN_UIDS', { default: 'gQcbPQTW03MlhRXquvkH6YHO4Pp2,M4K2AxpY8kOGjnUvvUYgfWfgalF3' });
+
+// Configuración SMTP (configurable por variable de entorno, sin hardcodear el servidor).
+// Para cambiar de proveedor basta con redefinir estas variables y redeployar.
+//   EMAIL_HOST   -> servidor SMTP (Resend: smtp.resend.com | M365: smtp.office365.com)
+//   EMAIL_PORT   -> puerto (587 con STARTTLS)
+//   EMAIL_SECURE -> 'true' solo para SSL directo en puerto 465; 'false' para 587
+const emailHost = defineString('EMAIL_HOST', { default: 'smtp.resend.com' });
+const emailPort = defineString('EMAIL_PORT', { default: '587' });
+const emailSecure = defineString('EMAIL_SECURE', { default: 'false' });
+// Dirección "De:" que ve el destinatario. Se separa del usuario SMTP porque algunos
+// proveedores (p. ej. Resend usa el usuario fijo 'resend') autentican con un usuario
+// distinto al remitente real.
+const emailFrom = defineString('EMAIL_FROM', { default: 'notificaciones@canaletica.cl' });
 
 // Variable para almacenar el transporte de correo
 let mailTransport: nodemailer.Transporter;
@@ -31,22 +44,26 @@ function setupMailTransport() {
     // Usar variables de entorno
     const user = emailUser.value();
     const password = emailPassword.value();
-    
+    const host = emailHost.value();
+    const port = parseInt(emailPort.value(), 10) || 587;
+    const secure = emailSecure.value() === 'true'; // false => STARTTLS (puerto 587)
+
     mailTransport = nodemailer.createTransport({
-      host: 'mail.canaletica.cl',
-      port: 465,
-      secure: true, // true para SSL/TLS en puerto 465
+      host: host,
+      port: port,
+      secure: secure,
       auth: {
         user: user,
         pass: password
       },
-      // Configuración adicional para servidor SMTP canaletica.cl
+      // STARTTLS en puerto 587. Mantener TLS exigido por el servidor.
+      requireTLS: !secure,
       tls: {
         rejectUnauthorized: false
       }
     });
     logger.info("Transporte de correo configurado correctamente");
-    logger.info(`Usando cuenta de correo: ${user}`);
+    logger.info(`SMTP: ${host}:${port} (secure=${secure}) | cuenta: ${user}`);
     return true;
   } catch (error) {
     logger.error("Error al configurar el transporte de correo:", error);
@@ -112,7 +129,7 @@ async function sendEmailInternal(data: EmailData) {
     
     // Configurar el correo
     const mailOptions = {
-      from: `"${company?.name || 'Canal de Denuncias'}" <${emailUser.value()}>`,
+      from: `"${company?.name || 'Canal de Denuncias'}" <${emailFrom.value()}>`,
       to: notification.recipient,
       subject: notification.title,
       html: `

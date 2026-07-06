@@ -2,9 +2,26 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Para diagnóstico, permitir todas las operaciones en cualquier ruta
+
+    // ============================================================
+    //  CanalEtica — Reglas de almacenamiento
+    //  Reescritas (jul 2026). Antes: "read, write: if true" dejaba
+    //  DESCARGAR y BORRAR cualquier archivo (incluidas todas las
+    //  evidencias de denuncias) a cualquier persona en internet.
+    // ============================================================
+
     match /{allPaths=**} {
-      allow read, write: if true;
+      // LECTURA: solo personal autenticado. Las evidencias de
+      // denuncias son sensibles y ya no son públicas.
+      allow read: if request.auth != null;
+
+      // SUBIR (crear): permitido con o sin sesión —el canal público
+      // y anónimo necesita adjuntar evidencia— pero con límite de
+      // tamaño para evitar abuso. No se puede leer lo subido sin login.
+      allow create: if request.resource.size < 100 * 1024 * 1024; // 100 MB máx
+
+      // MODIFICAR / BORRAR: solo personal autenticado.
+      allow update, delete: if request.auth != null;
     }
   }
 }
