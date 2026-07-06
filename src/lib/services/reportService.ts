@@ -425,74 +425,46 @@ export async function uploadEvidence(
 }
   
   // Buscar denuncia por código
+// Reconstruye los Timestamp de Firestore que llegan serializados como JSON
+// ({_seconds,_nanoseconds}) desde el endpoint /api/track, para que la vista
+// siga tratándolos como Timestamp (con .toDate(), etc.) igual que antes.
+function reviveTimestamps<T>(value: T): T {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    return value.map((v) => reviveTimestamps(v)) as unknown as T;
+  }
+  const obj = value as Record<string, unknown>;
+  const s = (obj._seconds ?? obj.seconds);
+  const n = (obj._nanoseconds ?? obj.nanoseconds);
+  if (typeof s === 'number' && typeof n === 'number' && Object.keys(obj).length <= 2) {
+    return new Timestamp(s, n) as unknown as T;
+  }
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(obj)) out[k] = reviveTimestamps(obj[k]);
+  return out as unknown as T;
+}
+
+// Seguimiento seguro: la búsqueda se hace en el SERVIDOR (/api/track), que
+// valida el secreto (correo, para identificadas) antes de devolver la denuncia.
+// Así las denuncias permanecen cerradas al público en las reglas de Firestore.
 export async function getReportByCode(
   companyId: string,
   reportCode: string,
-  userRole?: string | null,
-  userId?: string | null
+  _userRole?: string | null,
+  userId?: string | null   // en el flujo público identificado, aquí viene el correo
 ) {
   try {
     if (!companyId || !reportCode) {
-      return {
-        success: false,
-        error: 'Parámetros incompletos'
-      };
+      return { success: false, error: 'Parámetros incompletos' };
     }
-
-    // Verificación centralizada de acceso multi-tenant
-    const accessCheck = await verifyCompanyAccess(companyId, userRole, userId);
-    if (!accessCheck.success) {
-      console.error(`⚠️ ALERTA DE SEGURIDAD: Usuario ${userId} con rol ${userRole} intentó acceder a denuncia por código ${reportCode} de compañía ${companyId}`);
-      return {
-        success: false,
-        error: accessCheck.error || 'No tiene permiso para acceder a los datos de esta compañía'
-      };
-    }
-
-    const reportsRef = collection(db, `companies/${companyId}/reports`);
-    const q = query(reportsRef, where('code', '==', reportCode));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      return { success: false, error: 'Denuncia no encontrada' };
-    }
-
-    const reportDoc = querySnapshot.docs[0];
-    const reportId = reportDoc.id;
-    const reportData = reportDoc.data();
-
-    // Si hay un investigador asignado, obtener su nombre
-    let assignedToName = undefined;
-    if (reportData.assignedTo) {
-      const userResult = await getUserProfileById(companyId, reportData.assignedTo);
-      if (userResult.success) {
-        assignedToName = userResult.profile.displayName;
-      }
-    }
-
-    // Obtener las comunicaciones con el denunciante
-    const communicationsRef = collection(db, `companies/${companyId}/reports/${reportId}/communications`);
-    const communicationsQuery = query(communicationsRef, orderBy('timestamp', 'desc'));
-    const communicationsSnap = await getDocs(communicationsQuery);
-
-    const communications = communicationsSnap.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      // Filtrar para excluir mensajes internos que no deberían ver los denunciantes
-      .filter(comm => !comm.isInternal);
-
-    return {
-      success: true,
-      reportId: reportDoc.id,
-      report: {
-        id: reportId,
-        ...reportData,
-        assignedToName,
-        communications
-      },
-    };
+    const res = await fetch('/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId, reportCode, email: userId }),
+    });
+    const data = await res.json();
+    if (!data.success) return data;
+    return reviveTimestamps(data);
   } catch (error) {
     console.error('Error fetching report:', error);
     return { success: false, error: 'Error al buscar la denuncia' };
@@ -504,27 +476,21 @@ export async function getReportByCodeAndAccessCode(
   companyId: string,
   reportCode: string,
   accessCode: string,
-  userRole?: string | null,
-  userId?: string | null
+  _userRole?: string | null,
+  _userId?: string | null
 ) {
   try {
-    const result = await getReportByCode(companyId, reportCode, userRole, userId);
-
-    if (!result.success) {
-      return result;
+    if (!companyId || !reportCode) {
+      return { success: false, error: 'Parámetros incompletos' };
     }
-
-    // Verificar el código de acceso para denuncias anónimas
-    if (result.report.reporter?.isAnonymous) {
-      if (result.report.reporter?.accessCode === accessCode) {
-        return result;
-      } else {
-        return { success: false, error: 'Código de acceso incorrecto' };
-      }
-    }
-
-    // Si no es anónima, no debería estar usando código de acceso
-    return { success: false, error: 'Esta denuncia no utiliza código de acceso' };
+    const res = await fetch('/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId, reportCode, accessCode }),
+    });
+    const data = await res.json();
+    if (!data.success) return data;
+    return reviveTimestamps(data);
   } catch (error) {
     console.error('Error fetching report with access code:', error);
     return { success: false, error: 'Error al buscar la denuncia' };
