@@ -1,5 +1,6 @@
 // src/pages/api/ai/smart-calendar.js
 import Anthropic from '@anthropic-ai/sdk';
+import { verifyRequestAuth } from '@/lib/server/aiAuth';
 import { addDays, format, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -8,6 +9,10 @@ const anthropic = new Anthropic({
 });
 
 export default async function handler(req, res) {
+  // Requiere usuario autenticado (evita abuso de la cuota de Claude).
+  if (!(await verifyRequestAuth(req))) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

@@ -85,11 +85,14 @@ export default function SuperAdminUsersPage() {
       setError(null);
       setSuccess(null);
       
-      // Usar el API para crear usuario desde el servidor
+      // Usar el API para crear usuario desde el servidor.
+      // Se envía el token del super admin para que el servidor lo verifique.
+      const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/admin/create-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         },
         body: JSON.stringify({
           email,

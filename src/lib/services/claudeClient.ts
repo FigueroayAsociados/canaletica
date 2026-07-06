@@ -1,17 +1,23 @@
 // src/lib/services/claudeClient.ts
 // Cliente seguro que usa API routes del servidor
 
+import { auth } from '@/lib/firebase/config';
+
 export interface ClaudeMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
-// Función helper para hacer llamadas a las API routes
+// Función helper para hacer llamadas a las API routes.
+// Envía el token del usuario autenticado para que el servidor lo verifique
+// (los endpoints de IA ahora exigen sesión válida).
 async function apiCall(endpoint: string, data: any) {
+  const idToken = await auth?.currentUser?.getIdToken();
   const response = await fetch(`/api/ai/${endpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
     },
     body: JSON.stringify(data)
   });

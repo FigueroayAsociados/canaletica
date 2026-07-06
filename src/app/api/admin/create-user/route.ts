@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { getAdminAuth, getAdminFirestore } from '@/lib/firebase/admin';
+import { ADMIN_UIDS } from '@/lib/utils/constants/index';
 
 // Interfaz para la solicitud
 interface CreateUserRequest {
@@ -11,12 +12,29 @@ interface CreateUserRequest {
   role: string;
 }
 
+// Verifica que quien llama sea super administrador (token Firebase válido +
+// UID en la lista de administradores de la plataforma). Antes NO había
+// ninguna verificación: cualquiera podía crear usuarios administradores.
+async function isSuperAdmin(request: Request): Promise<boolean> {
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+    const token = authHeader.substring(7);
+    const decoded = await getAdminAuth().verifyIdToken(token);
+    return ADMIN_UIDS.includes(decoded.uid);
+  } catch (error) {
+    console.error('Error verificando token en create-user:', error);
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    // Verificar si el usuario es super admin
-    // Esta parte dependerá de cómo manejas la autenticación del lado del servidor
-    // Por ahora asumiremos que tienes un mecanismo de verificación
-    
+    // Solo super administradores pueden crear usuarios.
+    if (!(await isSuperAdmin(request))) {
+      return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 403 });
+    }
+
     // Obtener instancias de Firebase Admin
     const adminAuth = getAdminAuth();
     const db = getAdminFirestore();
