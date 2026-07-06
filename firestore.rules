@@ -86,6 +86,15 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isPrimaryAdmin());
     }
 
+    // ---------- Videos públicos del sitio ----------
+    // Colección global de videos institucionales que muestra la página
+    // pública (se consultan los que tienen isActive==true). Lectura pública;
+    // gestión solo por personal autenticado.
+    match /videos/{videoId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
     // ============================================================
     //  EMPRESAS (multi-tenant)
     // ============================================================
@@ -152,6 +161,16 @@ service cloud.firestore {
       match /formOptions/{optionType}/values/{valueId} { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
       match /settings/general             { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
       match /publicDocuments/{docId}      { allow read: if true; allow write: if hasRole(companyId, "admin") || isPrimaryAdmin(); }
+
+      // Documentos: los marcados isPublic==true son legibles por el público
+      // (documentos legales del canal). El resto, solo personal (vía la
+      // regla general de la empresa de más arriba). La consulta pública
+      // incluye where('isPublic','==',true), requisito para que 'list' pase.
+      match /documents/{docId} {
+        allow read: if resource.data.isPublic == true
+                    || isCompanyStaff(companyId) || isPrimaryAdmin();
+        allow write: if hasRole(companyId, "admin") || isPrimaryAdmin();
+      }
 
       // ----- Estadísticas: el formulario público las incrementa -----
       match /stats/{document=**} {
